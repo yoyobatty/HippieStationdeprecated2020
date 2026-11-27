@@ -892,8 +892,7 @@ GLOBAL_LIST_EMPTY(external_rsc_urls)
 	if (isliving(mob))
 		var/mob/living/M = mob
 		M.update_damage_hud()
-	if (prefs.auto_fit_viewport)
-		addtimer(CALLBACK(src, VERB_REF(fit_viewport)), 1 SECONDS) //Delayed to avoid wingets from Login calls. // hippie -- the 10 was going to the verb, not the timer
+	queue_viewport_fit() // hippie -- fit after DreamSeeker applies the new view
 
 /client/proc/generate_clickcatcher()
 	if(!void)

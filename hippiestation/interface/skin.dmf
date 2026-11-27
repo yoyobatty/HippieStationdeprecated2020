@@ -95,6 +95,7 @@ window "mainwindow"
 		statusbar = false
 		icon = 'icons\\tg_32.png'
 		macro = "default"
+		on-size = "viewport-resized"
 	elem "split"
 		type = CHILD
 		pos = 0,0

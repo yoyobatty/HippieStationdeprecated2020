@@ -1,5 +1,5 @@
 // Why a test client's map is drawn small in the bottom left of its pane: logs the map's drawn size (view-size) against its pane
-// size, then tries ways to make DreamSeeker lay the map out again, with a picture after each.
+// size, compares it with parallax off, and checks auto fit, the square view option, and saved manual settings.
 // Not part of the game: MAP=testbench HARNESS=map_fit_probe.dm SENDER=shot.ps1 tools/keybind_check/run.sh mapfit
 // Pictures in data/previews/mapfit_*.png, log in data/keycheck.txt.
 
@@ -29,6 +29,13 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 
 /proc/probe_state(client/C, label)
 	kc_log("[label]: main [winget(C, "mainwindow", "size")] min [winget(C, "mainwindow", "is-minimized")] max [winget(C, "mainwindow", "is-maximized")]; map pane [winget(C, "mapwindow.map", "size")], drawn [winget(C, "mapwindow.map", "view-size")], zoom [winget(C, "mapwindow.map", "zoom")], icon-size [winget(C, "mapwindow.map", "icon-size")], letterbox [winget(C, "mapwindow.map", "letterbox")], view [C.view]")
+	kc_log("  split [winget(C, "mainwindow.split", "size")], splitter [winget(C, "mainwindow.split", "splitter")], pane [winget(C, "mapwindow", "size")], sizes [winget(C, "mainwindow.split;mapwindow", "size")], auto [C.prefs.auto_fit_viewport]")
+
+/proc/probe_side_bars(client/C, label)
+	var/pane_width = text2num(splittext(winget(C, "mapwindow.map", "size"), "x")[1])
+	var/drawn_width = text2num(splittext(winget(C, "mapwindow.map", "view-size"), "x")[1])
+	var/fits = pane_width && drawn_width && abs(pane_width - drawn_width) <= 2
+	kc_log("[fits ? "PASS" : "FAIL"] [label]: pane width [pane_width], drawn width [drawn_width]")
 
 /// Every screen object that could shrink or move the whole picture: a transform, a screen_loc other than the plain ones, a
 /// render_source relay
@@ -45,33 +52,79 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 /proc/map_fit_probe_run(client/C)
 	fdel("data/keycheck_shot")
 	fdel("data/keycheck_shots_done")
+	C.fps = 60
+	text2file("go", "data/keycheck_sendkeys") //starts shot.ps1
+	probe_state(C, "lobby")
+	probe_shot("mapfit_auto_0_lobby")
 	GLOB.master_mode = "extended"
 	SSticker.start_immediately = TRUE
 	var/wait_for_round = world.time + 3 MINUTES
 	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < wait_for_round)
 		sleep(1 SECONDS)
 	sleep(3 SECONDS)
-	text2file("go", "data/keycheck_sendkeys") //starts shot.ps1
 	var/mob/living/carbon/human/H = new(locate(world.maxx / 2, world.maxy / 2, SSmapping.levels_by_trait(ZTRAIT_STATION)[1]))
 	H.status_flags |= GODMODE
 	H.ckey = C.ckey
 	sleep(3 SECONDS)
 	probe_state(C, "in the round")
+	probe_side_bars(C, "default auto fit")
 	kc_log("screen objects ([length(C.screen)]) that could move or shrink the picture:")
 	probe_screen(C)
 	kc_log("key [C.ckey], parallax pref [C.prefs.parallax], graphics [C.prefs.graphics_quality()]")
-	probe_shot("mapfit7_0_as_is")
+	probe_shot("mapfit_auto_1_as_is")
 	// The sky off: if the map fills its pane now, a sky screen object reaching past the view grew the map's area
 	C.prefs.parallax = PARALLAX_DISABLE
 	H.hud_used.update_parallax_pref(H)
 	sleep(1 SECONDS)
 	kc_log("sky off:")
 	probe_screen(C)
-	probe_shot("mapfit7_1_sky_off")
+	probe_state(C, "parallax off")
+	probe_shot("mapfit_auto_2_sky_off")
 	C.prefs.parallax = PARALLAX_HIGH
 	H.hud_used.update_parallax_pref(H)
 	sleep(1 SECONDS)
-	probe_shot("mapfit7_2_sky_back")
+	probe_state(C, "parallax on")
+	probe_shot("mapfit_auto_3_sky_back")
+	var/widescreen = C.prefs.widescreenpref
+	var/auto_fit = C.prefs.auto_fit_viewport
+	C.prefs.widescreenpref = FALSE
+	C.change_view(CONFIG_GET(string/default_view))
+	sleep(2 SECONDS)
+	probe_state(C, "square preference")
+	probe_side_bars(C, "square viewport")
+	probe_shot("mapfit_auto_4_square")
+	C.prefs.widescreenpref = widescreen
+	C.change_view(CONFIG_GET(string/default_view))
+	sleep(2 SECONDS)
+
+	var/original_window = winget(C, "mainwindow", "size;is-maximized;is-fullscreen")
+	var/original_zoom = winget(C, "mapwindow.map", "zoom;zoom-mode;letterbox")
+	var/original_splitter = winget(C, "mainwindow.split", "splitter")
+	C.set_auto_fit_viewport(FALSE)
+	winset(C, "mainwindow.split", "splitter=57")
+	C.set_auto_fit_viewport(TRUE)
+	sleep(2 SECONDS)
+	winset(C, "mainwindow", "is-fullscreen=false;is-maximized=false;size=1100x820")
+	sleep(1 SECONDS)
+	winset(C, null, "command=viewport-resized") // winset() itself does not fire on-size
+	sleep(2 SECONDS)
+	probe_state(C, "compact window")
+	probe_side_bars(C, "compact window")
+	probe_shot("mapfit_auto_5_compact")
+
+	winset(C, "mapwindow.map", "zoom=1;letterbox=false;zoom-mode=blur")
+	var/fixed_settings = winget(C, "mapwindow.map", "zoom;zoom-mode;letterbox")
+	C.fit_viewport()
+	var/after_settings = winget(C, "mapwindow.map", "zoom;zoom-mode;letterbox")
+	kc_log("[fixed_settings == after_settings ? "PASS" : "FAIL"] fixed zoom, scaling and letterbox kept: [after_settings]")
+	C.set_auto_fit_viewport(FALSE)
+	sleep(1 SECONDS)
+	var/restored_splitter = text2num(winget(C, "mainwindow.split", "splitter"))
+	kc_log("[abs(restored_splitter - 57) < 0.01 ? "PASS" : "FAIL"] remembered manual divider: [restored_splitter]")
+	C.prefs.auto_fit_viewport = auto_fit
+	winset(C, "mainwindow", original_window)
+	winset(C, "mapwindow.map", original_zoom)
+	winset(C, "mainwindow.split", "splitter=[original_splitter]")
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
 	kc_log("done")

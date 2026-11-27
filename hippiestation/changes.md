@@ -29,6 +29,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/_onclick/hud/parallax.dm (out of the .dme: rewritten whole as hippiestation/code/_onclick/hud/parallax.dm, the sky's layers come from the round's theme and slide with the eye's glide)
 ## code/\_onclick/item_attack.dm (an object hit by an item is told which side it was hit from, Paradise #33082)
 ## code/controllers/configuration/entries/dbconfig.dm
+## code/controllers/configuration/entries/general.dm (default client view is 19x15, with 15x15 for the square preference)
 ## code/controllers/failsafe.dm
 ## code/controllers/master.dm (starts the lobby build once startup is done, and lets it set its own tick limit while it runs: build_ticklimit, lobby_build.dm)
 ## code/controllers/subsystem.dm
@@ -215,7 +216,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/client/darkmode.dm
 ## code/modules/client/preferences.dm
 ## code/modules/client/preferences_savefile.dm
-## code/modules/client/verbs/ooc.dm
+## code/modules/client/verbs/ooc.dm (fit viewport uses DreamSeeker's drawn map size and leaves room for chat)
 ## code/modules/clothing/clothing.dm (voice-box masks get their toggle button: LAZYADD)
 ## code/modules/clothing/head/misc_special.dm (user, not usr: null when a bot does it)
 ## code/modules/clothing/masks/gasmask.dm (user, not usr: null when a bot does it)

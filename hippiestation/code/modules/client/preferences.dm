@@ -12,6 +12,8 @@
 	var/gear_tab
 	var/hippie_toggles = HIPPIE_TOGGLES_DEFAULT // our own toggles.
 	var/voice
+	/// Map pane's splitter percentage before Auto Fit took over.
+	var/manual_viewport_splitter
 
 /datum/preferences/New(client/C)
 	..()

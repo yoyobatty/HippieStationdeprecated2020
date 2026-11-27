@@ -21,11 +21,37 @@
 	prefs.fullscreen_mode = !prefs.fullscreen_mode
 	prefs.save_preferences()
 	set_fullscreen()
-	if(prefs.auto_fit_viewport)
-		addtimer(CALLBACK(src, VERB_REF(fit_viewport)), 1 SECONDS) //the map's just changed shape
 
 /client/proc/set_fullscreen()
 	winset(src, "mainwindow", "is-fullscreen=[prefs.fullscreen_mode ? "true" : "false"]")
+	queue_viewport_fit()
+
+/client/verb/viewport_resized()
+	set hidden = TRUE
+	queue_viewport_fit()
+
+/// Wait for DreamSeeker to apply the new view or window size. Coalesce callbacks from the same layout change.
+/client/proc/queue_viewport_fit()
+	if(prefs?.auto_fit_viewport)
+		addtimer(CALLBACK(src, PROC_REF(fit_viewport_if_enabled)), 1 SECONDS, TIMER_UNIQUE | TIMER_OVERRIDE)
+
+/client/proc/fit_viewport_if_enabled()
+	if(prefs?.auto_fit_viewport)
+		fit_viewport()
+
+/client/proc/set_auto_fit_viewport(enabled)
+	if(enabled == prefs.auto_fit_viewport)
+		return
+	if(enabled)
+		var/splitter = text2num(winget(src, "mainwindow.split", "splitter"))
+		if(isnum(splitter))
+			prefs.manual_viewport_splitter = splitter
+	prefs.auto_fit_viewport = enabled
+	prefs.save_preferences()
+	if(enabled)
+		queue_viewport_fit()
+	else if(isnum(prefs.manual_viewport_splitter))
+		winset(src, "mainwindow.split", "splitter=[prefs.manual_viewport_splitter]")
 
 /datum/display_settings
 	var/client/owner
@@ -79,10 +105,7 @@
 		if("fit")
 			owner.fit_viewport()
 		if("auto_fit")
-			owner.prefs.auto_fit_viewport = !owner.prefs.auto_fit_viewport
-			owner.prefs.save_preferences()
-			if(owner.prefs.auto_fit_viewport)
-				owner.fit_viewport()
+			owner.set_auto_fit_viewport(!owner.prefs.auto_fit_viewport)
 		if("fullscreen")
 			owner.toggle_fullscreen()
 		if("dark")

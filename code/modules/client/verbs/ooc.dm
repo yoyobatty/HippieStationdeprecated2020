@@ -322,50 +322,40 @@ GLOBAL_VAR_INIT(normal_ooc_colour, "#002eb8")
 	set category = "OOC"
 	set desc = "Fit the width of the map window to match the viewport"
 
-	// Fetch aspect ratio
-	var/view_size = getviewsize(view)
-	var/aspect_ratio = view_size[1] / view_size[2]
-
-	// Calculate desired pixel width using window size and aspect ratio
-	var/sizes = params2list(winget(src, "mainwindow.split;mapwindow", "size"))
-	var/map_size = splittext(sizes["mapwindow.size"], "x")
-	if(length(map_size) < 2) // hippie -- the window isn't built yet at login: no size to read (testkit client lane)
+	// hippie start -- Fit the map DreamSeeker actually draws, including the space taken by screen objects.
+	var/list/map_params = params2list(winget(src, "mapwindow.map", "size;view-size;zoom;icon-size"))
+	var/list/pane_size = splittext(map_params["size"], "x")
+	var/list/drawn_size = splittext(map_params["view-size"], "x")
+	if(length(pane_size) < 2 || length(drawn_size) < 2)
 		return
-	var/height = text2num(map_size[2])
-	var/desired_width = round(height * aspect_ratio)
-	if (text2num(map_size[1]) == desired_width)
-		// Nothing to do
+	var/pane_width = text2num(pane_size[1])
+	var/pane_height = text2num(pane_size[2])
+	var/drawn_width = text2num(drawn_size[1])
+	var/drawn_height = text2num(drawn_size[2])
+	if(!pane_width || !pane_height || !drawn_width || !drawn_height)
 		return
 
-	var/split_size = splittext(sizes["mainwindow.split.size"], "x")
-	var/split_width = length(split_size) ? text2num(split_size[1]) : 0 // hippie -- a skin with no split gives no size at all: reading [1] was a list index out of bounds (testkit client lane)
-	if(!split_width) // hippie -- as above
+	var/list/split_params = params2list(winget(src, "mainwindow.split", "size;splitter"))
+	var/list/split_size = splittext(split_params["size"], "x")
+	var/split_width = length(split_size) ? text2num(split_size[1]) : 0
+	var/splitter = text2num(split_params["splitter"])
+	if(!split_width || !isnum(splitter))
 		return
 
-	// Calculate and apply a best estimate
-	// +4 pixels are for the width of the splitter's handle
-	var/pct = 100 * (desired_width + 4) / split_width
-	winset(src, "mainwindow.split", "splitter=[pct]")
-
-	// Apply an ever-lowering offset until we finish or fail
-	var/delta
-	for(var/safety in 1 to 10)
-		var/after_size = winget(src, "mapwindow", "size")
-		map_size = splittext(after_size, "x")
-		var/got_width = text2num(map_size[1])
-
-		if (got_width == desired_width)
-			// success
-			return
-		else if (isnull(delta))
-			// calculate a probable delta value based on the difference
-			delta = 100 * (desired_width - got_width) / split_width
-		else if ((delta > 0 && got_width > desired_width) || (delta < 0 && got_width < desired_width))
-			// if we overshot, halve the delta and reverse direction
-			delta = -delta/2
-
-		pct += delta
-		winset(src, "mainwindow.split", "splitter=[pct]")
+	var/desired_width = drawn_width
+	if(!text2num(map_params["zoom"]) && !text2num(map_params["icon-size"]))
+		desired_width = round(pane_height * drawn_width / drawn_height)
+	// On narrow screens the picture can fit by width. Keep some room for chat and the stat pane.
+	desired_width = min(desired_width, split_width - min(240, round(split_width / 4)))
+	if(abs(desired_width - pane_width) <= 1)
+		return
+	if(prefs?.auto_fit_viewport && isnull(prefs.manual_viewport_splitter))
+		prefs.manual_viewport_splitter = splitter // a player upgrading may only have BYOND's saved divider
+		prefs.save_preferences()
+	// Use the current divider position and measured pane width to account for the splitter handle and DPI rounding.
+	var/new_splitter = clamp(splitter + 100 * (desired_width - pane_width) / split_width, 0, 100)
+	winset(src, "mainwindow.split", "splitter=[new_splitter]")
+	// hippie end
 
 
 /client/verb/policy()

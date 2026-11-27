@@ -10,6 +10,8 @@
 	S["last_stat_tab"] >> last_stat_tab //the stat panel's tab (game_menu.dm)
 	if(!istext(last_stat_tab))
 		last_stat_tab = null
+	S["manual_viewport_splitter"] >> manual_viewport_splitter
+	manual_viewport_splitter = isnum(manual_viewport_splitter) ? clamp(manual_viewport_splitter, 0, 100) : null
 	if(add_new_keybind_defaults())
 		addtimer(CALLBACK(src, PROC_REF(save_preferences)), 1 SECONDS) //not from inside the load: the save file is open
 
@@ -23,6 +25,7 @@
 			known_keybinds += kb_name
 	WRITE_FILE(S["known_keybinds"], known_keybinds)
 	WRITE_FILE(S["last_stat_tab"], last_stat_tab)
+	WRITE_FILE(S["manual_viewport_splitter"], manual_viewport_splitter)
 
 // Character load
 /datum/preferences/proc/hippie_character_pref_load(savefile/S)

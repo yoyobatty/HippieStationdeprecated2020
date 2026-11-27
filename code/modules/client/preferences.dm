@@ -1626,9 +1626,7 @@ GLOBAL_LIST_EMPTY(preferences_datums)
 						PM.backdrop(parent.mob)
 
 				if("auto_fit_viewport")
-					auto_fit_viewport = !auto_fit_viewport
-					if(auto_fit_viewport && parent)
-						parent.fit_viewport()
+					parent?.set_auto_fit_viewport(!auto_fit_viewport) // hippie -- use the same layout rules as Display Settings
 				
 				if("widescreenpref")
 					widescreenpref = !widescreenpref
