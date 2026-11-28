@@ -49,7 +49,32 @@ pub struct Level {
 	spill_mark: Vec<u32>,
 	frontier_mark: Vec<u32>,
 	object_queued: Vec<bool>,
+	/// What each turf's lighting object has on it, as take_drawn() last had DM draw it (see Drawn). Made the first time
+	/// take_drawn() draws on the level; empty until then.
+	drawn: Vec<Drawn>,
 }
+
+/// What a lighting object has on it, as tg's draw() (code/modules/lighting/lighting_object.dm) would leave it: byte 0 is its kind
+/// (DRAWN_TRANSPARENT, DRAWN_DARK or DRAWN_MATRIX) with DRAWN_LIT for its luminosity, bytes 1 to 12 its colour matrix's twelve
+/// corner channels (SW, SE, NW, NE; red, green, blue) in 64ths, for DRAWN_MATRIX. All 0: not known, the next draw goes through.
+pub type Drawn = [u8; 13];
+/// Fully lit: icon_state "transparent", no colour
+pub const DRAWN_TRANSPARENT: u8 = 1;
+/// Unlit: icon_state "dark", no colour
+pub const DRAWN_DARK: u8 = 2;
+/// Lit as a gradient: no icon_state, a colour matrix
+pub const DRAWN_MATRIX: u8 = 3;
+/// Its luminosity is 1: its turf can be seen in the dark
+pub const DRAWN_LIT: u8 = 4;
+
+/// What DM has to change on a lighting object for one of take_drawn()'s records (lighting_engine.dm native_draw()): its kind
+/// (the low two bits, a DRAWN_ kind), DRAW_STATE when its icon_state (and for the transparent and dark kinds, its colour) has to
+/// be set, DRAW_LUMINOSITY when its luminosity has to be set, to 1 with DRAW_LIT. A matrix kind always sets its colour.
+/// DRAW_FULL (0): the engine can't tell what draw() would make of it, so DM draws it with draw() from its 13 numbers.
+pub const DRAW_FULL: u8 = 0;
+pub const DRAW_STATE: u8 = 4;
+pub const DRAW_LUMINOSITY: u8 = 8;
+pub const DRAW_LIT: u8 = 16;
 
 pub struct Light {
 	pub id: u32,
@@ -115,6 +140,11 @@ pub struct Engine {
 	spilling: Vec<u32>,
 	/// Light textures (sprites.rs): on, and the chunks whose corners changed since they were last taken
 	pub chunks: Option<crate::sprites::Chunks>,
+	/// take_drawn()'s counts since setup: lighting objects taken off the queue, those already showing what they'd be drawn with
+	/// (left alone), and those handed to draw() whole
+	pub draws_taken: u64,
+	pub draws_skipped: u64,
+	pub draws_full: u64,
 }
 
 const NORTH: u8 = 1;
@@ -144,6 +174,9 @@ impl Engine {
 			frontier: Vec::new(),
 			spilling: Vec::new(),
 			chunks: None,
+			draws_taken: 0,
+			draws_skipped: 0,
+			draws_full: 0,
 		}
 	}
 
@@ -166,6 +199,7 @@ impl Engine {
 			spill_mark: vec![0; turfs],
 			frontier_mark: vec![0; turfs],
 			object_queued: vec![false; turfs],
+			drawn: Vec::new(),
 		})
 	}
 
@@ -198,7 +232,33 @@ impl Engine {
 	}
 
 	pub fn set_flags(&mut self, z: usize, turf: u32, flags: u8) {
-		self.level(z).flags[turf as usize] = flags;
+		self.level(z);
+		let level = self.levels[z].as_mut().unwrap(); // the field itself, so the object queue can be pushed to beside it
+		let t = turf as usize;
+		let was = level.flags[t];
+		level.flags[t] = flags;
+		// A lighting object made or gone, or the turf made opaque (one face with v2) or not: whatever's drawn there is drawn afresh
+		if let Some(drawn) = level.drawn.get_mut(t) {
+			*drawn = [0; 13];
+			// An airlock opening or closing, a wall built or knocked down, often leaves its corners as they were, so nothing would
+			// redraw it: it kept the one face it had as a wall, or the gradient it had as a floor. Its object is drawn again.
+			if (was ^ flags) & OPAQUE != 0 && was & flags & OBJECT != 0 && !level.object_queued[t] {
+				level.object_queued[t] = true;
+				self.object_queue.push((z as u32, turf));
+			}
+		}
+	}
+
+	/// DM drew the turf's lighting object itself (lighting_object()): what's on it is no longer what take_drawn() knows of
+	pub fn forget_drawn(&mut self, z: usize, turf: u32) {
+		if let Some(drawn) = self
+			.levels
+			.get_mut(z)
+			.and_then(|l| l.as_mut())
+			.and_then(|l| l.drawn.get_mut(turf as usize))
+		{
+			*drawn = [0; 13];
+		}
 	}
 
 	pub fn set_sheet(&mut self, id: usize, dim: i32, values: Vec<f32>) {
@@ -865,11 +925,14 @@ impl Engine {
 		for (z, t) in std::mem::take(&mut self.object_queue) {
 			if let Some(level) = self.levels.get_mut(z as usize).and_then(|l| l.as_mut()) {
 				level.object_queued[t as usize] = false;
+				if let Some(drawn) = level.drawn.get_mut(t as usize) {
+					*drawn = [0; 13];
+				}
 			}
 		}
 	}
 
-	/// Takes lighting objects off the queue, up to `max` of them
+	/// Takes lighting objects off the queue, up to `max` of them. DM draws each with draw(), so what take_drawn() knew of them goes.
 	pub fn take_objects(&mut self, max: usize, mut each: impl FnMut(u32, u32, [f32; 13])) -> usize {
 		let n = self.object_queue.len().min(max);
 		let taken: Vec<(u32, u32)> = self.object_queue.drain(..n).collect();
@@ -877,9 +940,63 @@ impl Engine {
 			let values = self.object_values(z as usize, t);
 			if let Some(level) = self.levels.get_mut(z as usize).and_then(|l| l.as_mut()) {
 				level.object_queued[t as usize] = false;
+				if let Some(drawn) = level.drawn.get_mut(t as usize) {
+					*drawn = [0; 13];
+				}
 			}
 			each(z, t, values);
 		}
+		self.object_queue.len()
+	}
+
+	/// Takes lighting objects off the queue until `max` of them have something new to draw, or there are none left, and hands
+	/// each of those over with what DM has to change on it: a DRAW_ code and its colour matrix's twelve corner channels (one face
+	/// for an opaque turf with lighting v2 on, `v2`), or DRAW_FULL and its 13 numbers for draw(). One already showing what it
+	/// would be drawn with (a wall whose brightest corner stayed as it was, say) is left alone. Returns how many are still queued.
+	pub fn take_drawn(&mut self, max: usize, v2: bool, mut each: impl FnMut(u32, u32, u8, &[f32])) -> usize {
+		let turfs = self.turfs_per_level() as usize;
+		let mut handed = 0;
+		let mut taken = 0;
+		while handed < max && taken < self.object_queue.len() {
+			let (z, t) = self.object_queue[taken];
+			taken += 1;
+			let values = self.object_values(z as usize, t);
+			let Some(level) = self.levels.get_mut(z as usize).and_then(|l| l.as_mut()) else {
+				continue;
+			};
+			let t = t as usize;
+			level.object_queued[t] = false;
+			if level.drawn.is_empty() {
+				level.drawn = vec![[0; 13]; turfs];
+			}
+			self.draws_taken += 1;
+			let Some((face, now)) = drawn_from(&values, v2 && level.flags[t] & OPAQUE != 0) else {
+				level.drawn[t] = [0; 13];
+				self.draws_full += 1;
+				handed += 1;
+				each(z, t as u32, DRAW_FULL, &values);
+				continue;
+			};
+			let was = level.drawn[t];
+			if was == now {
+				self.draws_skipped += 1;
+				continue;
+			}
+			level.drawn[t] = now;
+			let mut code = now[0] & 3;
+			if was[0] == 0 || was[0] & 3 != now[0] & 3 {
+				code |= DRAW_STATE;
+			}
+			if was[0] == 0 || was[0] & DRAWN_LIT != now[0] & DRAWN_LIT {
+				code |= DRAW_LUMINOSITY;
+			}
+			if now[0] & DRAWN_LIT != 0 {
+				code |= DRAW_LIT;
+			}
+			handed += 1;
+			each(z, t as u32, code, &face);
+		}
+		self.object_queue.drain(..taken);
 		self.object_queue.len()
 	}
 
@@ -1008,6 +1125,53 @@ impl Engine {
 		}
 		problems
 	}
+}
+
+/// What tg's draw() (code/modules/lighting/lighting_object.dm) puts on a lighting object from its 13 numbers (object_values()),
+/// `one_face` for an opaque turf with lighting v2 on: the colour matrix's twelve corner channels and the Drawn they make. None
+/// when a channel isn't a 64th from 0 to 1 (a corner darkened by a negative light, say): only draw() itself can say then.
+/// draw()'s sums in its order; in that range they come out exact, so this agrees with it on every number.
+pub fn drawn_from(values: &[f32; 13], one_face: bool) -> Option<([f32; 12], Drawn)> {
+	let mut v = [0.0f32; 12];
+	v.copy_from_slice(&values[..12]);
+	for x in v {
+		if !(0.0..=1.0).contains(&x) || (x * 64.0).fract() != 0.0 {
+			return None;
+		}
+	}
+	if one_face {
+		// Lit as one face in its brightest corner's colour: by the sum of its channels, SW, SE, NW then NE, the first of equals
+		let mut face = 0;
+		let mut brightest = v[0] + v[1] + v[2];
+		for corner in 1..4 {
+			let sum = v[corner * 3] + v[corner * 3 + 1] + v[corner * 3 + 2];
+			if sum > brightest {
+				brightest = sum;
+				face = corner;
+			}
+		}
+		let colour = [v[face * 3], v[face * 3 + 1], v[face * 3 + 2]];
+		for corner in 0..4 {
+			v[corner * 3..corner * 3 + 3].copy_from_slice(&colour);
+		}
+	}
+	let lit = values[12] > 1e-6;
+	let mut drawn: Drawn = [0; 13];
+	// draw() asks (rr & gr & br & ar) and the other eight channels adding up to 8: from 0 to 1, every channel at 1
+	if v.iter().all(|&x| x == 1.0) {
+		drawn[0] = DRAWN_TRANSPARENT;
+	} else if !lit {
+		drawn[0] = DRAWN_DARK;
+	} else {
+		drawn[0] = DRAWN_MATRIX;
+		for (i, x) in v.iter().enumerate() {
+			drawn[i + 1] = (x * 64.0) as u8;
+		}
+	}
+	if lit {
+		drawn[0] |= DRAWN_LIT;
+	}
+	Some((v, drawn))
 }
 
 /// lighting_corner/update_objects()'s sums: returns whether what it draws changed. `knee` is GLOB.lighting_tone_knee: see
@@ -1164,6 +1328,131 @@ mod tests {
 		assert_eq!(cache[1], round_to(0.5 * tone_factor(1.0, 0.5)));
 		assert!(e.brightness(1, &seen).unwrap() > 0.0);
 		assert_eq!(e.brightness(1, &[]), None);
+	}
+
+	#[test]
+	fn drawn_is_what_draw_puts_on() {
+		let mut values = [0.0f32; 13];
+		// Dark, then fully lit
+		assert_eq!(
+			drawn_from(&values, false).unwrap().1,
+			[DRAWN_DARK, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+		);
+		values = [1.0; 13];
+		assert_eq!(drawn_from(&values, false).unwrap().1[0], DRAWN_TRANSPARENT | DRAWN_LIT);
+		// A gradient, in 64ths
+		values[3] = 0.5;
+		values[11] = 0.015625;
+		let (face, drawn) = drawn_from(&values, false).unwrap();
+		assert_eq!(drawn[0], DRAWN_MATRIX | DRAWN_LIT);
+		assert_eq!(drawn[4], 32);
+		assert_eq!(drawn[12], 1);
+		assert_eq!(face[3], 0.5);
+		// One face: the brightest corner by its sum, the first of equals (SW here, whose sum is 3)
+		let (face, drawn) = drawn_from(&values, true).unwrap();
+		assert_eq!(face, [1.0; 12]);
+		assert_eq!(drawn[0], DRAWN_TRANSPARENT | DRAWN_LIT);
+		values[0] = 0.25;
+		let (face, _) = drawn_from(&values, true).unwrap();
+		assert_eq!(face, [1.0; 12]); // SE, NW and NE now: NW is first at 3
+		values = [0.0; 13];
+		values[9] = 0.25; // NE alone lit
+		values[12] = 0.25;
+		let (face, drawn) = drawn_from(&values, true).unwrap();
+		assert_eq!(face, [0.25, 0.0, 0.0, 0.25, 0.0, 0.0, 0.25, 0.0, 0.0, 0.25, 0.0, 0.0]);
+		assert_eq!(drawn[1..], [16, 0, 0, 16, 0, 0, 16, 0, 0, 16, 0, 0]);
+		// Not a 64th from 0 to 1: draw() says
+		values[0] = -0.25;
+		assert!(drawn_from(&values, false).is_none());
+		values[0] = 0.3;
+		assert!(drawn_from(&values, false).is_none());
+	}
+
+	#[test]
+	fn take_drawn_leaves_alone_what_is_drawn_already() {
+		let mut e = Engine::new(10, 10, 1);
+		let sheet = flat_sheet(2, 0.5);
+		e.set_sheet(0, sheet.dim, sheet.values.clone());
+		for t in 0..100 {
+			e.set_flags(1, t, DYNAMIC | OBJECT);
+		}
+		let wall = 4 * 10 + 6; // (7, 5), lit from one side
+		e.set_flags(1, wall, DYNAMIC | OBJECT | OPAQUE);
+		let seen: Vec<u32> = (0..100)
+			.filter(|&t| {
+				let (x, y) = (t as i32 % 10 + 1, t as i32 / 10 + 1);
+				(x - 5).abs() <= 2 && (y - 5).abs() <= 2
+			})
+			.collect();
+		e.update(&update(1, 5, 5, 2), &seen).unwrap();
+		e.flush_corners();
+		let queued: Vec<(u32, u32)> = e.object_queue.clone();
+		let mut first = Vec::new();
+		assert_eq!(
+			e.take_drawn(1000, true, |_, t, code, values| first.push((t, code, values.to_vec()))),
+			0
+		);
+		assert_eq!(first.len(), queued.len());
+		// The first time, everything is set
+		for (_, code, _) in &first {
+			assert_eq!(code & (DRAW_STATE | DRAW_LUMINOSITY), DRAW_STATE | DRAW_LUMINOSITY);
+		}
+		// The same again: nothing to draw
+		let requeue = |e: &mut Engine| {
+			for &(z, t) in &queued {
+				e.levels[z as usize].as_mut().unwrap().object_queued[t as usize] = true;
+				e.object_queue.push((z, t));
+			}
+		};
+		requeue(&mut e);
+		let mut again = 0;
+		e.take_drawn(1000, true, |_, _, _, _| again += 1);
+		assert_eq!(again, 0);
+		assert_eq!(e.draws_skipped as usize, queued.len());
+		// Its flags told again (a door, say): drawn again in full; drawn by DM itself, the same
+		e.set_flags(1, wall, DYNAMIC | OBJECT | OPAQUE);
+		e.forget_drawn(1, 0);
+		requeue(&mut e);
+		let mut drawn = Vec::new();
+		e.take_drawn(1000, true, |_, t, code, _| drawn.push((t, code)));
+		assert_eq!(drawn.len(), if queued.iter().any(|&(_, t)| t == 0) { 2 } else { 1 });
+		assert!(drawn.iter().all(|&(_, code)| code & DRAW_STATE != 0));
+		// A light a little brighter: the gradients set their colour alone, and the wall, lit as one face, takes its face
+		e.update(
+			&Update {
+				power: 1.5,
+				..update(1, 5, 5, 2)
+			},
+			&seen,
+		)
+		.unwrap();
+		e.flush_corners();
+		let mut brighter = Vec::new();
+		e.take_drawn(1000, true, |_, t, code, values| brighter.push((t, code, values.to_vec())));
+		assert!(!brighter.is_empty());
+		for (t, code, values) in &brighter {
+			if code & 3 == DRAWN_MATRIX {
+				assert_eq!(code & (DRAW_STATE | DRAW_LUMINOSITY), 0, "turf {t}");
+			}
+			if *t == wall {
+				assert!(values[0..3] == values[3..6] && values[0..3] == values[6..9] && values[0..3] == values[9..12]);
+			}
+		}
+		// The wall opened up (an airlock) with its corners as they were: queued to be drawn again, as a gradient now
+		assert!(e.object_queue.is_empty());
+		e.set_flags(1, wall, DYNAMIC | OBJECT);
+		assert_eq!(e.object_queue, vec![(1, wall)]);
+		let mut opened = Vec::new();
+		e.take_drawn(1000, true, |_, t, code, _| opened.push((t, code)));
+		assert_eq!(opened.len(), 1);
+		assert_eq!(opened[0].1 & DRAW_STATE, DRAW_STATE);
+		// Batches: no more than asked for are handed over, the rest stay queued
+		requeue(&mut e);
+		for &(_, t) in &queued {
+			e.forget_drawn(1, t);
+		}
+		let left = e.take_drawn(3, true, |_, _, _, _| {});
+		assert_eq!(left, queued.len() - 3);
 	}
 
 	#[test]
