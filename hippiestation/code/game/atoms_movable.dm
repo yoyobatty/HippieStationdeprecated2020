@@ -23,3 +23,5 @@
 	. = ..()
 	if(DEMO_ON)
 		SSdemo.mark_dirty(src)
+	if(explosion_block) // counted for blasts on the turf it's on (explosions_block.dm): one read for everything else
+		explosion_block_refresh()

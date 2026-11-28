@@ -19,6 +19,7 @@ GLOBAL_LIST_INIT(admin_verbs_debug_tools, list(
 	/client/proc/cmd_sendmaps_profile,
 	/client/proc/cmd_check_timer_sources,
 	/client/proc/cmd_count_instances,
+	/client/proc/cmd_check_explosion_block_cache, // explosions_block.dm
 ))
 
 /// Whether BYOND's SendMaps profiler is on (it's one for the whole world)

@@ -25,18 +25,49 @@
 /proc/blast_far_ring_sums(turf/epicenter, edge, far_range)
 	var/list/affected = SSexplosions.GatherSpiralTurfs(far_range, epicenter)
 	var/list/start = blast_thin_air_start(epicenter)
-	var/list/blocks = list()
+	// what each turf keeps, read as CaculateExplosionBlock() reads it (explosions_block.dm), or with explosion-block-cache=off every
+	// object on every tile as before
+	var/cached = GLOB.explosion_block_cache
+	var/check = cached && GLOB.explosion_block_check
+	var/list/grid = cached ? explosion_block_grid(epicenter.z, FALSE) : null
+	var/width = GLOB.explosion_block_grid_width
+	var/differ = 0
+	var/list/blocks = cached ? alist() : list() // quicker to build keyed by turfs
 	var/i = 0
 	for(var/turf/T as anything in affected)
 		var/block = T.density ? T.explosion_block : 0
-		for(var/obj/O in T)
-			var/b = O.explosion_block
-			block += b == EXPLOSION_BLOCK_PROC ? O.GetExplosionBlock() : b
+		if(cached)
+			if(grid && grid[(T.y - 1) * width + T.x])
+				block += T.explosion_block_static
+				var/list/dynamic = T.explosion_block_dynamic
+				if(dynamic)
+					for(var/obj/O as anything in dynamic)
+						var/b = O.explosion_block
+						block += b == EXPLOSION_BLOCK_PROC ? O.GetExplosionBlock() : b
+			if(check) // explosion-block-check=1: against the old loop
+				var/old = T.density ? T.explosion_block : 0
+				for(var/obj/O in T)
+					var/b = O.explosion_block
+					old += b == EXPLOSION_BLOCK_PROC ? O.GetExplosionBlock() : b
+				if(old != block)
+					differ++
+		else
+			for(var/obj/O in T)
+				var/b = O.explosion_block
+				block += b == EXPLOSION_BLOCK_PROC ? O.GetExplosionBlock() : b
 		if(start)
 			block += blast_thin_air_cost_at(T, start[1], start[2])
 		blocks[T] = block
 		if(!(++i % 200))
 			CHECK_TICK
+			if(cached) // made, or made again for a bigger world, meanwhile
+				grid = explosion_block_grid(epicenter.z, FALSE)
+				width = GLOB.explosion_block_grid_width
+	if(check)
+		GLOB.explosion_block_checked++
+		if(differ)
+			GLOB.explosion_block_differed++
+			log_world("Explosion block check: the glass ring at [AREACOORD(epicenter)], [differ] of [length(affected)] tiles differ")
 	var/list/shape = explosion_shape(epicenter, far_range, blocks)
 	CHECK_TICK
 	var/x0 = epicenter.x
