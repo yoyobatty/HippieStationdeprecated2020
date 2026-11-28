@@ -15,6 +15,8 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   EVENTS=0/1 random events (on for run, off for ab: they change from run to run and blur small gains; the disasters always happen)
 #   EXTRA_A, EXTRA_B  world params for one side of an ab only, like EXTRA_B="lighting-engine=native" to set one build against itself
 #   EXTRA_PARAMS=stress-calm=1  an ordinary shift of the same length instead of the disasters (see stress_bench.dm)
+#   HARNESS=tools/gc_hunt/gc_hunt.dm  (save, or run without BUILD) compiles that file in after everything else, like a hunt's
+#                harness: a stress shift whose hard deletes each name what held them (data/ref_stall.txt)
 # Results: data/logs/shift_batch/stress-<label>/run<n>/stress.txt and stress.json; the report at the end is
 #   python tools/bot_gym/stress_report.py <label> [--vs <label>]
 set -u
@@ -32,6 +34,10 @@ save_build() { # label
 		cp hippiestation.rsc "data/stress_builds/$1.rsc"
 	else
 		cp hippiestation.dme stressbench.mdme
+		if [ -n "${HARNESS:-}" ]; then
+			[ -f "$HARNESS" ] || { echo "No $HARNESS"; rm -f stressbench.mdme; exit 1; }
+			sed -i "/^\/\/ END_INCLUDE/i #include \"$HARNESS\"" stressbench.mdme
+		fi
 		local out
 		out="$("$BYOND_BIN/dm.exe" stressbench.mdme | grep -E "error|warning|dmb -")"
 		echo "$out"
