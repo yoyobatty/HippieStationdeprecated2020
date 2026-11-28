@@ -118,6 +118,7 @@
 	plane = PLANE_SPACE_PARALLAX
 	screen_loc = "CENTER-7,CENTER-7"
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	appearance_flags = APPEARANCE_UI & ~PIXEL_SCALE // its turn is the whole sky's: filtered, not nearest-neighbour
 	/// A camera picture's sky (map_view.dm): the angle it's held at while the camera's shuttle flies, null while it turns with the sun.
 	/// A player's own sky keeps this on the client (parallax_snapped).
 	var/view_snap

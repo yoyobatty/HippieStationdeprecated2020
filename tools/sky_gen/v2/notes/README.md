@@ -72,6 +72,14 @@ A code review of the port found these; all fixed, with checks added to tools/pow
   sun, the band at the theme's angle).
 - sky_sun_bearing() returns null with no sun painted instead of a runtime.
 
+## Smooth shared art (2026-11-27, night)
+
+Keegan saw lines in the clouds. /obj/screen/sky_art set no appearance_flags, so it took /obj/screen's APPEARANCE_UI with
+PIXEL_SCALE: every cloud (drawn 2x), the band, the far things and the twinkle groups were nearest-neighbour, blocky, and
+stair-stepped into lines as the sky turned. Paradise's fix (77384aca20) dropped PIXEL_SCALE from the layers only; its screen
+type has no PIXEL_SCALE by default, ours does. sky_art and parallax_home now drop it. Checked with sky_shots.dm `seams` (each
+layer kind alone at 0 and 20 degrees, then nearest again) and seam_check.py, which finds straight lines along the sky's angle.
+
 ## Ratings at hand-over
 
 Nebulae 8.5-9.5. Events: vortex 9, prism 8.5, shower 8.5, battle 8.5, aurora 8.5, giant 8, supernova 8, breakup 7.5.

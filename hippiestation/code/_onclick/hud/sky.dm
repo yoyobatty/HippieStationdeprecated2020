@@ -10,6 +10,9 @@
 	blend_mode = BLEND_ADD
 	plane = PLANE_SPACE_PARALLAX
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	// Not /obj/screen's APPEARANCE_UI: no RESET_TRANSFORM (it turns and streams with the layer carrying it) and no PIXEL_SCALE.
+	// Nearest-neighbour drew the 2x clouds as blocks and, once the sky turned, stair-stepped their edges into lines (2026-11-27)
+	appearance_flags = RESET_COLOR | NO_CLIENT_COLOR
 	/// How many times its sprite's size it's drawn
 	var/scale = 1
 	/// Its sprite's width, in pixels: how far apart its copies sit

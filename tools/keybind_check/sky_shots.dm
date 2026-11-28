@@ -199,6 +199,51 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	SSsun.can_fire = TRUE
 	sky_shoot_giant("sky_polish_giant")
 
+/// Shows only the client's layers of one kind: "all", "stars", "clouds" (the theme's nebulae) or "band" (the galaxy's band)
+/proc/sky_seams_show(client/C, part)
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		var/kind = "other"
+		if(istype(L, /obj/screen/parallax_layer/stars))
+			kind = "stars"
+		else if(istype(L, /obj/screen/parallax_layer/nebula))
+			var/obj/screen/parallax_layer/nebula/N = L
+			var/list/cloud = SSparallax.theme.nebula[N.index]
+			kind = cloud[1] == "band" ? "band" : "clouds"
+		L.invisibility = (part == "all" || part == kind) ? 0 : INVISIBILITY_ABSTRACT
+
+/// Lines in the sky: the Gilded Band held at 0 and 20 degrees from open space, each kind of layer alone, then all again with every
+/// layer and piece of shared art drawn nearest-neighbour (PIXEL_SCALE). tools/sky_gen/v2/seam_check.py finds the straight lines.
+/proc/sky_shoot_seams(mob/living/carbon/human/H)
+	var/client/C = H.client
+	var/turf/clear_space = locate(110, 60, SSmapping.station_start)
+	SSsun.can_fire = FALSE
+	SSparallax.flyby_art()
+	SSparallax.next_flyby = world.time + 1 HOURS
+	SSparallax.next_sky_event = world.time + 1 HOURS
+	SSparallax.set_theme(new /datum/sky_theme/gold)
+	if(isspaceturf(clear_space))
+		H.forceMove(clear_space)
+	for(var/sampling in list("smooth", "nearest"))
+		if(sampling == "nearest")
+			for(var/name in SSparallax.sky_art)
+				var/obj/screen/sky_art/A = SSparallax.sky_art[name]
+				A.appearance_flags |= PIXEL_SCALE
+		for(var/angle in list(0, 20))
+			sky_port_hold_angle(H, angle)
+			if(sampling == "nearest")
+				for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+					L.appearance_flags |= PIXEL_SCALE
+			for(var/part in list("all", "stars", "clouds", "band"))
+				sky_seams_show(C, part)
+				sleep(5)
+				kc_log("seams [sampling] [angle] [part]: sky_turn_angle [sky_turn_angle()], at ([H.x],[H.y]); [sky_layer_text(C)]")
+				sky_shot("sky_seams_[sampling]_[angle]_[part]")
+			sky_seams_show(C, "all")
+	for(var/name in SSparallax.sky_art)
+		var/obj/screen/sky_art/A = SSparallax.sky_art[name]
+		A.appearance_flags &= ~PIXEL_SCALE
+	SSsun.can_fire = TRUE
+
 /proc/sky_shots_run(client/C)
 	fdel("data/keycheck_shot")
 	fdel("data/keycheck_shots_done")
@@ -239,7 +284,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			themes += path
 			if(which != "all")
 				break
-	else if(which != "before" && which != "deep" && which != "port" && which != "polish")
+	else if(which != "before" && which != "deep" && which != "port" && which != "polish" && which != "seams")
 		var/theme_type = text2path("/datum/sky_theme/[which]")
 		if(theme_type)
 			themes += theme_type
@@ -396,6 +441,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		sky_shoot_giant("sky_port_giant")
 	if(which == "polish")
 		sky_shoot_polish(H)
+	if(which == "seams")
+		sky_shoot_seams(H)
 
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)
