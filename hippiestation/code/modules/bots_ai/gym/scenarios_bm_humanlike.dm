@@ -804,3 +804,336 @@
 	lab.hot_tank = locate(/obj/item/tank/internals/plasma) in bot.held_items
 	if(!lab.hot_tank || !(locate(/obj/item/transfer_valve) in bot.held_items))
 		log_line("SETUP: hands hold [english_list(bot.held_items, "nothing")], not the plasma tank and the valve")
+
+// ---------------------------------------------------------------------------------------------
+// Hands between jobs (tidy_hands(), bot_human.dm)
+// ---------------------------------------------------------------------------------------------
+// The Turing judge (tools/bot_gym/turing.py, 2026-11-28) found the hands the biggest tell: between jobs a bot had something in a hand 68-73%
+// of the time against the player's 42-44%, and nothing ever put a tool away once its job was done (held_report.py). tidy_hands() is reached
+// by name here (gym_tidies_hands), so the build from before it compiles too.
+
+/datum/bot_scenario/bmhl/tidy
+	layout = list(
+		"#######",
+		"#..B..#",
+		"#######")
+	time_limit = 20 SECONDS
+	max_goal_attempts = 0
+	/// When each kit item left its hands (COMSIG_ITEM_DROPPED), by item.
+	var/list/left_hands_at = list()
+
+/datum/bot_scenario/bmhl/tidy/issue_goal()
+	return
+
+/datum/bot_scenario/bmhl/tidy/post_spawn()
+	if("gym_tidies_hands" in brain.vars)
+		brain.vars["gym_tidies_hands"] = TRUE
+	for(var/obj/item/I in bot.held_items)
+		RegisterSignal(I, COMSIG_ITEM_DROPPED, PROC_REF(note_left_hands))
+
+/datum/bot_scenario/bmhl/tidy/proc/note_left_hands(obj/item/source)
+	SIGNAL_HANDLER
+	if(!left_hands_at[source])
+		left_hands_at[source] = world.time
+
+/// Whether I is on the bot (worn, on the belt, in the bag or a pocket) and not in a hand.
+/datum/bot_scenario/bmhl/tidy/proc/put_away_on_bot(obj/item/I)
+	if(QDELETED(I) || (I in bot.held_items))
+		return FALSE
+	var/atom/holder = I.loc
+	while(holder && holder != bot && !isturf(holder))
+		holder = holder.loc
+	return holder == bot
+
+/datum/bot_scenario/bmhl/tidy/tools
+	name = "hands: between jobs it puts the screwdriver and wrench in its hands away, a beat apart, not on the floor"
+	desc = "No job, a screwdriver in one hand and a wrench in the other, a bag with room. Both go on the belt, in a pocket or the bag within a few seconds, one input at a time (at least 0.2 s apart), and neither on the floor. Nothing put tools away between jobs: shift batch night1122b_after had screwdrivers and wrenches in bots' hands for 8% of their time between jobs."
+	kit_hands = list(/obj/item/screwdriver, /obj/item/wrench)
+
+/datum/bot_scenario/bmhl/tidy/tools/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/item/screwdriver/S = locate() in bot.GetAllContents()
+	var/obj/item/wrench/W = locate() in bot.GetAllContents()
+	for(var/obj/item/I in placed_items())
+		if(isturf(I.loc))
+			fail_reason = "set [I] down on the floor"
+			return BOT_GYM_FAIL
+	if(!put_away_on_bot(S) || !put_away_on_bot(W))
+		return BOT_GYM_PENDING
+	// When each went: the bot's own "put X away" lines (a move from a hand to a slot or a bag sends no COMSIG_ITEM_DROPPED)
+	var/s_at = transcript_time("put [S] away")
+	var/w_at = transcript_time("put [W] away")
+	var/gap = abs(s_at - w_at)
+	log_line("put away: [S] to [S.loc], [W] to [W.loc], [gap] s apart")
+	if(isnull(s_at) || isnull(w_at))
+		fail_reason = "put away without saying when"
+		return BOT_GYM_FAIL
+	if(gap < 0.2)
+		fail_reason = "put both away in the same instant ([gap] s apart)"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/// The time (s into the run) of the first transcript line with `text`, or null.
+/datum/bot_scenario/bmhl/tidy/proc/transcript_time(text)
+	for(var/line in transcript)
+		if(findtext(line, text))
+			return text2num(copytext(line, 1, findtext(line, "s:")))
+	return null
+
+/datum/bot_scenario/bmhl/tidy/proc/placed_items()
+	. = list()
+	for(var/obj/item/I in left_hands_at)
+		. += I
+	for(var/obj/item/I in bot.GetAllContents())
+		if(istype(I, /obj/item/screwdriver) || istype(I, /obj/item/wrench))
+			. |= I
+
+/datum/bot_scenario/bmhl/tidy/tools/on_timeout()
+	fail_reason = "still holding [english_list(bot.held_items, "nothing")] after [time_limit / 10] s between jobs"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/bmhl/tidy/firesuit
+	name = "hands: a firesuit it has no room for and isn't wearing is left where it stands, and a stroll doesn't take it back"
+	desc = "No job, an emergency firesuit in hand (bulky: no bag takes it) and none worn. It's left on the floor rather than carried about or put on, and the stroll's look round (find_item_goal()) doesn't go back for it. Shift batch night1122b_after had bots carrying emergency firesuits for 3.4% of their time between jobs, and radiation suits for 1.5%."
+	kit_hands = list(/obj/item/clothing/suit/fire)
+	var/obj/item/clothing/suit/fire/suit
+
+/datum/bot_scenario/bmhl/tidy/firesuit/post_spawn()
+	..()
+	suit = locate() in bot.held_items
+
+/datum/bot_scenario/bmhl/tidy/firesuit/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(QDELETED(suit))
+		fail_reason = "the firesuit's gone"
+		return BOT_GYM_FAIL
+	if(suit in bot.held_items)
+		return BOT_GYM_PENDING
+	if(!isturf(suit.loc))
+		fail_reason = "the firesuit went to [suit.loc], not the floor ([bot.wear_suit == suit ? "it put it on" : "somewhere on it"])"
+		return BOT_GYM_FAIL
+	var/atom/A = brain.find_item_goal()
+	log_line("left [suit] on the floor; a look round for something to pick up: [A || "nothing"]")
+	if(A == suit)
+		fail_reason = "its next stroll would go straight back for the firesuit"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/bmhl/tidy/firesuit/on_timeout()
+	fail_reason = "still carrying the firesuit after [time_limit / 10] s between jobs"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/bmhl/tidy/toolbox_kept
+	name = "hands: a toolbox too big for its bag stays in its hand between jobs (control)"
+	desc = "No job and a mechanical toolbox in hand (bulky: no bag takes it). People carry toolboxes about, so it's kept, not left on the floor. Passes before tidy_hands() too: it guards against putting down what's worth keeping."
+	kit_hands = list(/obj/item/storage/toolbox/mechanical)
+	time_limit = 12 SECONDS
+
+/datum/bot_scenario/bmhl/tidy/toolbox_kept/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(!(locate(/obj/item/storage/toolbox) in bot.held_items))
+		fail_reason = "let go of the toolbox"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/bmhl/tidy/toolbox_kept/on_timeout()
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/bmhl/tidy/on_its_own
+	name = "hands: an ordinary bot between jobs puts the crowbar in its hand away by itself"
+	desc = "Not a scripted gym bot: its own wander tick (handle_wander()) runs, with no stroll due. The crowbar in its hand goes on the belt, in a pocket or the bag, not the floor."
+	kit_hands = list(/obj/item/crowbar)
+
+/datum/bot_scenario/bmhl/tidy/on_its_own/post_spawn()
+	for(var/obj/item/I in bot.held_items)
+		RegisterSignal(I, COMSIG_ITEM_DROPPED, PROC_REF(note_left_hands))
+	brain.gym_scripted = FALSE
+	brain.next_wander_time = world.time + 10 MINUTES //nowhere to stroll to: only what happens between strolls
+
+/datum/bot_scenario/bmhl/tidy/on_its_own/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/item/crowbar/C = locate() in bot.GetAllContents()
+	if(!C)
+		C = locate() in get_turf(bot)
+		if(C)
+			fail_reason = "set the crowbar down on the floor"
+			return BOT_GYM_FAIL
+		fail_reason = "the crowbar's gone"
+		return BOT_GYM_FAIL
+	if(put_away_on_bot(C))
+		log_line("put [C] away to [C.loc]")
+		return BOT_GYM_PASS
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/bmhl/tidy/on_its_own/on_timeout()
+	fail_reason = "still holding the crowbar after [time_limit / 10] s between jobs"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/bmhl/tidy/lamp
+	name = "hands: a lit desk lamp it took up is left behind between jobs in a lit room"
+	desc = "No job, a desk lamp in hand (on, as they come; bulky, and force 10 so it counted as a weapon worth keeping), and the room lit. It's left on the floor, not carried about. Batch hands1128_after: kept for being lit, lamps were carried for 4.2% of bots' time between jobs."
+	kit_hands = list(/obj/item/flashlight/lamp)
+
+/datum/bot_scenario/bmhl/tidy/lamp/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/item/flashlight/lamp/L = locate() in bot.held_items
+	if(L)
+		return BOT_GYM_PENDING
+	L = locate() in get_turf(bot)
+	if(!L)
+		fail_reason = "the lamp went somewhere other than the floor"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/bmhl/tidy/lamp/on_timeout()
+	fail_reason = "still carrying the lamp after [time_limit / 10] s between jobs"
+	return BOT_GYM_FAIL
+
+/datum/bot_scenario/bmhl/seated_set_down
+	name = "seated: sat at a desk with something it set down two tiles off, it doesn't start a walk back to it from the chair"
+	desc = "An ordinary bot (not scripted) buckled to a chair for a long sit, a wrench it set down for a moment two tiles away. go_back_for_set_down() started a walk to it that a buckled bot can't take: a Head of Personnel sat at its desk 'stuck' in one for 638 s (stuck_walks.py, hands1128_after run1). It stays sat with no walk, and goes for it once it's up."
+	layout = list(
+		"#######",
+		"#B.w..#",
+		"#######")
+	time_limit = 10 SECONDS
+	max_goal_attempts = 0
+	var/obj/item/wrench/wrench
+
+/datum/bot_scenario/bmhl/seated_set_down/issue_goal()
+	return
+
+/datum/bot_scenario/bmhl/seated_set_down/post_spawn()
+	var/obj/structure/chair/C = new(get_turf(bot))
+	C.buckle_mob(bot, TRUE)
+	wrench = new(first_marker("w"))
+	LAZYADD(brain.set_down_items, wrench)
+	brain.gym_scripted = FALSE
+	brain.next_wander_time = world.time + 10 MINUTES
+	brain.hangout_until = world.time + 10 MINUTES //a long sit at the desk
+
+/datum/bot_scenario/bmhl/seated_set_down/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	if(brain.pursuing_kind == "follow" && brain.pursue_target == wrench)
+		fail_reason = "set off from the chair back for the wrench ([bot.buckled ? "still buckled" : "got up"])"
+		return BOT_GYM_FAIL
+	if(!bot.buckled)
+		fail_reason = "got up from a long sit"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PENDING
+
+/datum/bot_scenario/bmhl/seated_set_down/on_timeout()
+	return BOT_GYM_PASS
+
+// ---------------------------------------------------------------------------------------------
+// Walking like a person (walk_pause(), corner_overshoot(), bot_human.dm)
+// ---------------------------------------------------------------------------------------------
+// The Turing judge (tools/bot_gym/turing.py slice --calm --where "move_frac > 0.6", 2026-11-28): on the move, the player's walks broke
+// off for a moment more often (6 brief stops a minute against 4; moving stretches 5.75 s against 9 s) and doubled back more (20% of
+// seconds against 9%). What only the fix adds is reached by name (gym_walks_like_people, steps_to_pause, overshoot_chance).
+
+/datum/bot_scenario/bmhl/walk
+	time_limit = 40 SECONDS
+	/// When each step was taken, and every tile stood on.
+	var/list/moved_at = list()
+	var/list/stood_on = list()
+
+/datum/bot_scenario/bmhl/walk/post_spawn()
+	RegisterSignal(bot, COMSIG_MOVABLE_MOVED, PROC_REF(note_move))
+	if("gym_walks_like_people" in brain.vars)
+		brain.vars["gym_walks_like_people"] = TRUE
+
+/// An everyday errand to G: a gym walk (gym_reach) is one that never rests and braves bad air, which a walk at its ease isn't
+/datum/bot_goal/gym_reach/everyday
+	never_rests = FALSE
+	braves_bad_air = FALSE
+
+/datum/bot_scenario/bmhl/walk/make_goal()
+	var/datum/bot_goal/gym_reach/everyday/G = new
+	G.target = first_marker("G")
+	return G
+
+/datum/bot_scenario/bmhl/walk/proc/note_move(datum/source)
+	SIGNAL_HANDLER
+	moved_at += world.time
+	stood_on |= get_turf(bot)
+
+/// The longest it stood between two steps, in deciseconds, once it's under way (the first few steps of a walk come slower: a bot
+/// setting off takes a moment, 0.9-1.4 s in a gym run, whether it stops on the way or not).
+/datum/bot_scenario/bmhl/walk/proc/longest_stand()
+	. = 0
+	for(var/i in 5 to length(moved_at))
+		. = max(., moved_at[i] - moved_at[i - 1])
+
+/datum/bot_scenario/bmhl/walk/pauses
+	name = "walking: on a long everyday walk it stops for a moment on the way, a second or two, not tile after tile to the end"
+	desc = "A 37-tile corridor, an everyday errand to the end, a stop due eight steps in. It stops once for 1-2 s and gets there."
+	layout = list(
+		"#######################################",
+		"#B....................................G#",
+		"#######################################")
+
+/datum/bot_scenario/bmhl/walk/pauses/post_spawn()
+	..()
+	if("steps_to_pause" in brain.vars)
+		brain.vars["steps_to_pause"] = 8
+
+/datum/bot_scenario/bmhl/walk/pauses/check_success_conditions()
+	var/stood = longest_stand()
+	log_line("longest stand between two steps: [stood / 10] s, [length(moved_at)] steps")
+	if(stood < 9)
+		return "walked the whole way without a stop (the longest between two steps was [stood / 10] s)"
+	if(stood > 25)
+		return "stood [stood / 10] s on the way: a moment, not a freeze"
+	return null
+
+/datum/bot_scenario/bmhl/walk/hurried
+	name = "walking: in a hurry (the air's not right) it doesn't stop on the way (control)"
+	desc = "The same corridor and the same stop due, but the bot's worried (urgency concerned): no stop. Passes before walk_pause() too: it guards against stopping when there's a reason not to."
+	urgency_override = 1 //BOT_URGENCY_CONCERNED
+	layout = list(
+		"#######################################",
+		"#B....................................G#",
+		"#######################################")
+
+/datum/bot_scenario/bmhl/walk/hurried/post_spawn()
+	..()
+	if("steps_to_pause" in brain.vars)
+		brain.vars["steps_to_pause"] = 8
+
+/datum/bot_scenario/bmhl/walk/hurried/check_success_conditions()
+	var/stood = longest_stand()
+	log_line("longest stand between two steps: [stood / 10] s")
+	if(stood >= 9)
+		return "stopped for [stood / 10] s on the way while worried"
+	return null
+
+/datum/bot_scenario/bmhl/walk/corner
+	name = "walking: after a straight run it now and then takes a turn a step late, past the corner and back, and still gets there"
+	desc = "Five tiles east, then the way turns south; the corridor goes on a tile past the turn (o). With a late turn certain (overshoot_chance 100), it steps on to o, back to the corner and down to the end."
+	layout = list(
+		"#########",
+		"#B....+o#",
+		"######.##",
+		"######.##",
+		"######G##",
+		"#########")
+
+/datum/bot_scenario/bmhl/walk/corner/post_spawn()
+	..()
+	if("overshoot_chance" in brain.vars)
+		brain.vars["overshoot_chance"] = 100
+	if("steps_to_pause" in brain.vars)
+		brain.vars["steps_to_pause"] = 999
+
+/datum/bot_scenario/bmhl/walk/corner/check_success_conditions()
+	log_line("stood on: [english_list(stood_on)]")
+	if(!(first_marker("o") in stood_on))
+		return "turned at the corner without a step past it"
+	return null

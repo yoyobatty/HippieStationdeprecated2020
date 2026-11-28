@@ -1121,6 +1121,14 @@
 				return //gone, or the walk was planned again while it was at it: that one drives it
 			schedule_step(max(1, owner.movement_delay()))
 			return
+	// Now and then on a walk at its ease, a step past the corner before turning (corner_overshoot(), bot_human.dm). The route is its own
+	// copy from here on, so nothing cached under it changes.
+	var/list/late_turn = corner_overshoot(next_node)
+	if(late_turn)
+		current_path = current_path.Copy()
+		current_path.Insert(1, late_turn) //a list's tiles go in, not the list
+		next_node = late_turn[1]
+		bot_tally("ran a step past a corner")
 	var/turf/left_turf = get_turf(owner)
 	// The glide covers the tile in the time to the next step, as client/Move() sets it for a player. Left at 8, a bot walking (wet
 	// floor, a careful goal) or slowed (hurt, hauling) darted across each tile in a tenth of a second and stood for the rest.
@@ -1143,10 +1151,13 @@
 		swat_passing_mice() //bot_human.dm - crew squash mice in passing (they chew cables)
 		// Same idea, security-flavored - see close_airlock_behind()'s own comment.
 		close_airlock_behind(left_turf)
+		var/stepped = get_dir(left_turf, get_turf(owner))
+		straight_steps = stepped == last_step_dir ? straight_steps + 1 : 1
+		last_step_dir = stepped
 		// Re-invoke ourselves after a normal per-tile delay, same pacing walk_to()'s
 		// Lag parameter used to provide, just driven explicitly instead of trusted to
-		// its own internal continuation.
-		schedule_step(delay)
+		// its own internal continuation. Now and then on a walk at its ease, a moment stood still first (walk_pause(), bot_human.dm).
+		schedule_step(delay + walk_pause(length(current_path) >= 2 ? current_path[2] : null)) //[1] is the tile it's just stepped on to
 	else if(haul_waiting_since && world.time - haul_waiting_since < HAUL_WAIT)
 		schedule_step(5) //somebody in the way of what's in tow: wait on them
 	else if(yields_tile(next_node))

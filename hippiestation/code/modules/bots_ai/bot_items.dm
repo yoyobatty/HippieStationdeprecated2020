@@ -196,6 +196,10 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 /datum/bot_brain/proc/go_back_for_set_down()
 	if(owner.get_active_held_item() && owner.get_inactive_held_item())
 		return FALSE
+	// Sat down, it goes back for it once it's up. A walk started from the chair goes nowhere: a Head of Personnel sat at the desk with a
+	// walk back to the banana lamp it had set down, two tiles off, and stood "stuck" in it for 638 s (stuck_walks.py, hands1128_after run1).
+	if(owner.buckled)
+		return FALSE
 	// The one it's already on its way to comes first, in view or not: it knows where it put it. Going for whichever came into view first
 	// each step, a botanist with two seed packs down went back and forth between them for over a minute.
 	var/list/order = set_down_items.Copy()
@@ -228,7 +232,8 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 /datum/bot_brain/proc/is_useful_item(obj/item/I)
 	if(istype(I) && !I.anchored && wants_slip(I)) //foundation/slips.dm: one kept about it, by the sort to use one
 		return TRUE
-	return istype(I) && !I.anchored && is_type_in_typecache(I, GLOB.bot_useful_items) && !already_carries_matching_tool(I)
+	// Not what it left behind between jobs for want of room (tidy_away(), bot_human.dm): picked up on the next stroll, it'd be down again after
+	return istype(I) && !I.anchored && is_type_in_typecache(I, GLOB.bot_useful_items) && !already_carries_matching_tool(I) && !let_go_recently(I)
 
 // Floor items first, then storage: an open closet's contents, or a closed closet
 // itself (opened on arrival by try_open_locker(), then re-scanned next wander tick).
@@ -290,6 +295,7 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 		bot_log_verbose(src, "try_pickup_target: stow_item([I]) failed - active=[owner.get_active_held_item()], inactive=[owner.get_inactive_held_item()], dist=[get_dist(owner, I)], active_hand_index=[owner.active_hand_index], held_items=[owner.held_items], mobility_pickup=[owner.mobility_flags & MOBILITY_PICKUP], I.loc=[I.loc], I.anchored=[I.anchored], I.item_flags=[I.item_flags]")
 		return FALSE
 	LAZYREMOVE(set_down_items, I) //in hand again: where it goes down next is no longer "for a moment"
+	tidy_hands_at = max(tidy_hands_at, world.time + rand(20, 50)) //a look at it in hand before it's put away (tidy_hands(), bot_human.dm)
 	bot_log(src, "picked up [I]")
 	return TRUE
 
@@ -518,8 +524,19 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 				return try_breach(F)
 			return FALSE
 		if(firelock_too_hot(F)) //goals/respond_to_fire.dm: it's shut on a fire, or on air too hot for it
-			bot_log(src, "there's fire at [F], not opening it")
-			return FALSE
+			// Hot air past it with no flames, and dressed for that heat: on its tank first, the way a person pulls the mask up before opening
+			// a door on to heat, then open it. The air check shuts the valve as soon as the air round it is breathable, so a bot suited for
+			// the heat beyond came to the firelock off its tank and turned back from it; with a click's reaction 0.2-0.4 s (human_limits.dm)
+			// that was every time (gym "suited and on its tank it pries it and goes", 2026-11-28).
+			var/flames = FALSE
+			for(var/turf/open/T in list(get_turf(F), get_step(F, NORTH), get_step(F, SOUTH), get_step(F, EAST), get_step(F, WEST)))
+				if(T.active_hotspot)
+					flames = TRUE
+					break
+			if(flames || owner.internal || !internals_on_for_work() || firelock_too_hot(F))
+				bot_log(src, "there's fire at [F], not opening it")
+				return FALSE
+			bot_log(src, "on my tank before opening [F] on to the heat")
 		var/obj/item/crowbar/CB = find_or_transform_tool(/obj/item/crowbar)
 		if(!CB)
 			if(try_safety_release(F)) //a dead firelock has the same hand release

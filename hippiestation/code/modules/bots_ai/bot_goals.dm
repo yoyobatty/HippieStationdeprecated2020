@@ -760,6 +760,7 @@ GLOBAL_LIST_EMPTY(bot_work_claims)
 	state = state_before_combat || BOT_STATE_WANDER
 	state_before_combat = null
 	next_wander_time = world.time
+	tidy_hands_at = world.time + rand(15, 50) //what the job needed in hand goes away a moment after (tidy_hands(), bot_human.dm)
 
 	if(suspended_goal)
 		current_goal = suspended_goal

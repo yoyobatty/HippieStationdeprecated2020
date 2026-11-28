@@ -148,6 +148,108 @@
 			return TRUE
 	return FALSE
 
+// ---------------------------------------------------------------------------------------------
+// Hands between jobs
+// ---------------------------------------------------------------------------------------------
+
+/datum/bot_brain
+	/// When it next sees to what's in its hands between jobs (tidy_hands()): a moment after a job ends or something's picked up.
+	var/tidy_hands_at = 0
+	/// What it had no room for and kept in hand anyway (a toolbox, a weapon): weakref -> when to try again, so it isn't tried every second.
+	var/list/kept_in_hand
+	/// What it had no room for and no use for, and left where it stood: weakref -> until when it isn't picked up again (is_useful_item()).
+	var/list/let_go_of
+	/// A Bot Gym bot leaves its hands alone between goals unless its scenario is about that.
+	var/gym_tidies_hands = FALSE
+
+/// Between jobs, what's in its hands goes back on the belt, in the bag or a pocket, a thing at a time, the way a player presses E or clicks
+/// the bag once the job's done: they walk about with their hands empty. Nothing did this, and the Turing judge (tools/bot_gym/turing.py)
+/// found the hands the biggest tell: something in a hand for 68-73% of a bot's time between jobs against 42-44% of the player's, and the
+/// other hand full 58-65% of it against 30% (held_report.py, batch night1122b_after and two of the player's rounds). Screwdrivers,
+/// handcuffs, gas masks, firesuits and a desk lamp went round on strolls for minutes, one for half an hour. What won't fit stays in hand
+/// if it's worth keeping (a tool, a weapon, cuffs, a kit, a drink); clothing it isn't wearing and bulky odds and ends are left where it
+/// stands. TRUE while it's putting something away.
+/datum/bot_brain/proc/tidy_hands()
+	if(world.time < tidy_hands_at || world.time < mid_click_until || state != BOT_STATE_WANDER || current_goal || goal_chain_pending)
+		return FALSE
+	if(!owner.get_active_held_item() && !owner.get_inactive_held_item())
+		return FALSE
+	if(owner.stat != CONSCIOUS || owner.incapacitated() || owner.handcuffed || gone_loud()) //wanted, it keeps a weapon to hand (stay_armed())
+		return FALSE
+	var/obj/item/I = next_to_tidy()
+	if(!I)
+		tidy_hands_at = world.time + 10 SECONDS
+		return FALSE
+	tidy_hands_at = world.time + hand_beat_length() + 5 //the next one after this one's beat
+	INVOKE_ASYNC(src, PROC_REF(tidy_away), I) //it pauses like a person does: process() can't wait on it
+	return TRUE
+
+/// The next thing in its hands to see to between jobs, or null if everything there is meant to be held.
+/datum/bot_brain/proc/next_to_tidy()
+	for(var/obj/item/I in owner.held_items)
+		if((I.item_flags & ABSTRACT) || HAS_TRAIT(I, TRAIT_NODROP)) //the other half of something two-handed, an arm blade
+			continue
+		if(istype(I, /obj/item/twohanded))
+			var/obj/item/twohanded/T = I
+			if(T.wielded)
+				continue
+		if(istype(I, /obj/item/flashlight))
+			var/obj/item/flashlight/F = I
+			// Lighting its way, in the dark (goals/solars.dm). Not in the light: a desk lamp is on from the start (flashlight.dm), and kept
+			// for being lit, lamps were carried twice as long between jobs as before this (4.2% of the time, batch hands1128_after).
+			if(F.on && in_the_dark())
+				continue
+		if(istype(I, /obj/item/clothing/head/mob_holder)) //a pet in its arms isn't put in the bag
+			continue
+		var/datum/weakref/ref = WEAKREF(I)
+		if(LAZYACCESS(kept_in_hand, ref) > world.time)
+			continue
+		return I
+	return null
+
+/// What a person with no room for it leaves where they stand rather than carry about: clothing they aren't wearing, a desk lamp, other
+/// bulky odds and ends. Not a tool, a weapon, cuffs, a kit, a bag, anything with something in it, or what a job's about.
+/datum/bot_brain/proc/leaves_behind(obj/item/I)
+	// A desk lamp hits like a weapon (force 10: worth_going_back_for()), and bots take one up to arm themselves (acquire_item_type), but
+	// nobody carries a lamp about once the trouble's over.
+	if(istype(I, /obj/item/flashlight/lamp))
+		return TRUE
+	if(worth_going_back_for(I) || bot_keeps_in_hand(I) || traitor_keeps_hold_of(I) || istype(I, /obj/item/storage) || I.reagents?.total_volume)
+		return FALSE
+	return istype(I, /obj/item/clothing) || I.w_class >= WEIGHT_CLASS_BULKY
+
+/// Puts one thing away between jobs: an input of its own (a key, a click on the bag), a beat after the last.
+/datum/bot_brain/proc/tidy_away(obj/item/I)
+	hand_beat()
+	if(QDELETED(owner) || QDELETED(I) || !(I in owner.held_items) || state != BOT_STATE_WANDER || current_goal || owner.incapacitated())
+		return
+	if(istype(I, /obj/item/weldingtool))
+		var/obj/item/weldingtool/W = I
+		if(W.isOn() && toggle_in_hand(W)) //off before it goes on the belt
+			hand_beat()
+			if(QDELETED(owner) || QDELETED(I) || !(I in owner.held_items))
+				return
+	// Clothing goes in the bag, not on: a firesuit picked up in passing isn't something to dress in for a stroll. A desk lamp goes
+	// down, not on the belt, where it fits as a flashlight does (slot_flags) and nobody would clip one.
+	if(!istype(I, /obj/item/flashlight/lamp) && put_away(I, allow_equip = !istype(I, /obj/item/clothing)))
+		bot_log(src, "put [I] away")
+		bot_tally("put away between jobs")
+		return
+	if(!leaves_behind(I))
+		LAZYSET(kept_in_hand, WEAKREF(I), world.time + 2 MINUTES) //no room: it carries it, and looks again in a while
+		return
+	bot_log(src, "no room for [I] - leaving it here")
+	bot_tally("left behind between jobs")
+	owner.dropItemToGround(I)
+	LAZYSET(let_go_of, WEAKREF(I), world.time + 30 MINUTES)
+
+/// Whether it left I behind between jobs not long ago (tidy_away()): a stroll doesn't pick it straight back up.
+/datum/bot_brain/proc/let_go_recently(obj/item/I)
+	if(!let_go_of)
+		return FALSE
+	var/until = let_go_of[WEAKREF(I)]
+	return until && until > world.time
+
 /// A player's help-intent click on `target` with `tool` in hand - crowbar or jaws of life on a door
 /// (door/attackby() -> try_to_crowbar()), a tank on a canister, and so on.
 /datum/bot_brain/proc/use_tool_on(obj/item/tool, atom/target)
@@ -179,6 +281,8 @@
 /datum/bot_brain
 	var/quick_step_retries = 0
 	var/next_fidget_time = 0
+	/// When it next looks round at somebody or turns about while stood waiting (idle_fidget()).
+	var/next_look_round_time = 0
 
 /// How long to linger after arriving somewhere while wandering. People hang around where there's
 /// someone to talk to or somewhere to sit; they don't stand frozen on an empty tile for 20 seconds
@@ -213,6 +317,11 @@
 			if(!T.density && !(locate(/obj/machinery/door) in T) && !is_blocked_turf(T, TRUE))
 				step_to(owner, T)
 				return
+	// A look round every few seconds, not every one or two: a player stood waiting turns to something when it moves or speaks. The
+	// Turing judge had bots turning on the spot in 10% of their still seconds against the player's 4% (turing.py slice, 2026-11-28).
+	if(world.time < next_look_round_time)
+		return
+	next_look_round_time = world.time + rand(40, 120)
 	var/list/interesting = list()
 	for(var/mob/living/carbon/human/H in view(5, owner))
 		if(H != owner && H.stat == CONSCIOUS)
@@ -222,8 +331,125 @@
 			interesting += D
 	if(length(interesting) && prob(70))
 		owner.face_atom(pick(interesting))
-	else if(prob(40))
+	else if(prob(15))
 		owner.setDir(pick(GLOB.cardinals))
+
+// ---------------------------------------------------------------------------------------------
+// Walking like a person
+// ---------------------------------------------------------------------------------------------
+// A person walking somewhere stops for a moment now and then (a look round, at the PDA, at who's about) and runs a step past a corner
+// before turning back into it; a bot ran its route tile after tile at full speed. The Turing judge found it in the windows where both
+// were mostly on the move (turing.py slice --calm --where "move_frac > 0.6", 2026-11-28): moving stretches of 5.75 s for the player
+// against 9 s for bots, 6 brief stops a minute against 4, and the way reversed from one second to the next 20% of the time against 9%.
+
+/// Out of a hundred: how often a turn after a straight run is taken a step late (corner_overshoot()).
+#define BOT_OVERSHOOT_CHANCE 15
+
+/datum/bot_brain
+	/// Steps to go on a walk before it next stops for a moment (walk_pause()).
+	var/steps_to_pause = 0
+	/// The way its last step went, and how many in a row went that way (corner_overshoot()).
+	var/last_step_dir = 0
+	var/straight_steps = 0
+	/// Its own BOT_OVERSHOOT_CHANCE, for a gym scenario to set.
+	var/overshoot_chance = BOT_OVERSHOOT_CHANCE
+	/// A Bot Gym bot walks straight through unless its scenario is about this.
+	var/gym_walks_like_people = FALSE
+
+/// Walked to in a hurry: no stops to look round on the way, and no step past a corner.
+GLOBAL_LIST_INIT(bot_hurried_goals, typecacheof(list(
+	/datum/bot_goal/run_from,
+	/datum/bot_goal/respond_to_call,
+	/datum/bot_goal/answer_call,
+	/datum/bot_goal/treat_patient,
+	/datum/bot_goal/escort_to_sleeper,
+	/datum/bot_goal/fight_fire,
+	/datum/bot_goal/evacuate,
+	/datum/bot_goal/shelter_from_storm,
+	/datum/bot_goal/seek_air,
+	/datum/bot_goal/seek_medbay_healing,
+	/datum/bot_goal/search_for,
+	/datum/bot_goal/hunt,
+	/datum/bot_goal/traitor_kill,
+	/datum/bot_goal/hide_in_locker,
+)))
+
+/// Out for a stroll or on an everyday errand with nothing to hurry for: where walk_pause() and corner_overshoot() apply. Not running from
+/// anybody or to anybody, not in bad air or a fight, not hauling, walking carefully, floating or wanted.
+/datum/bot_brain/proc/walking_at_ease()
+	if(gym_run && !gym_walks_like_people)
+		return FALSE
+	if((state != BOT_STATE_WANDER && state != BOT_STATE_GOAL) || (pursuing_kind != "wander" && pursuing_kind != "goal"))
+		return FALSE
+	if((urgency_override >= 0 ? urgency_override : urgency_known) != BOT_URGENCY_CALM || attacker || gone_loud())
+		return FALSE
+	if(owner.pulling || owner.pulledby || owner.buckled || owner.m_intent == MOVE_INTENT_WALK || !owner.has_gravity())
+		return FALSE
+	if(current_goal && (current_goal.never_rests || current_goal.braves_bad_air || current_goal.holds_for_calls || is_type_in_typecache(current_goal, GLOB.bot_hurried_goals)))
+		return FALSE
+	return TRUE
+
+/// Deciseconds more before the next step (do_step_next_node(), bot_movement.dm): every 40-120 steps of a walk at its ease, a moment stood
+/// still (1-2 s), looking at whoever's about. Not in a doorway or right in front of a door: a step more and it's through.
+/datum/bot_brain/proc/walk_pause(turf/next_node)
+	if(steps_to_pause <= 0)
+		steps_to_pause = rand(40, 120)
+		return 0
+	if(--steps_to_pause > 0)
+		return 0
+	steps_to_pause = rand(40, 120)
+	if(!walking_at_ease())
+		return 0
+	var/turf/here = get_turf(owner)
+	if(!here || (locate(/obj/machinery/door) in here) || (next_node && (locate(/obj/machinery/door) in next_node)))
+		steps_to_pause = rand(2, 4)
+		return 0
+	var/list/people = list()
+	for(var/mob/living/carbon/human/H in view(5, owner))
+		if(H != owner && H.stat == CONSCIOUS)
+			people += H
+	if(length(people) && prob(60))
+		owner.face_atom(pick(people))
+	bot_tally("stopped a moment on a walk")
+	. = rand(10, 20)
+	bot_log_verbose(src, "stopping a moment on the way ([. / 10] s)")
+
+/// Now and then, on a walk at its ease, a turn after four or more steps the same way is taken a step late: on past the corner, then back
+/// to it and round. Routes cut corners (a diagonal step), so there the corner is the tile the route cuts past, and the step past is beyond
+/// it. The tiles to walk before the route goes on, or null. Only open floor in the same room with nobody on it, and not at a door, where
+/// a person slows for it anyway.
+/datum/bot_brain/proc/corner_overshoot(turf/next_node)
+	if(straight_steps < 4 || !(last_step_dir in GLOB.cardinals) || !next_node || length(current_path) < 2 || current_path[1] != next_node)
+		return null
+	var/turf/here = get_turf(owner)
+	if(!here || next_node.z != here.z)
+		return null
+	var/turn_dir = get_dir(here, next_node)
+	var/turf/corner
+	if(turn_dir == turn(last_step_dir, 90) || turn_dir == turn(last_step_dir, -90))
+		corner = here //a square turn, here
+	else if(turn_dir == turn(last_step_dir, 45) || turn_dir == turn(last_step_dir, -45))
+		corner = get_step(here, last_step_dir) //a cut corner: round from the tile it cuts past
+	else
+		return null
+	if(!prob(overshoot_chance) || !walking_at_ease())
+		return null
+	var/turf/past = get_step(corner, last_step_dir)
+	for(var/turf/T in list(corner, past))
+		if(T == here)
+			continue
+		if(!istype(T, /turf/open) || get_area(T) != get_area(here) || !is_wanderable_turf(T) || is_blocked_turf(T, TRUE) || (locate(/mob/living) in T) || (locate(/obj/machinery/door) in T))
+			return null
+	if((locate(/obj/machinery/door) in here) || (locate(/obj/machinery/door) in next_node))
+		return null
+	if((corner != here && here.LinkBlockedWithAccess(corner, owner, null)) || corner.LinkBlockedWithAccess(past, owner, null))
+		return null
+	if(corner == here)
+		return list(past, here)
+	// From the corner, the route's next tile is a straight step round
+	if(get_dist(corner, next_node) != 1 || !(get_dir(corner, next_node) in GLOB.cardinals) || corner.LinkBlockedWithAccess(next_node, owner, null))
+		return null
+	return list(corner, past, corner)
 
 /// Taking something off to put something else on: the old item goes into the bag (through a free
 /// hand, like a player), and only onto the floor if there's truly nowhere to put it. Telemetry

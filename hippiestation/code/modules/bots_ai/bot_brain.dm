@@ -234,6 +234,8 @@
 			floored = TRUE
 		else if(owner.stat != DEAD)
 			mind_hands()
+			if(gym_tidies_hands)
+				tidy_hands() //bot_human.dm
 			if(!try_escape_flames())
 				try_put_self_out()
 			try_drift_back() //bot_hazards.dm: like putting itself out, not an errand
@@ -923,6 +925,10 @@
 	if(!on_break() && run_duties(BOT_DUTY_WORK))
 		if(owner.buckled && state == BOT_STATE_GOAL)
 			owner.buckled.unbuckle_mob(owner, force = TRUE)
+		return
+
+	// The job's done: what's in its hands goes back on the belt or in the bag (bot_human.dm), sat down or on its way somewhere
+	if(tidy_hands())
 		return
 
 	if(owner.buckled)
