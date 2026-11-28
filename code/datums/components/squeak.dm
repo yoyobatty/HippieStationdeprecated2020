@@ -71,14 +71,19 @@
 	if(isturf(current_parent.loc))
 		// hippie start -- one squeak from a pile for each thing that comes onto it: every squeaky toy on a tile squeaked for
 		// everything that arrived, items too, so two belts of rubber ducks were a squeak per duck per duck per move (2026-11-11)
+		// Keyed by REF(), not the mover: the list is only made afresh at the next crossing on a later tick, so the last ones to
+		// cross any squeaky toy stayed in it, where no var shows them: a spark deleted after crossing the Captain's rubber duck
+		// (or anything else deleted while it was the last across one) was a hard delete, 30-60 ms each and up to 30 in a shift
+		// (tools/gc_hunt/tile_ref_check.dm found it, 2026-11-28)
 		var/static/list/answered = list()
 		var/static/answered_time = -1
 		if(answered_time != world.time)
 			answered = list()
 			answered_time = world.time
-		if(answered[AM] == current_parent.loc)
+		var/key = REF(AM)
+		if(answered[key] == current_parent.loc)
 			return
-		answered[AM] = current_parent.loc
+		answered[key] = current_parent.loc
 		// hippie end
 		play_squeak()
 
