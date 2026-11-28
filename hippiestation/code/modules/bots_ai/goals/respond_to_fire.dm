@@ -240,9 +240,22 @@ GLOBAL_LIST_INIT(bot_fire_words, list("fire", "fires", "burning", "ablaze", "fla
 		if(T.active_hotspot)
 			return TRUE
 		var/datum/gas_mixture/air = T.air
-		if(air && air.temperature > BODYTEMP_HEAT_DAMAGE_LIMIT && !(owner.internal && kept_from_heat(air.temperature)))
+		// On its tank, or with a mask and a tank to go on it with before it opens the door (clear_one_blocker(), bot_items.dm): the air check
+		// shuts the valve in air it can breathe, and a suited bot planning its way out came up with no route through the firelock at all.
+		if(air && air.temperature > BODYTEMP_HEAT_DAMAGE_LIMIT && !((owner.internal || could_go_on_tank()) && kept_from_heat(air.temperature)))
 			return TRUE
 	return FALSE
+
+/// Hot air (flames or not) at a shut firelock: what it'd breathe the moment it opened it.
+/datum/bot_brain/proc/firelock_hot_air(obj/machinery/door/firedoor/F)
+	for(var/turf/open/T in list(get_turf(F), get_step(F, NORTH), get_step(F, SOUTH), get_step(F, EAST), get_step(F, WEST)))
+		if(T.air && T.air.temperature > BODYTEMP_HEAT_DAMAGE_LIMIT)
+			return TRUE
+	return FALSE
+
+/// A mask and a tank with air in it about it, to go on its tank with (internals_on_for_work(), goals/refill_internals.dm).
+/datum/bot_brain/proc/could_go_on_tank()
+	return internals_mask() && internals_tank()
 
 /// Standing in flames or air that burns: out of it first, whatever it was doing. Rolling on the floor in them is how it ends (that's
 /// try_put_self_out()), and an engineer that had caught light stood in a burning corridor for fourteen seconds before going back into

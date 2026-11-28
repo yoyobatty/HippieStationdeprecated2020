@@ -1137,3 +1137,62 @@
 	if(!(first_marker("o") in stood_on))
 		return "turned at the corner without a step past it"
 	return null
+
+// ---------------------------------------------------------------------------------------------
+// Suiting up: only a storage unit it can get to (find_eva_ssu(), goals/gear_up_eva.dm)
+// ---------------------------------------------------------------------------------------------
+// giveup_loops.py (2026-11-28): gear_up_for_eva and raid_suit_storage_unit gave up again and again for ten minutes and more in all three
+// batches, 39 of 55 raids "no path to the floor (Captain's Quarters)": engineers whose own units were empty went for the Captain's.
+
+/datum/bot_scenario/bmhl/eva_unit
+	job = "Station Engineer"
+	time_limit = 10 SECONDS
+	max_goal_attempts = 0
+	var/obj/machinery/suit_storage_unit/captain/unit
+
+/datum/bot_scenario/bmhl/eva_unit/setup()
+	unit = place("q", new /obj/machinery/suit_storage_unit/captain(first_marker("q")))
+
+/datum/bot_scenario/bmhl/eva_unit/issue_goal()
+	return
+
+/datum/bot_scenario/bmhl/eva_unit/locked
+	name = "suiting up: an engineer whose own units are empty doesn't go for the Captain's behind a door its ID won't open"
+	desc = "An engineer with no ID, the Captain's suit storage unit (full) behind a Captain's-access airlock, nothing else. The look for a unit to raid doesn't pick it: there's no way in. It did, and gave up, and went again a few minutes later."
+	layout = list(
+		"#########",
+		"#B...D.q#",
+		"#########")
+
+/datum/bot_scenario/bmhl/eva_unit/locked/setup()
+	..()
+	var/obj/machinery/door/airlock/D = first_placed("D")
+	D.req_access = list(ACCESS_CAPTAIN)
+
+/datum/bot_scenario/bmhl/eva_unit/locked/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/suit_storage_unit/S = brain.find_eva_ssu()
+	log_line("the unit it would go for: [S ? "[S] @ [bot_coord(S)]" : "none"]")
+	if(S == unit)
+		fail_reason = "went for the Captain's unit behind a door its ID doesn't open"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS
+
+/datum/bot_scenario/bmhl/eva_unit/open
+	name = "suiting up: with another department's unit in reach and nothing of its own, an engineer still goes for that one (control)"
+	desc = "The same, with no door: the Captain's unit is in reach, and it's the one picked. Passes before the reach check too: it guards against turning away from what it can get to."
+	layout = list(
+		"#########",
+		"#B.....q#",
+		"#########")
+
+/datum/bot_scenario/bmhl/eva_unit/open/check()
+	if(bot_lost())
+		return BOT_GYM_FAIL
+	var/obj/machinery/suit_storage_unit/S = brain.find_eva_ssu()
+	log_line("the unit it would go for: [S ? "[S] @ [bot_coord(S)]" : "none"]")
+	if(S != unit)
+		fail_reason = "didn't go for the unit in reach ([S || "none"])"
+		return BOT_GYM_FAIL
+	return BOT_GYM_PASS

@@ -120,14 +120,25 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	var/list/loadout = get_eva_loadout()
 	return loadout ? loadout["ssu"] : null
 
+/// Most storage units find_eva_ssu() asks the way to in one look: each is a route search or several.
+#define BOT_EVA_SSU_TRIES 3
+
+/datum/bot_brain
+	/// Storage units it found no way to by doors its ID opens: weakref -> when to think of them again (find_eva_ssu()).
+	var/list/eva_ssus_out_of_reach
+	/// Suiting up given up this many times running (gear_up_for_eva/on_give_up()): each waits longer before the next try.
+	var/eva_gearing_failures = 0
+
 // Prefers the job's own dedicated SSU (score 0) over any other one that still has
 // something in it (score 1, distance tiebreak) - "the CE prefers their own office"
 // falls out of this naturally, since the /ce SSU variant is normally only mapped there.
+// Only one it can walk to by doors its ID opens, as a player goes to a unit they can get into. Any unit with anything left in it would
+// do before, behind any door: an engineer whose department's units were empty went for the Captain's in the Captain's Quarters, found
+// no way in, gave up, and went again a few minutes later, four times over ten minutes and more (giveup_loops.py: 39 of 55
+// raid_suit_storage_unit give-ups in three batches were "no path to the floor (Captain's Quarters)").
 /datum/bot_brain/proc/find_eva_ssu()
 	var/preferred = get_preferred_ssu_type()
-	var/obj/machinery/suit_storage_unit/best
-	var/best_dist
-	var/best_score
+	var/list/scored = list()
 	for(var/obj/machinery/suit_storage_unit/S as anything in bot_instances_of(/obj/machinery/suit_storage_unit))
 		if(S.z != owner.z)
 			continue
@@ -136,12 +147,24 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 		var/dist = get_dist(owner, S)
 		if(dist > 100)
 			continue
-		var/score = (preferred && istype(S, preferred)) ? 0 : 1
-		if(!best || score < best_score || (score == best_score && dist < best_dist))
-			best = S
-			best_dist = dist
-			best_score = score
-	return best
+		if(LAZYACCESS(eva_ssus_out_of_reach, WEAKREF(S)) > world.time)
+			continue
+		scored[S] = ((preferred && istype(S, preferred)) ? 0 : 1000) + dist
+	var/tries = 0
+	while(length(scored) && tries < BOT_EVA_SSU_TRIES)
+		var/obj/machinery/suit_storage_unit/best
+		for(var/obj/machinery/suit_storage_unit/S as anything in scored)
+			if(!best || scored[S] < scored[best])
+				best = S
+		scored -= best
+		tries++
+		if(can_walk_lawfully_to(best)) //bot_doors.dm
+			return best
+		LAZYSET(eva_ssus_out_of_reach, WEAKREF(best), world.time + 10 MINUTES)
+		bot_log(src, "no way to [best] in [get_area_name(best)] that my ID opens - not that one")
+	return null
+
+#undef BOT_EVA_SSU_TRIES
 
 // True when the bot's immediate surroundings are hazardous enough that a real engineer
 // would actually clip their mag-boots down - no gravity, a hull breach (pressure under
@@ -354,16 +377,24 @@ GLOBAL_LIST_INIT(bot_eva_loadouts, list(
 	return ..() && !is_type_in_typecache(I, GLOB.bot_contraband)
 
 /datum/bot_goal/gear_up_for_eva/resolve_target(datum/bot_brain/bot)
+	// Not again until the wait after the last give-up is over, however it's asked for: the repairs that need a suit (repair_hull,
+	// repair_damage, team_repairs) send for one directly, past try_eva_gearing_round()'s look at the wait, and went straight back
+	// to the storage unit that had just turned them away.
+	if(world.time < bot.eva_gearing_blocked_until)
+		return
 	target = bot.owner //no real "target" atom for this goal - just needs to be non-null so assign_goal() doesn't reject it
 
 /datum/bot_goal/gear_up_for_eva/get_strategies(datum/bot_brain/bot)
 	return list(new /datum/bot_strategy/gear_up())
 
 /datum/bot_goal/gear_up_for_eva/on_success(datum/bot_brain/bot)
+	bot.eva_gearing_failures = 0
 	bot.continue_eva_round()
 
+/// Longer each time running: no suit to be had is likely still none in a few minutes (2-4 minutes, then 4-8, 6-12, 8-16).
 /datum/bot_goal/gear_up_for_eva/on_give_up(datum/bot_brain/bot)
-	bot.eva_gearing_blocked_until = world.time + rand(1200, 2400)
+	bot.eva_gearing_failures = min(bot.eva_gearing_failures + 1, 4)
+	bot.eva_gearing_blocked_until = world.time + rand(1200, 2400) * bot.eva_gearing_failures
 
 /datum/bot_strategy/gear_up/New()
 	. = ..()

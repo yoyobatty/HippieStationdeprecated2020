@@ -524,17 +524,15 @@ GLOBAL_LIST_INIT(bot_useful_items, typecacheof(list(
 				return try_breach(F)
 			return FALSE
 		if(firelock_too_hot(F)) //goals/respond_to_fire.dm: it's shut on a fire, or on air too hot for it
-			// Hot air past it with no flames, and dressed for that heat: on its tank first, the way a person pulls the mask up before opening
-			// a door on to heat, then open it. The air check shuts the valve as soon as the air round it is breathable, so a bot suited for
-			// the heat beyond came to the firelock off its tank and turned back from it; with a click's reaction 0.2-0.4 s (human_limits.dm)
-			// that was every time (gym "suited and on its tank it pries it and goes", 2026-11-28).
-			var/flames = FALSE
-			for(var/turf/open/T in list(get_turf(F), get_step(F, NORTH), get_step(F, SOUTH), get_step(F, EAST), get_step(F, WEST)))
-				if(T.active_hotspot)
-					flames = TRUE
-					break
-			if(flames || owner.internal || !internals_on_for_work() || firelock_too_hot(F))
-				bot_log(src, "there's fire at [F], not opening it")
+			bot_log(src, "there's fire at [F], not opening it")
+			return FALSE
+		// Hot air past it, and dressed for that heat: on its tank first, the way a person pulls the mask up before opening a door on to
+		// heat. The air check shuts the valve as soon as the air round it is breathable, so a bot suited for the heat beyond came to the
+		// firelock off its tank; with a click's reaction 0.2-0.4 s (human_limits.dm) it turned back every time (gym "suited and on its tank
+		// it pries it and goes", 2026-11-28). firelock_too_hot() counts a mask and a tank to hand as good as on.
+		if(!owner.internal && firelock_hot_air(F) && !heat_proof())
+			if(!internals_on_for_work())
+				bot_log(src, "there's hot air past [F] and I can't get on my tank - not opening it")
 				return FALSE
 			bot_log(src, "on my tank before opening [F] on to the heat")
 		var/obj/item/crowbar/CB = find_or_transform_tool(/obj/item/crowbar)
