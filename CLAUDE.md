@@ -31,7 +31,7 @@ A 2020 /tg/station fork (upstream HippieStation/HippieStationdeprecated2020) bro
 
 ## Tools (`tools/`)
 - Cross-project kit (skill `devkit`, `python "C:/Users/Keegan Eaton/devkit/dk.py" TOOL`): `toolfind` first, then `probe` (stalls, hot code of dd.exe), `abkit` (A/B stats), `lookkit` (shots, diffs, golden images), `shrink`/`bisect` (repro, breaking commit; worktree-safe), `timeline` (merged round logs), `tuner` (live sliders), `gpu` (who holds or blocks the GPU).
-- `bot_gym/`: `ab_gym.sh` (before/after), `run_bot_gym.sh`, `run_bot_shift.sh`, `run_live_round.sh`, digests and death stories.
+- `bot_gym/`: `ab_gym.sh` (before/after), `run_bot_gym.sh`, `run_bot_shift.sh`, `run_live_round.sh`, digests and death stories, `turing.py` (how human the bots look next to the logged player: held-out AUC, tells, batch A/B).
 - `lint/`: dreamchecker against a baseline. `gc_hunt/`: hard-delete hunts.
 - `atmos_bench/`, `lighting_bench/`, `speed_bench/`, `boot_bench/`: performance A/B.
 - `mob_storm/`: replays a server stall headless (a spawned pile on one tile) and names what ran in each stall. A live freeze is in runtime.log's `MC watchdog alert` lines.
