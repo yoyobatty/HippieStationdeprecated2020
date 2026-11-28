@@ -33,8 +33,11 @@ pub const EVENT_NEW_TURF: u32 = 9;
 /// What the engine has of turfs between ticks, by turf number
 #[derive(Default)]
 pub struct Known {
-	/// u32::MAX for not known
+	/// Its kind, where `sent`
 	kind: Vec<u32>,
+	/// Its kind and neighbours have been sent and are still good. A kind of its own can't mark that: a turf with no air is
+	/// KIND_NO_AIR, u32::MAX, which read back as never sent and failed the next tick.
+	sent: Vec<bool>,
 	adjacent: Vec<Vec<u32>>,
 	/// Its air as DM holds it after the last tick it was in (temperature, then (gas index, moles)). NaN temperature for
 	/// none kept.
@@ -46,10 +49,12 @@ impl Known {
 	pub fn set(&mut self, id: u32, kind: u32, adjacent: &[u32]) {
 		let i = id as usize;
 		if i >= self.kind.len() {
-			self.kind.resize(i + 1, u32::MAX);
+			self.kind.resize(i + 1, 0);
+			self.sent.resize(i + 1, false);
 			self.adjacent.resize_with(i + 1, Vec::new);
 		}
 		self.kind[i] = kind;
+		self.sent[i] = true;
 		self.adjacent[i].clear();
 		self.adjacent[i].extend_from_slice(adjacent);
 	}
@@ -75,8 +80,8 @@ impl Known {
 
 	pub fn get(&self, id: u32) -> Option<(u32, &[u32])> {
 		let i = id as usize;
-		match self.kind.get(i) {
-			Some(&kind) if kind != u32::MAX => Some((kind, &self.adjacent[i])),
+		match self.sent.get(i) {
+			Some(true) => Some((self.kind[i], &self.adjacent[i])),
 			_ => None,
 		}
 	}
@@ -90,8 +95,8 @@ impl Known {
 
 	/// Its neighbours changed (or it's a new turf): its kind and neighbours have to be sent again
 	pub fn forget_kind(&mut self, id: u32) {
-		if let Some(kind) = self.kind.get_mut(id as usize) {
-			*kind = u32::MAX;
+		if let Some(sent) = self.sent.get_mut(id as usize) {
+			*sent = false;
 		}
 	}
 
@@ -731,6 +736,21 @@ mod tests {
 
 	fn active_ids(world: &mut World) -> Vec<u32> {
 		world.active().iter().map(|&(id, _)| id).collect()
+	}
+
+	#[test]
+	fn a_turf_sent_with_no_air_is_known_as_one() {
+		let mut known = Known::default();
+		assert!(known.get(7).is_none(), "never sent");
+		known.set(7, KIND_NO_AIR, &[]);
+		assert_eq!(known.get(7), Some((KIND_NO_AIR, &[] as &[u32])), "an open turf with no air (DM's -1) is known, not never sent");
+		assert!(known.complete(7), "it needs no air to be run");
+		assert!(known.get(3).is_none(), "the turfs before it weren't sent");
+		known.forget_kind(7);
+		assert!(known.get(7).is_none(), "its neighbours changed: sent again before it's used");
+		known.set(7, KIND_TURF, &[3]);
+		assert_eq!(known.get(7), Some((KIND_TURF, &[3u32] as &[u32])));
+		assert!(!known.complete(7), "a turf with air needs its air too");
 	}
 
 	#[test]
