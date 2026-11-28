@@ -136,6 +136,14 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 
 /datum/stress_bench/New(datum/bot_shift/shift)
 	src.shift = shift
+	var/end_at = text2num(world.params["stress-end"]) // stress-end=<seconds>: only the phases that start before then (150: crew arriving alone)
+	if(end_at)
+		var/list/kept = list()
+		for(var/name in schedule)
+			if(name != "end" && schedule[name] < end_at)
+				kept[name] = schedule[name]
+		kept["end"] = end_at
+		schedule = kept
 	shift.length = max(shift.length, (schedule["end"] + 30) SECONDS)
 	if(world.params["light-tally"])
 		light_tally = list()

@@ -18,10 +18,15 @@ grey casing that change with it. "box=x0,y0,x1,y1" keeps only pixels inside that
 A "<lit>_glow" state already in the merged sheet (drawn by hand in the Hippie twin) wins over the made one, which is how a
 bad mask gets fixed. Masks keep the lit sprite's own colours, so the bloom comes out coloured.
 
+The build also lists every sheet's masks for the game (emissive_glow_sheets.dm), read from each .dmi's state names, so the
+game never loads a sheet with icon_states() to look for them; check fails when a sheet gained or lost a "_glow" state since.
+
   python tools/icon_merge/icon_merge.py glow-review     sheets of every mask in data/previews/glow/
 """
 import os
 import re
+import struct
+import zlib
 
 from PIL import Image
 
@@ -194,6 +199,74 @@ def render_colours(manifest):
     for tg in sorted(manifest):
         for state, (hex_colour, pixels) in sorted(manifest[tg].get('glow_colours', {}).items()):
             entries.append(f'\t"{tg}|{state}" = list("{hex_colour}", {pixels}),')
+    if entries:
+        entries[-1] = entries[-1].rstrip(',')
+    return '\n'.join(lines + entries + ['))', ''])
+
+
+DM_SHEETS = 'hippiestation/code/modules/lighting/emissive_glow_sheets.dm'
+SHEET_ROOTS = ('goon', 'hippiestation', 'icons')  # the folders the game's .dmi files are in
+ROOT = os.path.normpath(os.path.join(HERE, '..', '..'))
+
+
+def state_names(path):
+    """The state names of a .dmi, read from its Description text without decoding a pixel (the whole tree in about a second)."""
+    names = []
+    with open(path, 'rb') as f:
+        if f.read(8) != b'\x89PNG\r\n\x1a\n':
+            return names
+        while True:
+            head = f.read(8)
+            if len(head) < 8:
+                return names
+            length, kind = struct.unpack('>I4s', head)
+            if kind not in (b'zTXt', b'tEXt'):
+                f.seek(length + 4, 1)
+                continue
+            body = f.read(length)
+            f.seek(4, 1)
+            keyword, _, text = body.partition(b'\0')
+            if keyword != b'Description':
+                continue
+            text = zlib.decompress(text[1:]) if kind == b'zTXt' else text
+            for line in text.decode('utf-8', 'replace').splitlines():
+                match = re.match(r'\s*state\s*=\s*"(.*)"\s*$', line)
+                if match:
+                    names.append(re.sub(r'\\(.)', r'\1', match.group(1)))
+            return names
+
+
+def glow_sheets():
+    """{sheet: {state: "<state>_glow"}} for every .dmi under SHEET_ROOTS with masks: what emissive_glow_state() would find
+    with icon_states(), worked out here so the game never loads a sheet only to learn it has none. Paths are lower case."""
+    found = {}
+    for top in SHEET_ROOTS:
+        for folder, dirs, files in os.walk(os.path.join(ROOT, top)):
+            for name in files:
+                if not name.lower().endswith('.dmi'):
+                    continue
+                path = os.path.join(folder, name)
+                masks = {s[:-len(SUFFIX)]: s for s in state_names(path) if len(s) > len(SUFFIX) and s.endswith(SUFFIX)}
+                if masks:
+                    found[os.path.relpath(path, ROOT).replace(os.sep, '/').lower()] = masks
+    return found
+
+
+def dm_text(text):
+    return text.replace('\\', '\\\\').replace('"', '\\"').replace('[', '\\[')
+
+
+def render_sheets(sheets):
+    """The DM lists of glow_sheets(), with the folders that were looked through."""
+    lines = ["// Made by tools/icon_merge/icon_merge.py build from every .dmi in the folders below; don't edit by hand.",
+             "// Each sheet's \"<state>_glow\" masks (sheet = list(state = mask), lower-case paths), so emissive_glow_state() never",
+             "// loads a sheet to find out (emissive_glow.dm). A sheet in these folders that isn't listed has no masks.",
+             'GLOBAL_LIST_INIT(emissive_glow_sheet_roots, list(' + ', '.join(f'"{top}/"' for top in SHEET_ROOTS) + '))',
+             'GLOBAL_LIST_INIT(emissive_glow_sheets, list(']
+    entries = []
+    for sheet in sorted(sheets):
+        masks = ', '.join(f'"{dm_text(state)}" = "{dm_text(mask)}"' for state, mask in sorted(sheets[sheet].items()))
+        entries.append(f'\t"{dm_text(sheet)}" = list({masks}),')
     if entries:
         entries[-1] = entries[-1].rstrip(',')
     return '\n'.join(lines + entries + ['))', ''])

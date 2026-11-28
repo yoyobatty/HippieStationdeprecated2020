@@ -3940,6 +3940,7 @@
 #include "hippiestation\code\modules\lighting\emissive_glow_items.dm"
 #include "hippiestation\code\modules\lighting\emissive_glow_machines.dm"
 #include "hippiestation\code\modules\lighting\emissive_glow_more.dm"
+#include "hippiestation\code\modules\lighting\emissive_glow_sheets.dm"
 #include "hippiestation\code\modules\lighting\eye_adapt.dm"
 #include "hippiestation\code\modules\lighting\heat_haze.dm"
 #include "hippiestation\code\modules\lighting\lighting_bench.dm"

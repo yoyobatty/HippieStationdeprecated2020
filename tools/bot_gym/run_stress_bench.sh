@@ -20,7 +20,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 set -u
 cd "$(dirname "$0")/../.."
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
-MINUTES=27
+MINUTES="${MINUTES:-27}" # shorter with EXTRA_PARAMS=stress-end=<seconds>: MINUTES=3 EXTRA_PARAMS="stress-end=150&spike-log=1" is the crew's arrival alone
 
 # Compiles a side copy of the .dme (stressbench.mdme, gitignored) and keeps the build as data/stress_builds/<label>.dmb: another
 # session compiling hippiestation.dme at the same time can't hand a run half of one build and half of another. With NOCOMPILE=1
