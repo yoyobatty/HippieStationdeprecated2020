@@ -2989,6 +2989,7 @@
 #include "hippiestation\code\controllers\subsystem\tgui.dm"
 #include "hippiestation\code\controllers\subsystem\throwing.dm"
 #include "hippiestation\code\controllers\subsystem\ticker.dm"
+#include "hippiestation\code\controllers\subsystem\title.dm"
 #include "hippiestation\code\controllers\subsystem\tts.dm"
 #include "hippiestation\code\controllers\subsystem\vote.dm"
 #include "hippiestation\code\controllers\subsystem\vote_tgui.dm"

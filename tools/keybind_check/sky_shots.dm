@@ -242,7 +242,20 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	for(var/name in SSparallax.sky_art)
 		var/obj/screen/sky_art/A = SSparallax.sky_art[name]
 		A.appearance_flags &= ~PIXEL_SCALE
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		L.appearance_flags &= ~PIXEL_SCALE
 	SSsun.can_fire = TRUE
+	// The sky turning with the sun as in a round (the shots above hold it still): the same art, drawn while its turn animates
+	SSparallax.turn_line = null
+	SSparallax.sun_moved()
+	H.hud_used.update_parallax_pref(H)
+	sleep(3 SECONDS)
+	kc_log("seams live: sky_turn_angle [sky_turn_angle()], turn line [json_encode(SSparallax.turn_line)]")
+	sky_shot("sky_seams_live_all")
+	sky_seams_show(C, "clouds")
+	sleep(5)
+	sky_shot("sky_seams_live_clouds")
+	sky_seams_show(C, "all")
 
 /proc/sky_shots_run(client/C)
 	fdel("data/keycheck_shot")

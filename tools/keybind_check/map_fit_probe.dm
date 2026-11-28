@@ -42,9 +42,16 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		C.screen -= A
 		sleep(2)
 		var/without = winget(C, "mapwindow.map", "view-size")
+		for(var/retry in 1 to 3) // the client can answer 0x0 or nothing while it's busy (the lobby loading): ask again
+			if(without && without != "0x0")
+				break
+			sleep(5)
+			without = winget(C, "mapwindow.map", "view-size")
 		C.screen += A
 		sleep(2)
-		if(without != base)
+		if(!without || without == "0x0")
+			kc_log("  couldn't read the drawn size without [A.type] '[A.name]'")
+		else if(without != base)
 			found++
 			kc_log("  grows the map: [A.type] '[A.name]' loc '[A.screen_loc]' icon '[A.icon]' '[A.icon_state]' maptext [A.maptext_width]x[A.maptext_height] at [A.maptext_x],[A.maptext_y], transform [A.transform?.a],[A.transform?.e]: drawn [without] without it")
 	kc_log("[found ? "FAIL" : "PASS"] [label]: [found] screen object(s) grow the map")
@@ -74,6 +81,14 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	text2file("go", "data/keycheck_sendkeys") //starts shot.ps1
 	probe_state(C, "lobby")
 	probe_map_growers(C, "lobby")
+	// What the lobby's sides show without the title's blurred backdrop (hippiestation/code/controllers/subsystem/title.dm)
+	var/obj/effect/title_backdrop/backdrop = SStitle.splash_turf?.backdrop
+	if(backdrop)
+		backdrop.invisibility = INVISIBILITY_ABSTRACT
+		sleep(5)
+		probe_shot("mapfit_lobby_no_backdrop")
+		backdrop.invisibility = 0
+		sleep(5)
 	probe_shot("mapfit_auto_0_lobby")
 	GLOB.master_mode = "extended"
 	SSticker.start_immediately = TRUE
