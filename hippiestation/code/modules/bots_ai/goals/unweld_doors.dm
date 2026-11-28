@@ -11,6 +11,12 @@ GLOBAL_LIST_EMPTY(bot_welds_seen)
 /// How long after a weld's first seen it's left: the chase it was for is over by then
 #define BOT_UNWELD_AFTER (2 MINUTES)
 
+/// Off both lists when it's gone: a welded door blown up stayed on them, and was a hard delete (69 ms in a stress shift)
+/obj/machinery/door/airlock/Destroy()
+	GLOB.bot_roundstart_welded -= src
+	GLOB.bot_welds_seen -= src
+	return ..()
+
 /proc/bot_note_roundstart_welds()
 	for(var/obj/machinery/door/airlock/A as anything in bot_instances_of(/obj/machinery/door/airlock))
 		if(!QDELETED(A) && A.welded)
