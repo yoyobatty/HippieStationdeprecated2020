@@ -70,6 +70,38 @@
 		SSair.pipe_engine_dropped += pipe_engine_id
 	pipe_engine_id = 0
 
+/// Lets go of the mixtures this network, and every network an open valve joins it to, last sent the engine (each keeps its
+/// own list, with the networks across its valves in it). A mixture that left a network stayed on that list until the network
+/// was evened out again, and a network that had settled kept it for good: a machine's air deleted with the machine, or a
+/// canister's deleted after it was taken off its connector, was then a hard delete (30-50 ms in one tick, 3-11 a stress
+/// shift; tools/gc_hunt found them in pipe_engine_gl and pipe_engine_refs). The next evening out sends them all afresh.
+/datum/pipeline/proc/pipe_engine_forget()
+	var/list/datum/pipeline/PL = list(src)
+	for(var/i = 1; i <= length(PL); i++)
+		var/datum/pipeline/P = PL[i]
+		if(!P)
+			continue
+		P.pipe_engine_gl = null
+		P.pipe_engine_refs = null
+		P.pipe_engine_ids = null
+		for(var/obj/machinery/atmospherics/components/binary/valve/V in P.other_atmosmch)
+			if(V.on)
+				PL |= V.parents[1]
+				PL |= V.parents[2]
+
+/// A machine's air leaves the network (the machine's deleted, or it's taken off the pipes): nullifyNode() deletes it next. A
+/// network that's being deleted takes its own list with it (and its machines' airs aren't deleted then).
+/obj/machinery/atmospherics/components/nullifyPipenet(datum/pipeline/reference)
+	if(!QDESTROYING(reference))
+		reference.pipe_engine_forget()
+	return ..()
+
+/// A canister off its connector: its air isn't the network's any more, and it's deleted with the canister
+/obj/machinery/portable_atmospherics/disconnect()
+	var/datum/pipeline/net = connected_port?.parents[1]
+	. = ..()
+	net?.pipe_engine_forget()
+
 /// atmos-engine-pipes=shadow so far: list(mixtures checked, how many differed though nothing marked them changed)
 /datum/controller/subsystem/air/proc/pipe_engine_check()
 	. = list()

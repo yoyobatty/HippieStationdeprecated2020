@@ -208,6 +208,22 @@ GLOBAL_VAR(bot_power_out_drill)
 	job = title
 	who = H
 	GLOB.bot_transfers += src
+	if(C)
+		RegisterSignal(C, COMSIG_PARENT_QDELETING, PROC_REF(gone))
+	if(H)
+		RegisterSignal(H, COMSIG_PARENT_QDELETING, PROC_REF(gone))
+
+/// Its card or whoever asked is deleted: over, and it lets go of them. Only the asker's own step deleted one, so an asker who
+/// died waiting (or one the HoP was promised, which nobody waits on) left it on GLOB.bot_transfers for good, a hard delete for the
+/// body and the card. It isn't deleted itself: the steps working on it hold it (deleted, it was a hard delete of its own), and
+/// they give up on a transfer with no card or nobody to hand it back to.
+/datum/bot_transfer/proc/gone(datum/source)
+	SIGNAL_HANDLER
+	GLOB.bot_transfers -= src
+	if(source == card)
+		card = null
+	if(source == who)
+		who = null
 
 /datum/bot_transfer/Destroy()
 	GLOB.bot_transfers -= src
@@ -397,7 +413,7 @@ GLOBAL_VAR(bot_power_out_drill)
 
 /datum/bot_step/paced/reassign_card/do_click(datum/bot_brain/bot)
 	var/obj/machinery/computer/card/C = bot.current_goal.target
-	if(QDELETED(C) || !bot.owner.Adjacent(C))
+	if(QDELETED(C) || !bot.owner.Adjacent(C) || !transfer.card)
 		return FALSE
 	if(!C.scan)
 		return bot.use_item_on(own, C) && C.scan == own
@@ -457,7 +473,7 @@ GLOBAL_VAR(bot_power_out_drill)
 	transfer = T
 
 /datum/bot_step/hand_back_card/execute(datum/bot_brain/bot)
-	if(QDELETED(transfer) || QDELETED(transfer.card))
+	if(QDELETED(transfer) || QDELETED(transfer.card) || !transfer.who)
 		return GOAL_STEP_SUCCESS //they've gone: it's their loss
 	bot.owner.dropItemToGround(transfer.card)
 	bot_say(bot.owner, transfer.add_access ? "There you go, [transfer.who.name]. You've got [transfer.access_names] now." : "There you go, [transfer.who.name]. You're a [transfer.job] now.")

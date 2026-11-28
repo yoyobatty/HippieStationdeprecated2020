@@ -3,6 +3,10 @@
 // src or locals, walk(), or BYOND's own lists. Not part of the game, and needs no TESTING build:
 // AT_END=1 HARNESS=../../gc_hunt/gc_hunt.dm PARAMS="bot-shift=120&bot-round=1&bot-crew=fill:20&bot-events=1&bot-quiet=1&timewarp=0" SECONDS_LIMIT=590 bash tools/byond_reports/ref_stall/hippie_check.sh
 // Results in data/ref_stall.txt. Turfs only have vis_contents looked at: there are 780,000 of them, and they hold nothing else that matters here.
+// A stress shift with it: HARNESS=tools/gc_hunt/gc_hunt.dm tools/bot_gym/run_stress_bench.sh save <label>, then BUILD=<label> ... run <label> 1.
+// gh-watch=obj/x,datum/y (EXTRA_PARAMS there; no leading slashes) also logs how each hard-deleted one of those types was deleted,
+// where, what made it, its references then against the others', the Move() that left it more, and searches the turfs round it.
+// Found nothing but always on one tile: tile_ref_check.dm names the thing there (a proc's static list held the sparks, 2026-11-28).
 
 #define GH_MAX_PER_TYPE 4
 #define GH_DEPTH 5
@@ -75,10 +79,15 @@ GLOBAL_LIST_INIT(gh_skip_vars, list("vars" = TRUE, "verbs" = TRUE, "overlays" = 
 		gh_scan(thing, gh_label(thing), D, hits)
 	for(var/client/C)
 		gh_scan(C, "client [C.ckey]", D, hits)
+	// Every var of the turfs round where a watched one was deleted (gh-watch): too many turfs to do it for all of them
+	var/turf/deleted_at = GLOB.gh_watch_deleted_at[REF(D)]
+	if(deleted_at)
+		for(var/turf/T in range(8, deleted_at))
+			gh_scan(T, gh_label(T), D, hits)
 	var/atom/movable/AM = D
 	var/extra = ""
 	if(istype(AM))
-		extra = ", loc [AM.loc], vis_locs [length(AM.vis_locs)]"
+		extra = ", loc [AM.loc], vis_locs [length(AM.vis_locs)], vis_contents [length(AM.vis_contents)], light [AM.light ? AM.light.type : "none"]"
 	var/stat_text = isliving(D) ? ", stat [D:stat]" : ""
 	gh_log("[D.type] at [round(world.time / 10)]s: refcount [references], [length(hits)] found in [(world.timeofday - started) / 10]s[extra][stat_text]")
 	for(var/hit in hits)
@@ -197,11 +206,116 @@ GLOBAL_VAR_INIT(gh_stale_enters, 0)
 			GLOB.gh_stale_enters++
 			gh_log("deleted [thing] [thing.type] brought onto a cell by [new_target] [new_target.type] at [round(world.time / 10)]s: [gh_chain(caller)]")
 
+/// gh-watch=datum/gas_mixture,obj/effect/particle_effect/sparks (paths and their subtypes): how each of those was deleted, for
+/// its hard delete to show. The search can't name a sleeping proc, but the qdel() that started it often says enough. Leave the
+/// leading slash off: Git Bash turns an argument's "=/obj/..." into "=C:/Program Files/Git/obj/...".
+GLOBAL_LIST_INIT(gh_watch_types, gh_watch_setup())
+/// REF() -> how it was deleted. A REF is only handed out again once the last one with it is gone, so a hard-deleted one's is its own.
+GLOBAL_LIST_EMPTY(gh_watch_deleted)
+
+/proc/gh_watch_setup()
+	var/list/paths = list()
+	for(var/text in splittext(world.params["gh-watch"] || "", ","))
+		text = trim(text)
+		var/path = text2path(copytext(text, 1, 2) == "/" ? text : "/[text]")
+		if(path)
+			paths += path
+		else
+			gh_log("gh-watch: no type [text]")
+	return length(paths) ? typecacheof(paths) : null
+
+/// The procs above a Destroy() chain: a deep type's Destroy()s alone would fill gh_chain()'s eight
+/proc/gh_chain_past_destroy(callee/step)
+	while(step && findtext("[step.proc]", "/Destroy", -8))
+		step = step.caller
+	return gh_chain(step)
+
+/// REF() -> the turf a watched atom was deleted on, for gh_find() to look through the turfs round it
+GLOBAL_LIST_EMPTY(gh_watch_deleted_at)
+/// REF() -> what made a watched atom, when an effect system did (it's made in a proc of its own, so its callers say nothing)
+GLOBAL_LIST_EMPTY(gh_watch_made_by)
+
+/datum/effect_system
+	var/gh_started
+
+/datum/effect_system/start()
+	gh_started = "[type] started at [AREACOORD(location)] by [holder ? "[holder.type] " : ""][gh_chain(caller)]"
+	return ..()
+
+/atom/movable/Initialize(mapload)
+	. = ..()
+	if(GLOB.gh_watch_types?[type])
+		for(var/callee/step = caller; step; step = step.caller)
+			if(istype(step.src, /datum/effect_system))
+				var/datum/effect_system/system = step.src
+				GLOB.gh_watch_made_by[REF(src)] = system.gh_started || "[system.type], never started"
+				break
+
+/datum/Destroy(force, ...)
+	if(GLOB?.gh_watch_types && GLOB.gh_watch_types[type])
+		var/atom/movable/AM = src
+		var/where = ""
+		if(istype(AM))
+			var/turf/T = get_turf(AM)
+			var/list/here = list()
+			for(var/atom/movable/thing in T)
+				if(thing != AM && length(here) < 10)
+					here += "[thing.type]"
+			where = ", in [AM.loc] [AM.loc?.type] at [AREACOORD(T)] with [jointext(here, " ")]"
+			if(T)
+				GLOB.gh_watch_deleted_at[REF(src)] = T
+		var/extra = istype(src, /datum/gas_mixture) ? ", pipe_engine_id [src:pipe_engine_id]" : ""
+		var/made = GLOB.gh_watch_made_by[REF(src)]
+		GLOB.gh_watch_made_by -= REF(src)
+		var/references = refcount(src)
+		GLOB.gh_watch_refcounts["[type] [references]"]++
+		var/raised = GLOB.gh_watch_raised[REF(src)]
+		GLOB.gh_watch_raised -= REF(src)
+		GLOB.gh_watch_deleted[REF(src)] = "deleted at [round(world.time / 10)]s with [references] references[where][extra][force ? ", forced" : ""]: [gh_chain_past_destroy(caller)][made ? "; made by [made]" : ""][raised ? "; [raised]" : ""]"
+	return ..()
+
+/// REF() -> where a watched movable was going when it went into Move(), while it's still inside: a Move() that sleeps (something
+/// on the way waiting) keeps the mover in a sleeping proc, which the search can't see.
+GLOBAL_LIST_EMPTY(gh_watch_moving)
+/// REF() -> the Move() after which a watched movable had more references than before it
+GLOBAL_LIST_EMPTY(gh_watch_raised)
+/// "type refcount" -> how many watched ones had that many references when they were deleted (a hard-deleted one's stands out)
+GLOBAL_LIST_EMPTY(gh_watch_refcounts)
+
+/atom/movable/Move(atom/newloc, direct)
+	if(!GLOB.gh_watch_types?[type])
+		return ..()
+	var/key = REF(src)
+	var/outer = GLOB.gh_watch_moving[key] // a diagonal step is a Move() inside a Move()
+	if(!outer)
+		GLOB.gh_watch_moving[key] = "went into Move() at [round(world.time / 10, 0.1)]s from [loc] [loc?.type] to [newloc] [newloc?.type]: [gh_chain(caller)]"
+	var/before = refcount(src)
+	. = ..()
+	var/after = refcount(src)
+	if(after > before && !GLOB.gh_watch_raised[key]) // something on the way kept hold of it: where, and what was there
+		var/list/there = list()
+		for(var/atom/movable/thing in newloc)
+			if(thing != src && length(there) < 10)
+				there += "[thing.type]"
+		GLOB.gh_watch_raised[key] = "Move() at [round(world.time / 10, 0.1)]s into [newloc] at [AREACOORD(newloc)] took its references from [before] to [after]; there: [jointext(there, " ")]"
+	if(!outer)
+		GLOB.gh_watch_moving -= key
+
 /datum/controller/subsystem/garbage/HardDelete(datum/D)
 	var/path = D.type
+	if(GLOB.gh_watch_moving[REF(D)])
+		gh_log("hard delete [D] [path], still inside Move(): it [GLOB.gh_watch_moving[REF(D)]]")
 	gh_log("hard delete [D] [path]")
 	if(GLOB.gh_vis_registered[REF(D)])
 		gh_log("    its managed vis overlays began [GLOB.gh_vis_registered[REF(D)]]; managed now [length(D:managed_vis_overlays)]")
+	if(GLOB.gh_watch_types?[path] && GLOB.gh_watch_deleted[REF(D)])
+		gh_log("    [GLOB.gh_watch_deleted[REF(D)]]")
+		GLOB.gh_watch_deleted -= REF(D)
+		var/list/counts = list()
+		for(var/key in GLOB.gh_watch_refcounts)
+			if(findtext(key, "[path] ") == 1)
+				counts += "[copytext(key, length("[path] ") + 1)] refs: [GLOB.gh_watch_refcounts[key]]"
+		gh_log("    references when deleted, all of this type so far: [jointext(counts, ", ")]")
 	if(GLOB.gh_searched[path] < (text2num(world.params["gh-per-type"]) || GH_MAX_PER_TYPE)) //gh-per-type=1 for a blast's dozens of types, at half a minute a search
 		GLOB.gh_searched[path]++
 		try
@@ -210,6 +324,7 @@ GLOBAL_VAR_INIT(gh_stale_enters, 0)
 			gh_log("[path]: the search failed: [E] at [E.file]:[E.line]")
 	else
 		gh_log("[path] again at [round(world.time / 10)]s, refcount [refcount(D)]")
+	GLOB.gh_watch_deleted_at -= REF(D)
 	return ..()
 
 /// An overlay on the managed list that isn't in vis_contents is what the GC later trips on. Catches it the moment a rotation leaves one.
