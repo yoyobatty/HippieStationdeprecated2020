@@ -6,8 +6,8 @@
 //   colour   a hex tint, or for the packed states a 9-number colour matrix: body, crest and core tones (nebula.py dm prints them).
 //            Clouds are added to the sky, so two colours that overlap mix like light: red on blue gives magenta
 //   alpha    how strong, 0-255
-//   speed    how fast it streams past in a shuttle's flight (1: a repeat in PARALLAX_LOOP_TIME). Walking, every cloud slides with
-//            the rest of the far sky (parallax.dm SKY_DEPTH_FAR), and they hold still: no drift of their own
+//   speed    how fast it streams past in a shuttle's flight (1: a repeat in PARALLAX_LOOP_TIME). Walking, every cloud holds still with
+//            the rest of the far sky (parallax.dm SKY_DEPTH_FAR): no drift of their own
 // The first entry is the one the Medium parallax preference shows, so put the theme's main cloud first.
 // tools/sky_gen/sky_gen.py preview reads the entries out of this file: keep each one on a line of its own.
 

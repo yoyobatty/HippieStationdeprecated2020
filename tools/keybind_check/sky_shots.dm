@@ -4,7 +4,8 @@
 // The "before" pictures are the old layers put back as a theme of their own (below), in the same boot and from the same spots.
 // data/sky_shots_which holds what to shoot: "all" (default), "before", a theme's type name ("ember"), "motion" (pairs of
 // pictures a second apart, a walk, and each kind of fly-by), or "deep" (each far thing, the quasar running and on Low, and what
-// a few rounds would pick), "port" (rotation, weather, and the giant event), or "polish" (themes, twinkle, and rare events).
+// a few rounds would pick), "port" (rotation, weather, and the giant event), "polish" (themes, twinkle, and rare events),
+// "seams", "sharpness" (tools/sky_gen/v2/sky_sharpness.py), "scaling" (each of the map's Scaling Modes), "layers" (each layer alone), "batch" (what turns the clouds blocky), "walk" (a ghost flying, filmed by record.ps1), or "lobby_ghost" (observing from the lobby).
 
 GLOBAL_VAR_INIT(keycheck_running, FALSE)
 
@@ -199,18 +200,27 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	SSsun.can_fire = TRUE
 	sky_shoot_giant("sky_polish_giant")
 
-/// Shows only the client's layers of one kind: "all", "stars", "clouds" (the theme's nebulae), "band" (the galaxy's band) or
-/// "other" (the bodies, far things, asteroids, dust, fly-bys)
+/// A sky layer's kind: "stars", "clouds" (the theme's nebulae), "band" (the galaxy's band) or "other" (the bodies, far things,
+/// asteroids, dust, fly-bys)
+/proc/sky_layer_kind(obj/screen/parallax_layer/L)
+	if(istype(L, /obj/screen/parallax_layer/stars))
+		return "stars"
+	if(istype(L, /obj/screen/parallax_layer/nebula))
+		var/obj/screen/parallax_layer/nebula/N = L
+		var/list/cloud = SSparallax.theme.nebula[N.index]
+		return cloud[1] == "band" ? "band" : "clouds"
+	return "other"
+
+/// Whether a layer is of a kind (sky_layer_kind()) or, given a type path, of that type
+/proc/sky_layer_is(obj/screen/parallax_layer/L, what)
+	if(copytext(what, 1, 2) == "/")
+		return "[L.type]" == what
+	return sky_layer_kind(L) == what
+
+/// Shows only the client's layers of one kind (sky_layer_kind()), or "all"
 /proc/sky_seams_show(client/C, part)
 	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
-		var/kind = "other"
-		if(istype(L, /obj/screen/parallax_layer/stars))
-			kind = "stars"
-		else if(istype(L, /obj/screen/parallax_layer/nebula))
-			var/obj/screen/parallax_layer/nebula/N = L
-			var/list/cloud = SSparallax.theme.nebula[N.index]
-			kind = cloud[1] == "band" ? "band" : "clouds"
-		L.invisibility = (part == "all" || part == kind) ? 0 : INVISIBILITY_ABSTRACT
+		L.invisibility = (part == "all" || part == sky_layer_kind(L)) ? 0 : INVISIBILITY_ABSTRACT
 
 /// Lines in the sky: the Gilded Band held at 0 and 20 degrees from open space, each kind of layer alone, then all again with every
 /// layer and piece of shared art drawn nearest-neighbour (PIXEL_SCALE). tools/sky_gen/v2/seam_check.py finds the straight lines.
@@ -298,6 +308,283 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	sky_seams_show(C, "all")
 	SSsun.can_fire = TRUE
 
+/// The map's Scaling Mode (Icons menu: Nearest Neighbor is zoom-mode=distort, Point Sampling normal, Bilinear blur) against the
+/// sky's scaled art: Violet Deep from open space, held at 0 degrees, everything and then the clouds alone, under each mode, and
+/// the clouds once more as a ghost. Keegan's playtest (2026-11-28, Point Sampling, a ghost) showed the 2x clouds in hard blocks
+/// where this harness, on the skin's default distort, drew them smooth. sky_sharpness.py's blocks score reads the pictures.
+/// The player's own mode is put back at the end: it's a saved parameter.
+/proc/sky_shoot_scaling(mob/living/carbon/human/H)
+	var/client/C = H.client
+	var/own_mode = winget(C, "mapwindow.map", "zoom-mode")
+	kc_log("scaling: player's zoom-mode [own_mode], zoom [winget(C, "mapwindow.map", "zoom")]")
+	var/turf/clear_space = locate(110, 60, SSmapping.station_start)
+	SSsun.can_fire = FALSE
+	SSparallax.flyby_art()
+	SSparallax.next_flyby = world.time + 1 HOURS
+	SSparallax.next_sky_event = world.time + 1 HOURS
+	rand_seed(5)
+	SSparallax.set_theme(new /datum/sky_theme/violet)
+	if(isspaceturf(clear_space))
+		H.forceMove(clear_space)
+	sky_port_hold_angle(H, 0)
+	for(var/mode in list("distort", "normal", "blur"))
+		winset(C, "mapwindow.map", "zoom-mode=[mode]")
+		for(var/part in list("all", "clouds"))
+			sky_seams_show(C, part)
+			sleep(10)
+			kc_log("scaling [mode] [part]: zoom-mode now [winget(C, "mapwindow.map", "zoom-mode")], sky_turn_angle [sky_turn_angle()]")
+			sky_shot("sky_scaling_[mode]_[part]")
+	var/mob/dead/observer/ghost = H.ghostize(TRUE)
+	sleep(2 SECONDS)
+	if(ghost)
+		sky_port_hold_angle(ghost, 0)
+		winset(C, "mapwindow.map", "zoom-mode=normal")
+		sky_seams_show(C, "clouds")
+		sleep(10)
+		kc_log("scaling ghost normal clouds: mob [C.mob.type] at ([C.mob.x],[C.mob.y]), sky_turn_angle [sky_turn_angle()]")
+		sky_shot("sky_scaling_ghost_normal_clouds")
+	sky_seams_show(C, "all")
+	winset(C, "mapwindow.map", "zoom-mode=[own_mode]")
+	kc_log("scaling: zoom-mode put back to [winget(C, "mapwindow.map", "zoom-mode")]")
+	SSsun.can_fire = TRUE
+
+/// What a sky object is and how it's drawn, for the notes: type, sheet and state, flags, scale and blend
+/proc/sky_draw_text(atom/movable/A)
+	var/matrix/M = A.transform
+	return "[A.type] [A.icon]:[A.icon_state] flags [A.appearance_flags] scale [M ? "[M.a],[M.e] turn [M.b],[M.d]" : "none"] blend [A.blend_mode] alpha [A.alpha] layer [A.layer] plane [A.plane] overlays [length(A.overlays)]"
+
+/// Each of the client's sky layers alone, Violet Deep from open space held at 0 degrees (sky_layer_<n>.png), with what it draws
+/// and how in the notes: sky_sharpness.py's blocks score names a layer drawn in hard blocks (Keegan's playtest, 2026-11-28).
+/proc/sky_shoot_layers(mob/living/carbon/human/H)
+	var/client/C = H.client
+	var/turf/clear_space = locate(110, 60, SSmapping.station_start)
+	SSsun.can_fire = FALSE
+	SSparallax.flyby_art()
+	SSparallax.next_flyby = world.time + 1 HOURS
+	SSparallax.next_sky_event = world.time + 1 HOURS
+	rand_seed(5)
+	SSparallax.set_theme(new /datum/sky_theme/violet)
+	if(isspaceturf(clear_space))
+		H.forceMove(clear_space)
+	SSevents.can_fire = FALSE
+	// data/sky_shots_first_theme: a theme to show first and switch away from (two runs that began on Quiet Black drew a rainbow over
+	// the whole map, with the GPU under a heavy load from elsewhere)
+	if(fexists("data/sky_shots_first_theme"))
+		var/first = text2path("/datum/sky_theme/[trim(file2text("data/sky_shots_first_theme"))]")
+		if(first)
+			SSparallax.set_theme(new first)
+			H.hud_used.update_parallax_pref(H)
+			sleep(3 SECONDS)
+			kc_log("layers: first theme [SSparallax.theme.name]")
+	var/list/covers = list()
+	for(var/obj/screen/fullscreen/F in C.screen)
+		covers += "[F.type]:[F.icon_state]"
+	kc_log("layers: full-screen effects before clearing: [covers.Join(", ")]; mob at ([H.x],[H.y],[H.z])")
+	H.clear_fullscreens()
+	sky_port_hold_angle(H, 0)
+	kc_log("layers: zoom-mode [winget(C, "mapwindow.map", "zoom-mode")]; home [C.parallax_home ? sky_draw_text(C.parallax_home) : "none"]")
+	// data/sky_shots_layers_with: a kind of layer ("clouds") or a layer type ("/obj/screen/parallax_layer/body/deep") kept on with
+	// each layer in turn: which layer changes how it looks
+	var/with = fexists("data/sky_shots_layers_with") ? trim(file2text("data/sky_shots_layers_with")) : null
+	if(with)
+		for(var/obj/screen/parallax_layer/other as anything in C.parallax_layers)
+			other.invisibility = sky_layer_is(other, with) ? 0 : INVISIBILITY_ABSTRACT
+		sleep(5)
+		kc_log("layers: [with] alone")
+		sky_shot("sky_layer_0")
+	var/index = 0
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		index++
+		for(var/obj/screen/parallax_layer/other as anything in C.parallax_layers)
+			other.invisibility = (other == L || (with && sky_layer_is(other, with))) ? 0 : INVISIBILITY_ABSTRACT
+		sleep(5)
+		kc_log("layer [index]: [sky_draw_text(L)]; holder [L.holder ? sky_draw_text(L.holder) : "none"]")
+		for(var/atom/movable/A in L.vis_contents)
+			kc_log("layer [index] carries: [sky_draw_text(A)]")
+		sky_shot("sky_layer_[index]")
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		L.invisibility = 0
+	SSsun.can_fire = TRUE
+	SSevents.can_fire = TRUE
+
+/// Keegan's playtest as it went (2026-11-28): the sky rolled before anyone joined, the player observing from the lobby before the
+/// round starts, then the round starting with the sky turning live. Violet Deep, Parallax Insane, Graphics High, as his
+/// preferences are. Pictures from open space before the round, just after it starts, half a minute on, then held at 0 degrees
+/// (sky_lobby_ghost_*.png) for sky_sharpness.py's blocks score.
+/proc/sky_shoot_lobby_ghost(client/C)
+	SSparallax.set_theme(new /datum/sky_theme/violet)
+	C.prefs.parallax = PARALLAX_INSANE
+	C.prefs.set_graphics_quality(GRAPHICS_QUALITY_HIGH)
+	C.fps = 60
+	var/wait_for_lobby = world.time + 60 SECONDS
+	while(!istype(C.mob, /mob/dead/new_player) && world.time < wait_for_lobby)
+		sleep(1 SECONDS)
+	sleep(3 SECONDS)
+	var/mob/dead/new_player/N = C.mob
+	var/mob/dead/observer/ghost = new()
+	ghost.started_as_observer = TRUE
+	N.close_spawn_windows()
+	ghost.key = N.key
+	ghost.client = C
+	ghost.set_ghost_appearance()
+	qdel(N)
+	sleep(2 SECONDS)
+	var/turf/clear_space = locate(110, 60, SSmapping.station_start)
+	ghost.forceMove(clear_space)
+	SSparallax.next_flyby = world.time + 1 HOURS
+	SSparallax.next_sky_event = world.time + 1 HOURS
+	sleep(3 SECONDS)
+	text2file("go", "data/keycheck_sendkeys")
+	kc_log("lobby ghost: [C.mob.type] at ([C.mob.x],[C.mob.y],[C.mob.z]), state [SSticker.current_state], zoom-mode [winget(C, "mapwindow.map", "zoom-mode")], theme [SSparallax.theme.name], sky_turn_angle [sky_turn_angle()]; [sky_layer_text(C)]")
+	sky_shot("sky_lobby_ghost_pregame")
+	SSticker.start_immediately = TRUE
+	var/wait_for_round = world.time + 3 MINUTES
+	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < wait_for_round)
+		sleep(1 SECONDS)
+	sleep(5 SECONDS)
+	kc_log("lobby ghost started: state [SSticker.current_state], at ([C.mob.x],[C.mob.y]), theme [SSparallax.theme.name], sky_turn_angle [sky_turn_angle()]")
+	sky_shot("sky_lobby_ghost_start")
+	sleep(30 SECONDS)
+	kc_log("lobby ghost 30 s on: sky_turn_angle [sky_turn_angle()]")
+	sky_shot("sky_lobby_ghost_live")
+	for(var/part in list("clouds", "all"))
+		sky_seams_show(C, part)
+		sleep(10)
+		sky_shot("sky_lobby_ghost_live_[part]")
+	SSsun.can_fire = FALSE
+	sky_port_hold_angle(ghost, 0)
+	for(var/part in list("all", "clouds"))
+		sky_seams_show(C, part)
+		sleep(10)
+		kc_log("lobby ghost held [part]: sky_turn_angle [sky_turn_angle()]")
+		sky_shot("sky_lobby_ghost_held_[part]")
+	sky_seams_show(C, "all")
+	SSsun.can_fire = TRUE
+
+/// Why the 2x clouds come out in blocks with every layer on (2026-11-28): alone they're smooth, and the deep stars (layer 2, drawn
+/// at their own size, just under the clouds) are enough to turn them blocky. If BYOND takes a batch's texture filtering from
+/// the first sprite in it, a sprite with a scale of its own, or the deep stars drawn after the clouds, puts it right. Violet
+/// Deep held at 0 degrees, the clouds and the deep stars on: as they are, the deep stars' art scaled 1.001, moved 0.01 px,
+/// and drawn above the clouds; then every layer with every unscaled piece of art scaled 1.001 (sky_batch_*.png).
+/proc/sky_shoot_batch(mob/living/carbon/human/H)
+	var/client/C = H.client
+	var/turf/clear_space = locate(110, 60, SSmapping.station_start)
+	SSsun.can_fire = FALSE
+	SSevents.can_fire = FALSE
+	SSparallax.flyby_art()
+	SSparallax.next_flyby = world.time + 1 HOURS
+	SSparallax.next_sky_event = world.time + 1 HOURS
+	rand_seed(5)
+	SSparallax.set_theme(new /datum/sky_theme/violet)
+	if(isspaceturf(clear_space))
+		H.forceMove(clear_space)
+	H.clear_fullscreens()
+	sky_port_hold_angle(H, 0)
+	var/obj/screen/parallax_layer/deep
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		if(istype(L, /obj/screen/parallax_layer/stars/deep))
+			deep = L
+		L.invisibility = (L.type == /obj/screen/parallax_layer/stars/deep || sky_layer_kind(L) == "clouds") ? 0 : INVISIBILITY_ABSTRACT
+	var/obj/screen/sky_art/art = SSparallax.star_art("stars_deep", 2)
+	var/list/variants = list(
+		"as_is" = matrix(),
+		"scaled" = matrix(1.001, 0, 0, 0, 1.001, 0),
+		"moved" = matrix(1, 0, 0.01, 0, 1, 0.01))
+	for(var/name in variants)
+		art.transform = variants[name]
+		sleep(10)
+		kc_log("batch [name]: deep stars' art [sky_draw_text(art)]")
+		sky_shot("sky_batch_[name]")
+	art.transform = matrix()
+	var/old_layer = deep.layer
+	deep.layer = 3.5
+	deep.holder.layer = 3.5
+	art.layer = 3.5
+	sleep(10)
+	kc_log("batch above: deep stars' layer [deep.layer], holder [deep.holder.layer]")
+	sky_shot("sky_batch_above")
+	deep.layer = old_layer
+	deep.holder.layer = old_layer
+	art.layer = old_layer
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		L.invisibility = 0
+	sleep(10)
+	sky_shot("sky_batch_all_as_is")
+	var/list/scaled = list()
+	for(var/name in SSparallax.sky_art)
+		var/obj/screen/sky_art/A = SSparallax.sky_art[name]
+		var/matrix/M = A.transform
+		if(!M || (M.a == 1 && M.e == 1 && M.b == 0 && M.d == 0))
+			var/matrix/hair = matrix(M)
+			hair.Scale(1.001)
+			A.transform = hair
+			scaled += name
+	sleep(10)
+	kc_log("batch all scaled: [scaled.Join(", ")]")
+	sky_shot("sky_batch_all_scaled")
+	SSsun.can_fire = TRUE
+	SSevents.can_fire = TRUE
+
+GLOBAL_VAR_INIT(sky_walk_log, FALSE)
+
+/// Every slide of the deep stars' and the dust's layers while sky_shoot_walk() runs: where to, over how long
+/obj/screen/parallax_layer/slide_to(x, y, time)
+	if(GLOB.sky_walk_log && (type == /obj/screen/parallax_layer/stars/deep || type == /obj/screen/parallax_layer/dust))
+		kc_log("slide [world.time] [replacetext("[type]", "/obj/screen/parallax_layer/", "")] [x],[y] over [time || 0] (was [drawn_x],[drawn_y])")
+	return ..()
+
+/// A recording of the sky while a ghost flies (record.ps1 films data/previews/<name>/), with each step logged
+/proc/sky_walk_clip(client/C, name, list/legs)
+	text2file("[name] 7", "data/keycheck_record")
+	sleep(15) // ffmpeg starting
+	GLOB.sky_walk_log = TRUE
+	for(var/list/leg in legs)
+		var/dir = leg[1]
+		for(var/step in 1 to leg[2])
+			var/mob/M = C.mob
+			var/turf/from = M.loc
+			C.Move(get_step(M, dir), dir)
+			kc_log("step [world.time] [dir2text(dir)] ([from?.x],[from?.y]) -> ([M.x],[M.y]) glide_size [M.glide_size]")
+			sleep(world.tick_lag)
+		sleep(6)
+	GLOB.sky_walk_log = FALSE
+	var/deadline = world.time + 20 SECONDS
+	while(!fexists("data/keycheck_record_done") && world.time < deadline)
+		sleep(2)
+	fdel("data/keycheck_record_done")
+
+/// Keegan, 2026-11-28: the sky wobbles a little as a ghost flies, side to side flying left and right, up and down flying up and
+/// down. A ghost flies a tile a tick (client/Move() sends a mob that isn't living straight to its Move(), with the default glide).
+/// Violet Deep held at 0 degrees, from open space: the far layers alone (stars, clouds, band) and then everything, each filmed
+/// while the ghost flies east, west, north and south (data/previews/sky_walk_*/; tools/sky_gen/v2/sky_motion.py measures them).
+/proc/sky_shoot_walk(mob/living/carbon/human/H)
+	var/client/C = H.client
+	var/turf/clear_space = locate(110, 60, SSmapping.station_start)
+	SSsun.can_fire = FALSE
+	SSevents.can_fire = FALSE
+	SSparallax.flyby_art()
+	SSparallax.next_flyby = world.time + 1 HOURS
+	SSparallax.next_sky_event = world.time + 1 HOURS
+	rand_seed(5)
+	SSparallax.set_theme(new /datum/sky_theme/violet)
+	if(isspaceturf(clear_space))
+		H.forceMove(clear_space)
+	var/mob/dead/observer/ghost = H.ghostize(TRUE)
+	sleep(2 SECONDS)
+	sky_port_hold_angle(ghost, 0)
+	kc_log("walk: [C.mob.type] at ([C.mob.x],[C.mob.y]), glide_size [C.mob.glide_size], tick_lag [world.tick_lag], fps [world.fps], client fps [C.fps]")
+	var/list/legs = list(list(EAST, 12), list(WEST, 12), list(NORTH, 10), list(SOUTH, 10))
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		var/kind = sky_layer_kind(L)
+		L.invisibility = (kind == "stars" || kind == "clouds" || kind == "band") ? 0 : INVISIBILITY_ABSTRACT
+	sleep(10)
+	sky_walk_clip(C, "sky_walk_far", legs)
+	sky_seams_show(C, "all")
+	sleep(10)
+	sky_walk_clip(C, "sky_walk_all", legs)
+	SSsun.can_fire = TRUE
+	SSevents.can_fire = TRUE
+
 /proc/sky_shots_run(client/C)
 	fdel("data/keycheck_shot")
 	fdel("data/keycheck_shots_done")
@@ -305,6 +592,15 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	if(fexists("data/sky_shots_which"))
 		which = trim(file2text("data/sky_shots_which"))
 	GLOB.master_mode = "extended"
+	if(which == "lobby_ghost")
+		sky_shoot_lobby_ghost(C)
+		text2file("done", "data/keycheck_shots_done")
+		sleep(5)
+		kc_log("done")
+		winset(C, null, "command=.quit")
+		sleep(5)
+		del(world)
+		return
 	SSticker.start_immediately = TRUE
 	var/wait_for_round = world.time + 3 MINUTES
 	while(SSticker.current_state < GAME_STATE_PLAYING && world.time < wait_for_round)
@@ -338,7 +634,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			themes += path
 			if(which != "all")
 				break
-	else if(which != "before" && which != "deep" && which != "port" && which != "polish" && which != "seams" && which != "sharpness")
+	else if(which != "before" && which != "deep" && which != "port" && which != "polish" && which != "seams" && which != "sharpness" && which != "scaling" && which != "layers" && which != "batch" && which != "walk")
 		var/theme_type = text2path("/datum/sky_theme/[which]")
 		if(theme_type)
 			themes += theme_type
@@ -499,6 +795,14 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		sky_shoot_seams(H)
 	if(which == "sharpness")
 		sky_shoot_sharpness(H)
+	if(which == "scaling")
+		sky_shoot_scaling(H)
+	if(which == "layers")
+		sky_shoot_layers(H)
+	if(which == "batch")
+		sky_shoot_batch(H)
+	if(which == "walk")
+		sky_shoot_walk(H)
 
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)

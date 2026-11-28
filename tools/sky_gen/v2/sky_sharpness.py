@@ -8,6 +8,9 @@ the sky can look rough there, each measured here:
             harmonic) in the rows' and columns' spectra, against the energy around it. ~1 is no grid; 3+ is clear blocks.
   rotated   Art drawn nearest-neighbour while the sky is turned shows its own pixel grid turned with the sky: the strongest
             peak of the 2D spectrum away from the screen axes, with its angle (compare with the sky's turn) and period.
+  blocks    Art drawn bigger than its pixels and point-sampled (PIXEL_SCALE, or the map's Point Sampling mode) comes in hard
+            2x2 game-pixel blocks: the share of the steps between game pixels on one phase of every two, 0 smooth, 1 blocks.
+            Read it with the sky held at 0 degrees (sky_shots.dm `scaling`): turned blocks don't line up with the screen.
   shimmer   Lines that crawl as the sky turns: given pictures a fraction of a degree apart (sky_shots.dm `sharpness`), each
             is turned back by its own angle, and what's left in the fine detail between neighbours is what moved on its own.
             Mean fine-detail change (0-255) and a heat map of where it is.
@@ -75,6 +78,45 @@ def grid_score(lum, game_px):
     return float(np.mean(scores))
 
 
+def game_pixels(lum, game_px):
+    """The picture taken back to one sample a game pixel, at the pixels' middles (the offset that gives the sharpest steps: a
+    crop that doesn't start on a game pixel's edge still lines up)"""
+    best = None
+    for off in np.linspace(0, game_px, 7)[:-1]:
+        ys = (np.arange(int((lum.shape[0] - off) / game_px)) * game_px + off + game_px / 2).astype(int)
+        xs = (np.arange(int((lum.shape[1] - off) / game_px)) * game_px + off + game_px / 2).astype(int)
+        g = lum[np.ix_(ys[ys < lum.shape[0]], xs[xs < lum.shape[1]])]
+        energy = np.abs(np.diff(g, axis=0)).sum() + np.abs(np.diff(g, axis=1)).sum()
+        if best is None or energy > best[0]:
+            best = (energy, g)
+    return best[1]
+
+
+def art_blocks(lum, game_px, size=2, tile=24):
+    """Art drawn `size` times bigger nearest-neighbour (PIXEL_SCALE, or anything else that point-samples it): its game pixels
+    come in equal size x size blocks, so the steps between neighbouring game pixels all fall on one phase of every `size`.
+    Per tile of the picture, the share of the step energy on its strongest phase, 0 for art at the game's pixels or filtered
+    (smooth), 1 for hard blocks; the tiles are weighted by their detail. Only for art at the screen's angle (sky held at 0)."""
+    g = game_pixels(lum, game_px)
+    shares = []
+    weights = []
+    for y in range(0, g.shape[0] - tile + 1, tile):
+        for x in range(0, g.shape[1] - tile + 1, tile):
+            t = g[y:y + tile, x:x + tile]
+            for axis in (0, 1):
+                steps = np.abs(np.diff(t, axis=axis))
+                along = steps.sum(axis=1 - axis)
+                phases = np.array([along[k::size].sum() for k in range(size)])
+                total = phases.sum()
+                if total < 1e-6:
+                    continue
+                shares.append((phases.max() / total - 1 / size) / (1 - 1 / size))
+                weights.append(total)
+    if not weights:
+        return 0.0
+    return float(np.average(shares, weights=weights))
+
+
 def rotated_peak(lum, game_px):
     """The strongest fine-grid peak of the 2D spectrum off the screen's axes: (strength against the median, angle deg, period px)"""
     d = detail(lum)
@@ -131,8 +173,9 @@ def main():
         game_px = lum.shape[0] / args.view_px
         g = grid_score(lum, game_px)
         peak, ang, period = rotated_peak(lum, game_px)
-        print('%-42s grid %5.2f  turned-grid peak %5.1f at %5.1f deg, %4.1f px  (game px %.2f screen px)' %
-              (os.path.basename(path), g, peak, ang, period, game_px))
+        blocks = art_blocks(lum, game_px)
+        print('%-42s grid %5.2f  blocks %4.2f  turned-grid peak %5.1f at %5.1f deg, %4.1f px  (game px %.2f screen px)' %
+              (os.path.basename(path), g, blocks, peak, ang, period, game_px))
     if args.shimmer:
         entries = []
         for item in args.shimmer:

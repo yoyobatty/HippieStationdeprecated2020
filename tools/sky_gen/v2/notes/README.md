@@ -96,6 +96,35 @@ layer (1x: band 9.3, clouds 7.3, other 4.2, stars 2.9; ~1 is none) and shimmer b
   little worse). Reverted to the 1x sheets (+8 MB saved); build_v2.py defaults to --scale 1 and rebuilds the installed sheets
   exactly.
 
+## Blocky clouds in a playtest (2026-11-28)
+
+Keegan's playtest (Violet Deep) showed the 2x theme clouds in hard 2x2 game-pixel blocks while the moon looked clean. The
+clouds alone draw smooth; with the deep stars on they came out nearest-neighbour. BYOND seems to take a run of sprites'
+texture filtering from the first in it: the deep stars (layer 2, drawn at their own size) came just before the clouds (3.0x,
+drawn at twice size) and the clouds took their nearest-neighbour sampling. A hair of scale (1.001) or a 0.01 px shift on the
+stars' art didn't change it; drawing the deep stars after the clouds did. The deep stars are at layer 3.5 now (parallax.dm;
+all these layers add their light, so the order doesn't change the picture): blocks score with every layer on 0.20 -> 0.07,
+the turned sky live smooth too. The far nebulae, drawn small after the far and mid stars, came out the same with and without
+them. sky_check.dm `sky_check_scaled_first()` keeps every unscaled star layer above every scaled one.
+Tools: sky_sharpness.py's blocks score (2x2 game-pixel blocks, read at 0 degrees: 0.72 forced nearest, ~0.1 smooth);
+sky_shots.dm `scaling` (each Scaling Mode), `layers` (each layer alone, or with a kind or type kept on:
+data/sky_shots_layers_with), `batch` (the experiment above) and `lobby_ghost` (observing from the lobby, then the round
+starting with the sky turning live). The map's Scaling Mode and being a ghost made no difference.
+The 2x clouds (960 px) carried no more fine detail than the 1x ones (0.055 against 0.065): the 1x sheets stay.
+Two `layers` runs drew a rainbow smear over the whole map, the player sprite tinted too; not seen again in six runs (one
+starting on the same sky, one with the card's memory full and busy from tools/gpu_load/gpu_load.py). Cause unknown, left.
+A layer shot alone shows white where nothing of the parallax plane is drawn (it multiplies over the white space mask), and a
+far thing's whole square as black there: an artifact of the lone-layer picture, not seen in play.
+
+## The far sky holds still (2026-11-28)
+
+Keegan: the sky wobbles a little as you move, side to side flying left and right, up and down flying up and down. Filmed
+(sky_shots.dm `walk`: a ghost flies 12 tiles east and back, 10 north and back; tools/keybind_check/record.ps1 takes the game
+window by PrintWindow, never the screen; tools/sky_gen/v2/sky_motion.py tracks the sky by phase correlation): at
+SKY_DEPTH_FAR 0.06 px a tile the far sky never moved as parallax, it jumped a whole game pixel (2.96 screen px) every 12-17
+tiles and back again on the way back. Keegan's call: hold it still. SKY_DEPTH_FAR is 0 (stars, clouds, band, far things, sun,
+other world); Lavaland (0.15) and the dust keep their parallax. Filmed again: 0.00 px over 88 steps. sky_check.dm holds it.
+
 ## Ratings at hand-over
 
 Nebulae 8.5-9.5. Events: vortex 9, prism 8.5, shower 8.5, battle 8.5, aurora 8.5, giant 8, supernova 8, breakup 7.5.

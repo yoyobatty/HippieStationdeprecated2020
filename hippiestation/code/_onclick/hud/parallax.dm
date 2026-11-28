@@ -22,10 +22,12 @@
 
 // How far away each layer is, as the pixels it slides for each tile the eye moves (a tile is 32 pixels). The station's own floor
 // slides 32: anything near that sits just outside the hull. Everything beyond the station (stars, clouds, the band, the far things,
-// the sun, the other world) is far enough to slide as one; Lavaland, below, a little more. The dust is the near thing that slides
-// past fast, with a sparser dust between. Under a pixel a step the offsets add up as fractions and the layer moves a pixel at a
-// time, gliding with the eye like the rest.
-#define SKY_DEPTH_FAR 0.06
+// the sun, the other world) is as good as infinitely far and holds still; Lavaland, below, slides a little. The dust is the near
+// thing that slides past fast, with a sparser dust between. Under a pixel a step the offsets add up as fractions and the layer
+// moves a pixel at a time, gliding with the eye like the rest.
+// The far sky held still since 2026-11-28 (Keegan): at 0.06 a tile it never read as parallax, only as the whole sky jumping a
+// game pixel every 12-17 tiles and back again flying the other way (filmed: sky_shots.dm `walk`, tools/sky_gen/v2/sky_motion.py).
+#define SKY_DEPTH_FAR 0
 #define SKY_DEPTH_PLANET 0.15
 #define SKY_DEPTH_NEAR_DUST 24
 #define SKY_DEPTH_MID_DUST 9
@@ -701,7 +703,10 @@
 	speed = SKY_DEPTH_FAR
 	flight_speed = 0.2
 	streak = 1.6
-	layer = 2
+	// Drawn after the clouds and the band (3.0x), not under them at 2: BYOND drew the 2x clouds nearest-neighbour, in hard 2x2
+	// blocks, whenever these unscaled stars came first on the plane (tools/keybind_check/sky_shots.dm `batch`, 2026-11-28).
+	// All of them add their light, so the order doesn't change the picture.
+	layer = 3.5
 	detail = PARALLAX_MED
 
 /obj/screen/parallax_layer/stars/mid
@@ -739,8 +744,8 @@
 	/// Which of the theme's clouds this is
 	var/index = 1
 
-/// cloud is one of the theme's nebula entries: list(state, colour, alpha, flight speed). The clouds hold still: far enough off that
-/// they slide with the rest of the sky (SKY_DEPTH_FAR), and a shuttle's flight streams them past at their own speeds.
+/// cloud is one of the theme's nebula entries: list(state, colour, alpha, flight speed). The clouds hold still with the rest of the
+/// far sky (SKY_DEPTH_FAR), and a shuttle's flight streams them past at their own speeds.
 /obj/screen/parallax_layer/nebula/proc/setup(new_index, list/cloud)
 	index = new_index
 	flight_speed = cloud[4]

@@ -39,6 +39,7 @@ GLOBAL_VAR_INIT(skc_failed, 0)
 	sky_check_weather()
 	sky_check_review_fixes()
 	sky_check_2x_art()
+	sky_check_scaled_first()
 	uc_log("[GLOB.skc_passed] passed, [GLOB.skc_failed] failed")
 	uc_log("done")
 	sleep(10)
@@ -92,7 +93,7 @@ GLOBAL_VAR_INIT(skc_failed, 0)
 		if(L.speed != SKY_DEPTH_FAR)
 			bad_depth += "[name] [L.speed]"
 	skc_check("every layer sits in its own holder, at its layer", !length(bad_holder), "[length(layers)] layers; wrong: [jointext(bad_holder, ", ")]")
-	skc_check("everything beyond the station slides at one depth, Lavaland at its own", far >= 4 && !length(bad_depth), "[far] far layers; wrong: [jointext(bad_depth, ", ")]")
+	skc_check("everything beyond the station holds still as the eye moves (whole-pixel jumps read as a wobble), Lavaland at its own depth", SKY_DEPTH_FAR == 0 && far >= 4 && !length(bad_depth), "[far] far layers at [SKY_DEPTH_FAR]; wrong: [jointext(bad_depth, ", ")]")
 	var/has_weather = FALSE
 	for(var/obj/screen/parallax_layer/near_weather/W in layers)
 		has_weather = TRUE
@@ -330,4 +331,28 @@ GLOBAL_VAR_INIT(skc_failed, 0)
 	if(sun)
 		var/obj/screen/sky_art/sun_art = SSparallax.body_art(sun.art_state, sun.layer)
 		skc_check("the sun's art takes its layer's tint", sun.color && !(sun_art.appearance_flags & RESET_COLOR) && sun_art.blend_mode == BLEND_DEFAULT, "layer colour [sun.color], art flags [sun_art.appearance_flags], blend [sun_art.blend_mode]")
+	QDEL_LIST(layers)
+
+/// BYOND drew the 2x clouds nearest-neighbour, in hard 2x2 blocks, when unscaled stars came before them on the plane (the deep
+/// stars at layer 2, 2026-11-28; tools/keybind_check/sky_shots.dm `batch`). Every layer whose art is drawn at its own size sits
+/// above every layer whose art is drawn bigger.
+/proc/sky_check_scaled_first()
+	var/list/layers = SSparallax.theme.build_layers()
+	var/lowest_unscaled = INFINITY
+	var/lowest_name
+	var/highest_scaled = -INFINITY
+	var/highest_name
+	for(var/obj/screen/parallax_layer/L as anything in layers)
+		L.set_quality(GRAPHICS_QUALITY_HIGH)
+		for(var/obj/screen/sky_art/A in L.vis_contents)
+			var/matrix/M = A.transform
+			var/name = "[replacetext("[L.type]", "/obj/screen/parallax_layer/", "")]:[A.icon_state] at [L.layer]"
+			if(abs(M.a) > 1.001 || abs(M.e) > 1.001)
+				if(L.layer > highest_scaled)
+					highest_scaled = L.layer
+					highest_name = name
+			else if(istype(L, /obj/screen/parallax_layer/stars) && L.layer < lowest_unscaled)
+				lowest_unscaled = L.layer
+				lowest_name = name
+	skc_check("stars drawn at their own size come after the clouds drawn bigger", highest_scaled < lowest_unscaled, "highest scaled [highest_name], lowest unscaled star layer [lowest_name]")
 	QDEL_LIST(layers)
