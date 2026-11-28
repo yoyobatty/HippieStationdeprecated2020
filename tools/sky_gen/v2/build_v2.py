@@ -9,7 +9,8 @@ Sheets:
   sky_band.dmi    band (960 x 960, stars.py band_layer: bulge to arms, rift, grain stars, knots) as four 480 px quarters
                   (quarters()); drawn at scale 1, its repeat is the nebula repeat (PARALLAX_TILE * SKY_NEBULA_SCALE)
   sky_nebula.dmi  sky_gen's old states (old theme lists keep working) plus nebula.py's billow/veil/haze states
-  sky_bodies.dmi  bodies.py build_bodies(): lit from screen east, turned to the sun in game
+  sky_bodies.dmi  bodies.py build_bodies(): lit from screen east, turned to the sun in game; then planets.py repaints
+                  Lavaland (backlit from the upper left, belt, moon, airglow) and the six worlds over it
   sky_deep.dmi    as sky_gen makes it
   sky_asteroids.dmi  asteroids.py: one tiling field per sun heading (asteroids_0..15, 22.5 degrees apart)
 Fly-bys, events and dust (sky_events*.dmi) are flyby.py's / events2.py's / dust.py's own builds.
@@ -66,6 +67,9 @@ def main():
     os.makedirs(out, exist_ok=True)
     tiles = build()
     sg.write_sheets(tiles, out)
+    # Lavaland and the worlds as the game has them since 2026-11-27 (planets.py): its own run over the written sheet
+    import subprocess
+    subprocess.run([sys.executable, os.path.join(HERE, 'planets.py'), os.path.join(out, 'sky_bodies.dmi')], check=True)
     for sheet, states in tiles.items():
         print('%-12s %s' % (sheet, ', '.join(states)))
     print(out)

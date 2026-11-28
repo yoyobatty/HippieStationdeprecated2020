@@ -105,6 +105,11 @@
 /// Something crosses the sky this often: mostly shooting stars, now and then a comet or a far-off ship
 #define SKY_FLYBY_MIN (50 SECONDS)
 #define SKY_FLYBY_MAX (170 SECONDS)
+/// The angle Lavaland's sprite is lit from, degrees counter-clockwise from screen east: backlit from the upper left
+/// (tools/sky_gen/v2/planets.py PLANET_BAKE_ANGLE). The planet layer and its aurora turn by this less the sun's bearing.
+#define SKY_PLANET_BAKE_ANGLE 135
+/// How long weather in the sky (sky_weather.dm) takes to fade in or out
+#define SKY_WEATHER_FADE (30 SECONDS)
 
 // Heat haze (hippiestation/code/modules/lighting/heat_haze.dm): over lava, and over a middling or big fire
 /// Hidden plane of the ripple maps over hot things. The floor and game world planes displace themselves by it, near them only

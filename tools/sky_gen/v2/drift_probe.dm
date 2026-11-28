@@ -5,7 +5,7 @@
 //   place  where update_parallax() would put it on screen with the sky unturned (place_x/place_y)
 //   rest   its sky_rest(): the part of the place that turns with the sky
 //   core   the radius holding most of its light (the numbers sky.dm's placement keeps apart)
-// plus the round's band (angle, offset along its normal) and the sky's turn rate. drift_check.py turns these with the sky.
+// plus the round's band (angle, offset along its normal), starting angle and turn rate.
 
 /proc/sky_drift_probe(rounds = 40)
 	var/list/out = list()
@@ -37,5 +37,7 @@
 		var/band = null
 		if(SSparallax.has_band())
 			band = list("angle" = theme.band_angle, "offset" = SSparallax.band_offset, "period" = PARALLAX_TILE * SKY_NEBULA_SCALE)
-		out += list(list("theme" = "[theme.type]", "things" = things, "band" = band, "turn_per_minute" = SSparallax.sky_turn_per_minute))
+		var/list/line = SSparallax.turn_line
+		out += list(list("theme" = "[theme.type]", "things" = things, "band" = band,
+			"start_angle" = sky_turn_angle(), "turn_per_minute" = line ? line[3] * (1 MINUTES) : 0))
 	return json_encode(out) //as text: the testkit flattens lists this deep

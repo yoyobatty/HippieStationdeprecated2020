@@ -9,11 +9,10 @@ no DreamSeeker), and calls sky_drift_probe(): many round-start sky rolls, each m
 absolute layer's place (place_x/place_y with the eye over the station's middle), its sky_rest() and its core radius, and the
 band. It waits on tools/gpu_share.py before building and booting, and stops the server after.
 
-`score` turns those with the sky the way the client draws them. The sky (parallax_home) is turned clockwise by
-sky_turn_angle(t) = t x turn_per_minute; a layer's pixel offset sits inside that turn. update_parallax() lays an absolute
-layer out afresh only on a forced update (joining, a new body, a z change) at time t0, at rest + unturn(t0) x (place - rest),
-and moves it by steps after that, so on screen at time t it is at
-    turn(t) x (rest + turn(-t0) x (place - rest))
+`score` turns those with the sky the way the client draws them. The sky's angle follows the sun, starting at the
+angle saved by the probe. update_parallax() lays an absolute layer out afresh only on a forced update (joining,
+a new body, a z change). Its holder's screen position at t after a layout at t0 is
+    turn(angle(t)) x (rest + turn(-angle(t0)) x (place - rest))
 Two viewers are judged at each minute: "stayed", laid out at round start (t0 = 0) and never forced since, and "fresh", laid
 out at that minute (t0 = t: a latejoiner, someone back from Lavaland). The band is a tiled layer that never re-lays out: its
 line just turns with the sky.
@@ -24,8 +23,8 @@ Issues counted (share of rounds), on a 15x15 view (480 px) and a 19x15 one (608 
   cut X         under 40% of a thing's core is on screen (Lavaland included)
   dark_side     Lavaland's lit side (its art is lit from the sun's bearing, turned with the sky) points over 45 degrees off
                 the sun as seen on screen
-Also prints one round's sun and Lavaland screen positions per minute, and writes a sheet of the worst rounds per minute to
-data/previews/sky_drift_TAG.png.
+Also measures Lavaland's motion in the coordinate frame shared by it and the rare events. Prints one round's sun and
+Lavaland screen positions per minute and writes a sheet of the worst rounds to data/previews/sky_drift_TAG.png.
 """
 import json
 import math
@@ -65,14 +64,17 @@ def probe(tag, rounds):
     print('wrote', path, len(rows), 'rounds')
 
 
+def sky_angle(row, minute):
+    return row.get('start_angle', 0) + row['turn_per_minute'] * minute
+
+
 def screen_places(row, t, t0):
     """name -> (x, y, core) on screen at minute t for a viewer laid out at minute t0"""
-    rate = row['turn_per_minute']
     out = {}
     for name, thing in row['things'].items():
         (px, py), (rx, ry) = thing['place'], thing['rest']
-        dx, dy = turn(-rate * t0, px - rx, py - ry)
-        x, y = turn(rate * t, rx + dx, ry + dy)
+        dx, dy = turn(-sky_angle(row, t0), px - rx, py - ry)
+        x, y = turn(sky_angle(row, t), rx + dx, ry + dy)
         out[name] = (x, y, thing['core'])
     return out
 
@@ -81,7 +83,7 @@ def band_distance(row, t, x, y):
     band = row['band']
     if not band:
         return 1e9
-    bx, by = turn(-row['turn_per_minute'] * t, x, y)  # back into the sky's frame, where the band's numbers are
+    bx, by = turn(-sky_angle(row, t), x, y)  # back into the sky's frame, where the band's numbers are
     a = math.radians(band['angle'])
     period = band['period']
     d = bx * math.sin(a) + by * math.cos(a) - band['offset']
@@ -111,7 +113,7 @@ def issues_at(row, t, t0, view):
             found.append('cut %s' % n)
     if 'planet' in places and 'sun' in places:
         sun = row['things']['sun']['place']
-        lit = turn(row['turn_per_minute'] * t, *sun)  # the art turned to the sun's bearing in the sky, then with the sky
+        lit = turn(sky_angle(row, t), *sun)  # the art turned to the sun's bearing in the sky, then with the sky
         px, py, _ = places['planet']
         sx, sy, _ = places['sun']
         off = abs((math.degrees(math.atan2(lit[1], lit[0]) - math.atan2(sy - py, sx - px)) + 540) % 360 - 180)
@@ -144,6 +146,17 @@ def score(tag, minutes):
     with open(os.path.join(OUT, tag + '.json')) as f:
         rows = json.load(f)
     print('%s: %d rounds, sky turns %s deg/min' % (tag, len(rows), rows[0]['turn_per_minute']))
+    for viewer in ('stayed', 'fresh'):
+        max_drift = 0
+        for row in rows:
+            if 'planet' not in row['things']:
+                continue
+            first = turn(-sky_angle(row, 0), *screen_places(row, 0, 0)['planet'][:2])
+            for t in minutes:
+                t0 = 0 if viewer == 'stayed' else t
+                current = turn(-sky_angle(row, t), *screen_places(row, t, t0)['planet'][:2])
+                max_drift = max(max_drift, math.dist(first, current))
+        print('Lavaland drift relative to the event layer, %s viewer: %.2f px max' % (viewer, max_drift))
     worst = []
     for viewer in ('stayed', 'fresh'):
         for view in VIEWS:

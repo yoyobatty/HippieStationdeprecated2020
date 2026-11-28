@@ -50,12 +50,6 @@
 	cut_overlays()
 	add_overlay(tiles)
 
-/// Slides the art one repeat along a heading (list(x, y), each -1, 0 or 1) every `time`, for good. The art repeats, so the loop has no seam.
-/obj/screen/sky_art/proc/drift(list/heading, time)
-	var/repeat = sprite_size * scale
-	transform = matrix(scale, 0, -heading[1] * repeat, 0, scale, -heading[2] * repeat)
-	animate(src, transform = matrix(scale, 0, 0, 0, scale, 0), time = time, loop = -1)
-
 /// Fades between full and faint and back every 2 * half, for good.
 /obj/screen/sky_art/proc/twinkle(half)
 	animate(src, alpha = 45, time = half, loop = -1, easing = SINE_EASING)
@@ -83,6 +77,11 @@
 /// Lavaland's disc in sky_bodies.dmi's planet_lava: its radius, and how far its middle is off the sheet's (pixels, y up).
 /// The aurora is drawn round a disc of radius 64 in the middle of its sprite (flyby.py AURORA_R) and sized to fit this.
 #define SKY_LAVALAND_RADIUS 127 //measured 2026-11-21: bodies.py planet_lava(R=128) since the bodies rework (was 52)
+/// The giant's sprite (sky_events_big.dmi) is 448 px, under the 480 px view (a sprite past the view grows everyone's map): drawn
+/// this much bigger it's the size its 512 px art was
+#define SKY_GIANT_SCALE (512 / 448)
+/// Moves a 448 px sprite's middle to where a 256 px sky_events.dmi sprite's middle would be (sky_at()'s nudge)
+#define SKY_GIANT_NUDGE (256 / 2 - 448 / 2)
 #define SKY_LAVALAND_SHIFT_X -1
 #define SKY_LAVALAND_SHIFT_Y 0
 /// Rare events: none this early in a round, then a memoryless wait with this mean (a 60-90 minute round sees one about one
@@ -121,16 +120,19 @@
 
 /obj/screen/sky_art/piece/Destroy()
 	SSparallax.flyby?.vis_contents -= src
+	SSparallax.near_weather?.vis_contents -= src
 	return ..()
 
 /// Where a piece goes: its middle at x, y from the middle of the screen, turned to heading, size times as big
 /// (size_y across the heading, if it's to be stretched; negative mirrors it across the heading). A piece's moves are animated
 /// with ANIMATION_LINEAR_TRANSFORM: taken apart into turn and scale, a mirrored one would spin on its way.
-/proc/sky_at(x, y, heading = 0, size = 1, size_y)
+/// nudge: pixels to put a sprite of another size's middle where a 256 px one's would be. It's in the transform, not pixel_x and
+/// pixel_y: those don't turn with the sky, so the piece would slide off its place as the sky turned.
+/proc/sky_at(x, y, heading = 0, size = 1, size_y, nudge = 0)
 	var/matrix/M = matrix(size, 0, 0, 0, isnull(size_y) ? size : size_y, 0)
 	if(heading)
 		M.Turn(heading)
-	M.Translate(x + SKY_EVENT_MIDDLE, y + SKY_EVENT_MIDDLE)
+	M.Translate(x + SKY_EVENT_MIDDLE + nudge, y + SKY_EVENT_MIDDLE + nudge)
 	return M
 
 /datum/controller/subsystem/parallax
@@ -155,9 +157,45 @@
 	var/list/nebula_shifts = list()
 	/// How far the galaxy band's middle line runs off the middle of the screen, along its normal (pixels); its slant is theme.band_angle
 	var/band_offset = 0
-	/// The far things in this round's sky, whatever its theme: list(icon state of sky_deep.dmi, degrees turned, size, speed) each.
+	/// The far things in this round's sky, whatever its theme: list(icon state of sky_deep.dmi, degrees turned, size) each.
 	/// Where each sits is body_places["deep1"] and on
 	var/list/deep_sky = list()
+	/// The real sun's line, as the sky turns with it: list(SSsun.azimuth, at world.time, degrees a decisecond). sun_moved() keeps it.
+	var/list/turn_line
+	/// When the turn animations set going at the line's last start run out (sky_turn_plan() caps their steps for a fast sun)
+	var/turn_armed_until = 0
+	/// Camera pictures' skies (map_view.dm), which turn with the sun like the players' own
+	var/list/view_homes = list()
+
+/// Keeps the sky's turn on SSsun's: called as the sun moves (hippiestation/.../sun.dm). Everyone's sky is set turning again only
+/// when the line has drifted over a degree off the sun, the sun's speed changed (an admin, a new round's sun), or the turn
+/// animations are about to run out.
+/datum/controller/subsystem/parallax/proc/sun_moved(time = world.time)
+	if(!isnum(SSsun.azimuth))
+		return
+	var/rate = SSsun.azimuth_mod * SSsun.base_rotation / SSsun.wait
+	var/on_line = turn_line && turn_line[3] == rate && abs(closer_angle_difference(turn_line[1] + rate * (time - turn_line[2]), SSsun.azimuth)) <= 1
+	if(on_line && time + SSsun.wait < turn_armed_until)
+		return
+	if(!on_line)
+		turn_line = list(SSsun.azimuth, time, rate)
+	var/list/plan = sky_turn_plan()
+	turn_armed_until = plan[3] ? time + plan[2] * plan[3] : INFINITY
+	for(var/client/C as anything in GLOB.clients)
+		if(C.mob?.hud_used && isnull(C.parallax_snapped))
+			C.mob.hud_used.turn_sky(C)
+	for(var/obj/screen/parallax_home/home as anything in view_homes)
+		if(isnull(home.view_snap))
+			sky_turn_home(home)
+
+// The sun's hooks: its first azimuth, and every move after (fire() and an admin's edit both go through complete_movement())
+/datum/controller/subsystem/sun/Initialize(start_timeofday)
+	. = ..()
+	SSparallax.sun_moved()
+
+/datum/controller/subsystem/sun/complete_movement()
+	. = ..()
+	SSparallax.sun_moved()
 
 //These are cached per client so needs to be done asap so people joining at roundstart do not miss these.
 /datum/controller/subsystem/parallax/PreInit()
@@ -300,7 +338,7 @@
 		var/list/size = sizes[kind]
 		var/scale = rand(size[1], size[2]) / 100
 		body_places["deep[index]"] = far_spot(deep_core(kind) * scale)
-		deep_sky += list(list(kind, rand(0, 359), scale, rand(25, 35) / 100))
+		deep_sky += list(list(kind, rand(0, 359), scale))
 
 /// The art of one far thing, in a list for a layer's vis_contents: its sprite, and for a quasar its jets and its core. The
 /// jets run and the core flickers unless it's for Low graphics.
@@ -328,9 +366,10 @@
 			sky_art[name] = A
 		. += A
 
-/// One of the theme's nebula clouds, in its colour: the one that drifts, or the one that stays put for Low graphics.
-/datum/controller/subsystem/parallax/proc/nebula_art(index, moving)
-	var/name = "nebula [index][moving ? "" : " still"]"
+/// One of the theme's nebula clouds, in its colour. They used to drift by themselves; now everything beyond the station holds
+/// still and slides as one with the eye (ruling on the Paradise port, 2026-11-27: realistic parallax).
+/datum/controller/subsystem/parallax/proc/nebula_art(index)
+	var/name = "nebula [index]"
 	var/obj/screen/sky_art/A = sky_art[name]
 	if(A)
 		return A
@@ -346,15 +385,13 @@
 		A.icon = 'hippiestation/icons/effects/sky_band.dmi'
 		A.scale = 1
 		A.sprite_size = PARALLAX_TILE * SKY_NEBULA_SCALE
-		// a sprite twice the layer's size sits with its corner on the layer's: this puts its middle (the band's line) mid-screen,
-		// as a 480 px cloud drawn at twice size is
-		A.pixel_x = -PARALLAX_TILE / 2
-		A.pixel_y = -PARALLAX_TILE / 2
 		A.tile_quarters("band") // kept as four 480 px quarters, so the sky never reaches past the view (tile_quarters())
+		// a sprite twice the layer's size sits with its corner on the layer's: this puts its middle (the band's line) mid-screen,
+		// as a 480 px cloud drawn at twice size is. A transform, not pixel_x/pixel_y: those don't turn with the sky, so the band
+		// slid against the bodies as the sky turned
+		A.transform = matrix(1, 0, -PARALLAX_TILE / 2, 0, 1, -PARALLAX_TILE / 2)
 	else
 		A.tile()
-	if(moving && cloud[5])
-		A.drift(cloud[6], cloud[5] MINUTES)
 	sky_art[name] = A
 	return A
 
@@ -807,8 +844,8 @@
 	var/obj/screen/sky_art/piece/star = sky_piece("star_point", 640)
 	star.transform = sky_at(x, y)
 	star.color = "#ffe6c8"
-	animate(star, alpha = 150, time = 200)
-	animate(alpha = 255, color = "#ffffff", transform = sky_at(x, y, 0, 1.8), time = 400, easing = QUAD_EASING | EASE_IN, flags = ANIMATION_LINEAR_TRANSFORM)
+	animate(star, alpha = 190, transform = sky_at(x, y, 0, 1.25), time = 200, flags = ANIMATION_LINEAR_TRANSFORM)
+	animate(alpha = 255, color = "#ffffff", transform = sky_at(x, y, 0, 2.2), time = 400, easing = QUAD_EASING | EASE_IN, flags = ANIMATION_LINEAR_TRANSFORM)
 	animate(alpha = 0, time = 20)
 	addtimer(CALLBACK(src, PROC_REF(supernova_flash), x, y), 600)
 	return 10 MINUTES
@@ -1075,14 +1112,12 @@
 	var/obj/screen/sky_art/piece/giant = sky_piece("giant", time + 5, -1)
 	giant.icon = 'hippiestation/icons/effects/sky_events_big.dmi'
 	giant.blend_mode = BLEND_OVERLAY
-	giant.pixel_x = -128 //its sprite's twice the size: put its middle where a sky_events.dmi one's would be
-	giant.pixel_y = -128
 	giant.color = "#000000"
-	giant.transform = sky_at(x - drift_x, y - drift_y, -light, size)
+	giant.transform = sky_at(x - drift_x, y - drift_y, -light, size * SKY_GIANT_SCALE, nudge = SKY_GIANT_NUDGE)
 	animate(giant, alpha = 255, color = "#ffffff", time = fade * 1.5, easing = SINE_EASING) //out of the dark
 	animate(time = time - fade * 3)
 	animate(alpha = 0, color = "#000000", time = fade * 1.5, easing = SINE_EASING)
-	animate(giant, transform = sky_at(x + drift_x, y + drift_y, -light, size * 1.06), time = time, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
+	animate(giant, transform = sky_at(x + drift_x, y + drift_y, -light, size * 1.06 * SKY_GIANT_SCALE, nudge = SKY_GIANT_NUDGE), time = time, easing = SINE_EASING, flags = ANIMATION_PARALLEL)
 	// a moon crossing its face: round the front of an orbit just inside the rings (flyby.py RING_ANGLE, RING_OPEN)
 	var/obj/screen/sky_art/piece/moon = sky_piece("moon", time + 5, -0.9)
 	moon.blend_mode = BLEND_OVERLAY
@@ -1143,10 +1178,13 @@
 	aurora.icon_state = "aurora"
 	aurora.layer = 31
 	var/size = SKY_LAVALAND_RADIUS / 64
-	aurora.transform = matrix(size, 0, SKY_EVENT_MIDDLE + SKY_LAVALAND_SHIFT_X, 0, size, SKY_EVENT_MIDDLE + SKY_LAVALAND_SHIFT_Y)
-	for(var/client/C as anything in GLOB.clients)
-		for(var/obj/screen/parallax_layer/body/planet/L in C.parallax_layers_cached)
-			L.vis_contents |= aurora
+	// the planet layer is turned by its bake angle less the sun's bearing (face_sun()): turned back by the bake angle, the aurora sits
+	// to the sun as it did on the old planet, which was baked lit from the east
+	var/matrix/M = matrix(size, 0, 0, 0, size, 0)
+	M.Turn(-SKY_PLANET_BAKE_ANGLE)
+	M.Translate(SKY_EVENT_MIDDLE + SKY_LAVALAND_SHIFT_X, SKY_EVENT_MIDDLE + SKY_LAVALAND_SHIFT_Y)
+	aurora.transform = M
+	add_planet_art(aurora)
 	animate(aurora, alpha = 170, time = fade, easing = SINE_EASING)
 	animate(alpha = 120, time = 600, easing = SINE_EASING)
 	animate(alpha = 255, time = 50) //the substorm: the whole oval lights up at once
@@ -1160,14 +1198,13 @@
 /datum/controller/subsystem/parallax/proc/end_aurora()
 	if(!aurora)
 		return
-	for(var/client/C as anything in GLOB.clients)
-		for(var/obj/screen/parallax_layer/body/planet/L in C.parallax_layers_cached)
-			L.vis_contents -= aurora
+	remove_planet_art(aurora)
 	QDEL_NULL(aurora)
 
-/// A client's Lavaland, as it goes on screen: carries the aurora if an ion storm is on (so it's there for late arrivals too)
+/// A client's Lavaland, as it goes on screen: carries the ion storm's aurora and an ash storm while they're up (sky_weather.dm
+/// planet_art), so they're there for late arrivals too
 /obj/screen/parallax_layer/body/planet/set_quality(quality)
-	vis_contents = SSparallax.aurora ? carry(list(SSparallax.aurora)) : list()
+	vis_contents = carry(SSparallax.planet_art.Copy())
 
 /datum/controller/subsystem/parallax/fire(resumed = 0)
 	if(!resumed && flyby)

@@ -435,8 +435,8 @@ def build_images(states=None):
 THEMES = {
     'ember': [
         ('billow1', ('#8a180c', '#ffa848', '#fff4dc'), 235, 0.45, 40, (1, 0)),
-        ('veil1', ('#ff5a24', '#ffb45a', '#3a0c10'), 120, 0.55, 55, (1, 0)),
-        ('haze', ('#2c0a34', '#3a1008', '#ff6a30'), 150, 0.35, 0, (0, 0)),
+        ('veil1', ('#ff5a24', '#ffb45a', '#3a0c10'), 78, 0.55, 55, (1, 0)),
+        ('haze', ('#2c0a34', '#3a1008', '#ff6a30'), 78, 0.35, 0, (0, 0)),
     ],
     'glacier': [
         ('billow2', ('#0d3a8c', '#5ee0ff', '#d8f8ff'), 240, 0.45, 45, (-1, 0)),
@@ -445,13 +445,13 @@ THEMES = {
     ],
     'violet': [
         ('billow3', ('#4a0c90', '#ff3a9a', '#ffe8f6'), 230, 0.42, 50, (1, 0)),
-        ('veil1', ('#6ab8ff', '#9a8aff', '#200a38'), 95, 0.58, 60, (-1, 0)),
-        ('haze', ('#1c0838', '#300a28', '#a060ff'), 150, 0.35, 0, (0, 0)),
+        ('veil1', ('#6ab8ff', '#9a8aff', '#200a38'), 62, 0.58, 60, (-1, 0)),
+        ('haze', ('#1c0838', '#300a28', '#a060ff'), 78, 0.35, 0, (0, 0)),
     ],
     'verdant': [
         ('billow4', ('#08604a', '#30f2a8', '#fff2a0'), 205, 0.45, 45, (1, 0)),
-        ('veil1', ('#d8ff8a', '#ffc860', '#062a24'), 75, 0.55, 55, (1, 0)),
-        ('haze', ('#062a3a', '#08301c', '#40d0a0'), 120, 0.35, 0, (0, 0)),
+        ('veil1', ('#d8ff8a', '#ffc860', '#062a24'), 49, 0.55, 55, (1, 0)),
+        ('haze', ('#062a3a', '#08301c', '#40d0a0'), 62, 0.35, 0, (0, 0)),
     ],
     'gold': [
         ('billow6', ('#7a440c', '#ffd070', '#fff6dc'), 205, 0.40, 60, (1, 0)),
@@ -490,7 +490,8 @@ def dm_lists():
     """The nebula lists in sky_themes.dm syntax: a colour matrix where the colour went, alpha folded into it (so 255)."""
     out = []
     for name, entries in THEMES.items():
-        lines = ['\tlist("%s", %s, 255, %.2f, %d, list(%d, %d))' % (s, dm_matrix(t, a), sp, mins, h[0], h[1])
+        # the game's clouds no longer drift (2026-11-27): THEMES' minutes and heading aren't printed any more
+        lines = ['\tlist("%s", %s, 255, %.2f)' % (s, dm_matrix(t, a), sp)
                  for s, t, a, sp, mins, h in entries]
         out.append('/datum/sky_theme/%s\n\tnebula = list(\n%s)' % (name, ',\n'.join('\t' + l for l in lines)))
     return '\n\n'.join(out)

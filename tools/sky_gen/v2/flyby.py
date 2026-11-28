@@ -600,7 +600,7 @@ def main():
         print('%s  %d KB' % (os.path.relpath(path, ROOT), os.path.getsize(path) // 1024))
         import events2
         path = os.path.join(OUT_DIR, 'sky_events_big.dmi')
-        write_sheet(events2.build_big(), path, events2.BIG, {})
+        write_sheet(events2.build_big(), path, events2.BIG_SHEET, {})
         print('%s  %d KB' % (os.path.relpath(path, ROOT), os.path.getsize(path) // 1024))
     elif mode == 'preview':
         import preview

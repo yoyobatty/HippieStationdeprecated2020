@@ -427,8 +427,8 @@ def start_supernova(s):
     star = Piece(s, 'star_point', 640)
     star.transform = sky_at(x, y)
     star.color = hexrgb('#ffe6c8')
-    star.animate(200, alpha=150)
-    star.animate(400, 'quad_in', alpha=255, color='#ffffff', transform=sky_at(x, y, 0, 1.8))
+    star.animate(200, alpha=190, transform=sky_at(x, y, 0, 1.25))
+    star.animate(400, 'quad_in', alpha=255, color='#ffffff', transform=sky_at(x, y, 0, 2.2))
     star.animate(20, alpha=0)
     s.addtimer(lambda: supernova_flash(s, x, y), 600)
     return 6000

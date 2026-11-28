@@ -17,6 +17,10 @@ from flyby import EV, C, grid, col, edge, round_edge
 from sky_gen import spectral, sample_wrap, smoothstep, blur, blur_plain
 
 BIG = 512
+# The sheet's size: the giant is painted at BIG and shrunk to this, under the 480 px view. A sprite wider than the view in a screen
+# object's vis_contents makes BYOND grow everyone's map (memory reference_byond_screen_bounds_sky); the game draws it at
+# SKY_GIANT_SCALE (512 / 448) to get its size back (sky.dm start_giant())
+BIG_SHEET = 448
 
 
 def wavelength_rgb(nm):
@@ -330,4 +334,4 @@ DELAYS = {name: delays for name, (_, _, _, _, delays) in SHARDS.items()}
 
 
 def build_big():
-    return {'giant': giant()}
+    return {'giant': giant().resize((BIG_SHEET, BIG_SHEET), Image.LANCZOS)}

@@ -240,7 +240,10 @@ def band_layer(seed=301, n=BAND, strength=1.0):
         open_cluster(clusters, rng, rng.uniform(0, n), n * (0.5 + rng.normal(0, 0.08)), rng.uniform(10, 16),
                      int(rng.integers(14, 24)), n)
     dark = 1.0 - 0.88 * rift[..., None]
-    out = (light + grain) * dark * strength + clusters
+    # Unresolved stars read as soft light through the rift's dust. Clusters also dim behind it.
+    grain = np.stack([sg.blur(channel, 0.6) for channel in grain.transpose(2, 0, 1)], axis=-1)
+    grain *= 1 - 0.75 * rift[..., None]
+    out = (light + grain) * dark * strength + clusters * (1 - 0.60 * rift[..., None])
     return roll_off(out)
 
 

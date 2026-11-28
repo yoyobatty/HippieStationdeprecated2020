@@ -179,15 +179,24 @@ GLOBAL_LIST_EMPTY(map_view_starlights)
 	var/quality = C.prefs ? C.prefs.graphics_quality() : GRAPHICS_QUALITY_HIGH
 	var/obj/screen/parallax_home/home = new
 	home.assigned_map = map_name
-	var/list/layers = list()
+	var/list/holders = list()
 	for(var/obj/screen/parallax_layer/L as anything in SSparallax.theme.build_layers())
 		if(detail > L.detail || quality < L.quality)
 			qdel(L)
 			continue
 		L.set_quality(quality)
-		layers += L
-	home.vis_contents = layers
+		holders += L.holder
+	home.vis_contents = holders
+	SSparallax.view_homes += home // turns with the sun like the viewer's own (sun_moved())
+	sky_turn_home(home)
 	return home
+
+/// The layers a sky home holds (each in its holder)
+/obj/screen/parallax_home/proc/held_layers()
+	. = list()
+	for(var/obj/screen/parallax_holder/H in vis_contents)
+		if(H.held)
+			. += H.held
 
 /// Lays a sky from map_view_sky_for() out as a player's would be with their eye on `eye`: the holder 7 tiles down and left of it, as
 /// on a screen, in a map whose tile 1,1 shows map tile (corner_x, corner_y). Repeating layers sit at the same place in their repeat
@@ -199,7 +208,20 @@ GLOBAL_LIST_EMPTY(map_view_starlights)
 	var/py = (eye.y - 7 - corner_y) * world.icon_size
 	home.screen_loc = "[home.assigned_map]:1:[px],1:[py]"
 	var/area/A = eye.loc
-	for(var/obj/screen/parallax_layer/L as anything in home.vis_contents)
+	// As on a player's screen: the sky turns with the sun, and a shuttle's flight holds it at the nearest quarter turn so the
+	// flight runs along the art's repeat (set_parallax_movedir())
+	var/movedir = A?.parallax_movedir
+	var/heading = movedir
+	if(movedir)
+		var/snap = sky_snap_angle()
+		if(home.view_snap != snap)
+			home.view_snap = snap
+			animate(home, transform = sky_turned(snap), time = 0, flags = ANIMATION_END_NOW)
+		heading = turn(movedir, snap % 360)
+	else if(!isnull(home.view_snap))
+		home.view_snap = null
+		sky_turn_home(home)
+	for(var/obj/screen/parallax_layer/L as anything in home.held_layers())
 		L.update_status(eye)
 		var/new_x
 		var/new_y
@@ -220,14 +242,13 @@ GLOBAL_LIST_EMPTY(map_view_starlights)
 			new_y -= round((new_y + half) / L.period) * L.period
 		L.offset_x = new_x
 		L.offset_y = new_y
-		L.pixel_w = round(new_x, 1)
-		L.pixel_z = round(new_y, 1)
-		if(A?.parallax_movedir) // as set_parallax_movedir() loops it once up to speed
-			var/matrix/away = L.one_repeat_away(A.parallax_movedir)
+		L.slide_to(round(new_x, 1), round(new_y, 1))
+		if(movedir && L.flies()) // as set_parallax_movedir() loops it once up to speed
+			var/matrix/away = L.one_repeat_away(heading)
 			animate(L, transform = away, time = 0, loop = -1, flags = ANIMATION_END_NOW)
 			animate(transform = matrix(), time = L.loop_time() / 2)
-		else
-			animate(L, transform = matrix(), time = 0, flags = ANIMATION_END_NOW)
+		else // at rest, keeping an angle of its own (Lavaland toward the sun, the galaxy's band)
+			animate(L, transform = L.rest_transform(), time = 0, flags = ANIMATION_END_NOW)
 
 /**
   * Plane masters for a map control of the world (the camera console's picture), for a viewer with no HUD of their own to copy

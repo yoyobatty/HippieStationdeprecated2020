@@ -4,7 +4,7 @@
 // The "before" pictures are the old layers put back as a theme of their own (below), in the same boot and from the same spots.
 // data/sky_shots_which holds what to shoot: "all" (default), "before", a theme's type name ("ember"), "motion" (pairs of
 // pictures a second apart, a walk, and each kind of fly-by), or "deep" (each far thing, the quasar running and on Low, and what
-// a few rounds would pick).
+// a few rounds would pick), "port" (rotation, weather, and the giant event), or "polish" (themes, twinkle, and rare events).
 
 GLOBAL_VAR_INIT(keycheck_running, FALSE)
 
@@ -118,7 +118,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 /proc/sky_layer_text(client/C)
 	var/list/parts = list()
 	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
-		parts += "[replacetext("[L.type]", "/obj/screen/parallax_layer/", "")]([L.icon_state], [L.speed], vis [length(L.vis_contents)], at [L.pixel_w],[L.pixel_z])"
+		parts += "[replacetext("[L.type]", "/obj/screen/parallax_layer/", "")]([L.icon_state], [L.speed], vis [length(L.vis_contents)], at [L.drawn_x],[L.drawn_y])"
 	return parts.Join("; ")
 
 /// Puts far things in the sky where they're sure to be seen from where H is: list(kind, x, y) each, in pixels from the middle
@@ -143,6 +143,61 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	C.parallax_theme = null //makes the layers again
 	H.hud_used.update_parallax_pref(H)
 	sleep(10)
+
+/// Holds the sky at `angle` (the sun's line with no speed) and lays H's layers out again for it
+/proc/sky_port_hold_angle(mob/living/carbon/human/H, angle)
+	var/list/sun = SSparallax.body_places["sun"]
+	SSparallax.turn_line = list(angle + 90 - arctan(sun[1], sun[2]), world.time, 0)
+	H.hud_used.update_parallax_pref(H)
+	sleep(15)
+
+/// Some rolls leave too little open sky for a giant. Take the picture only once one actually starts.
+/proc/sky_shoot_giant(name)
+	for(var/attempt in 1 to 6)
+		if(SSparallax.sky_event("giant"))
+			kc_log("giant event started on attempt [attempt]")
+			sleep(70 SECONDS)
+			sky_shot(name)
+			return
+		SSparallax.set_theme(new /datum/sky_theme/quiet)
+	kc_log("No sky roll had room for a giant event")
+
+/proc/sky_shoot_polish(mob/living/carbon/human/H)
+	var/turf/clear_space = locate(110, 60, SSmapping.station_start)
+	if(isspaceturf(clear_space))
+		H.forceMove(clear_space)
+	rand_seed(5)
+	SSsun.can_fire = FALSE
+	SSparallax.flyby_art()
+	SSparallax.next_flyby = world.time + 1 HOURS
+	SSparallax.next_sky_event = world.time + 1 HOURS
+	for(var/theme_type in list(/datum/sky_theme/ember, /datum/sky_theme/violet, /datum/sky_theme/verdant, /datum/sky_theme/gold, /datum/sky_theme/quiet))
+		SSparallax.set_theme(new theme_type)
+		sky_port_hold_angle(H, 0)
+		var/tag = replacetext("[theme_type]", "/datum/sky_theme/", "")
+		sky_shot("sky_polish_[tag]")
+	for(var/frame in 1 to 4)
+		sky_shot("sky_polish_twinkle_[frame]")
+		sleep(15)
+
+	// The 270-second comet splits at 121.5 seconds. Sample before, during and after the split.
+	SSparallax.send_comet(270 SECONDS, TRUE, 0.45)
+	var/began = world.time
+	for(var/second in list(107, 119, 122, 127, 136, 158))
+		sleep(max(world.tick_lag, began + (second SECONDS) - world.time))
+		sky_shot("sky_polish_breakup_[second]")
+	for(var/obj/screen/sky_art/piece/P in SSparallax.flyby.vis_contents)
+		qdel(P)
+
+	if(SSparallax.sky_event("supernova"))
+		began = world.time
+		for(var/second in list(20, 45, 61, 80))
+			sleep(max(world.tick_lag, began + (second SECONDS) - world.time))
+			sky_shot("sky_polish_supernova_[second]")
+	for(var/obj/screen/sky_art/piece/P in SSparallax.flyby.vis_contents)
+		qdel(P)
+	SSsun.can_fire = TRUE
+	sky_shoot_giant("sky_polish_giant")
 
 /proc/sky_shots_run(client/C)
 	fdel("data/keycheck_shot")
@@ -172,6 +227,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	H.ckey = C.ckey
 	sleep(2 SECONDS)
 	H.hud_used.show_hud(HUD_STYLE_NOHUD)
+	C.fps = 60
 	C.prefs.parallax = PARALLAX_INSANE //no throttle, every layer
 	C.prefs.set_graphics_quality(GRAPHICS_QUALITY_HIGH)
 
@@ -183,8 +239,12 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			themes += path
 			if(which != "all")
 				break
-	else if(which != "before" && which != "deep")
-		themes += text2path("/datum/sky_theme/[which]")
+	else if(which != "before" && which != "deep" && which != "port" && which != "polish")
+		var/theme_type = text2path("/datum/sky_theme/[which]")
+		if(theme_type)
+			themes += theme_type
+		else
+			kc_log("Unknown sky theme: [which]")
 
 	for(var/path in themes)
 		var/datum/sky_theme/theme = new path
@@ -297,6 +357,45 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			sleep(10)
 			kc_log("parallax pref [pref]: [length(C.parallax_layers)] layers")
 			sky_shot("sky_motion_4_parallax_[pref]")
+
+	if(which == "port") // the Paradise port's fixes and additions (2026-11-27)
+		var/datum/sky_theme/theme = new /datum/sky_theme/ember
+		theme.neighbour = "world_gas" // the ringed world, whatever the theme has
+		SSparallax.set_theme(theme)
+		H.forceMove(space_spot)
+		sleep(15)
+		// The sky held at three angles: the same picture turned about the middle, nothing sliding against anything else.
+		// The sun held still meanwhile, or its next move would set the sky turning again
+		SSsun.can_fire = FALSE
+		for(var/angle in list(0, 60, 120))
+			sky_port_hold_angle(H, angle)
+			kc_log("port turn [angle]: sky_turn_angle [sky_turn_angle()], painted sun at [sky_sun_bearing()]; [sky_layer_text(C)]")
+			sky_shot("sky_port_turn_[angle]")
+		sky_port_hold_angle(H, 0)
+		SSsun.can_fire = TRUE
+		// An ash storm over Lavaland
+		SSparallax.lavaland_ash_storm(TRUE)
+		sleep(SKY_WEATHER_FADE + 2 SECONDS)
+		sky_shot("sky_port_ash")
+		SSparallax.lavaland_ash_storm(FALSE)
+		// Aurora Caelus's curtains and a radiation storm's shimmer
+		SSparallax.aurora_caelus_sky(TRUE)
+		SSparallax.rad_storm_sky(TRUE)
+		sleep(SKY_WEATHER_FADE + 2 SECONDS)
+		sky_shot("sky_port_caelus_rad")
+		SSparallax.aurora_caelus_sky(FALSE)
+		SSparallax.rad_storm_sky(FALSE)
+		sleep(SKY_WEATHER_FADE + 2 SECONDS)
+		// The ion storm's aurora on Lavaland, and the giant, each at its peak
+		SSparallax.event_until = 0
+		kc_log("port event: [SSparallax.sky_event("aurora")]")
+		sleep(50 SECONDS)
+		sky_shot("sky_port_aurora")
+		SSparallax.end_aurora()
+		SSparallax.event_until = 0
+		sky_shoot_giant("sky_port_giant")
+	if(which == "polish")
+		sky_shoot_polish(H)
 
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)

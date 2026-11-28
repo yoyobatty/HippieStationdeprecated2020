@@ -2965,6 +2965,7 @@
 #include "hippiestation\code\_onclick\hud\parallax.dm"
 #include "hippiestation\code\_onclick\hud\sky.dm"
 #include "hippiestation\code\_onclick\hud\sky_themes.dm"
+#include "hippiestation\code\_onclick\hud\sky_weather.dm"
 #include "hippiestation\code\_onclick\hud\stamina.dm"
 #include "hippiestation\code\_onclick\hud\tts.dm"
 #include "hippiestation\code\_onclick\hud\vampire.dm"

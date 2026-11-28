@@ -133,7 +133,8 @@
 	viewer_views -= REF(user)
 	var/obj/screen/parallax_home/sky = view[2]
 	if(sky)
-		var/list/layers = sky.vis_contents.Copy()
+		SSparallax.view_homes -= sky // it no longer turns with the sun
+		var/list/layers = sky.held_layers() // each takes its holder with it
 		sky.vis_contents.Cut()
 		QDEL_LIST(layers)
 

@@ -4,46 +4,75 @@
 //  - a layer says which Parallax preference and which Graphics quality it needs, where there used to be a count of layers
 //  - the sky slides for as long as the eye glides to the next tile (tgstation's pixel_w glide), so the near layers don't step
 //  - a layer can repeat at any distance (nebulae are drawn at double size) and can carry shared art that moves by itself (sky.dm)
-//  - the whole sky turns slowly over the round, about the middle of the screen, as the station goes round its orbit
+//  - the whole sky turns with the real sun (SSsun), about the middle of the screen, so the painted sun is where the solars point
 //  - in a shuttle's flight the stars stretch into streaks along the heading, the near ones most
 //  - a layer can sit turned at an angle of its own (a galaxy's band, at the theme's angle)
+// Each layer sits in a holder at the middle of the screen and slides by the holder's transform (slide_to()). BYOND turns each of a
+// parent's vis_contents about the child's own middle, so with the slide in pixel_w/pixel_z the turned sky came apart: every layer
+// spun where it was. A holder's middle is the screen's, so the sky turns as one picture. (Found on the Paradise port, 2026-11-27.)
 
-/// How far the sky turns in a minute, in degrees (clockwise). 15 degrees in ten minutes: there if you look for it, never moving to the eye
-#define SKY_TURN_PER_MINUTE 1.5
-#define SKY_TURN_RATE (SSparallax.sky_turn_per_minute / (1 MINUTES))
 /// The sky's turn is animated a quarter at a time (one animate step each), and held at a whole quarter while a shuttle flies
 #define SKY_TURN_STEP 90
+/// Most steps one turn animation queues. The sun's normal speeds need 25-97 for 12 hours; an admin's fast sun gets this many, and
+/// SSparallax.sun_moved() starts it again before they run out
+#define SKY_TURN_MAX_STEPS 100
 /// How long the sky takes to swing to the nearest quarter turn as a shuttle sets off, and back to its turn after
 #define SKY_SNAP_TIME 30
 #define SKY_UNSNAP_TIME 30
 
 // How far away each layer is, as the pixels it slides for each tile the eye moves (a tile is 32 pixels). The station's own floor
-// slides 32: anything near that sits just outside the hull, anything under a pixel a tile reads as the sky itself. Stars are
-// almost still; the dust is the near thing that slides past fast, with a sparser dust between. Under a pixel a step the
-// offsets add up as fractions and the layer moves a pixel at a time, gliding with the eye like the rest.
-#define SKY_DEPTH_DEEP_STARS 0.04
-#define SKY_DEPTH_FAR_STARS 0.08
-#define SKY_DEPTH_MID_STARS 0.15
-#define SKY_DEPTH_NEAR_STARS 0.3
-/// A theme's nebula speeds (0.35-0.55, sky_themes.dm) times this: 0.09-0.14, among the far stars
-#define SKY_DEPTH_NEBULA_SCALE 0.25
-/// The round's far things (sky.dm deep_sky, 0.25-0.35) times this: about the deep stars
-#define SKY_DEPTH_DEEP_SCALE 0.15
-#define SKY_DEPTH_SUN 0.04
-#define SKY_DEPTH_GALAXY 0.04
-#define SKY_DEPTH_WORLD 0.12
-#define SKY_DEPTH_PLANET 0.4
+// slides 32: anything near that sits just outside the hull. Everything beyond the station (stars, clouds, the band, the far things,
+// the sun, the other world) is far enough to slide as one; Lavaland, below, a little more. The dust is the near thing that slides
+// past fast, with a sparser dust between. Under a pixel a step the offsets add up as fractions and the layer moves a pixel at a
+// time, gliding with the eye like the rest.
+#define SKY_DEPTH_FAR 0.06
+#define SKY_DEPTH_PLANET 0.15
 #define SKY_DEPTH_NEAR_DUST 24
 #define SKY_DEPTH_MID_DUST 9
 /// Pixels from the middle of the screen Lavaland rests at, on the far side from the sun (it faces the sun, sky_bodies)
 #define SKY_PLANET_REST 210
 
-/// SKY_TURN_PER_MINUTE, to be changed for a test (a client's sky picks a new rate up when its layers are made again)
-/datum/controller/subsystem/parallax/var/sky_turn_per_minute = SKY_TURN_PER_MINUTE
-
-/// Degrees the sky has turned by `time` (clockwise, as Turn() counts). Everyone's sky is at the same angle.
+/// Degrees the sky has turned by `time` (clockwise, as Turn() counts), so the painted sun sits at SSsun's azimuth; 0 before the
+/// sun is up. Everyone's sky is at the same angle.
 /proc/sky_turn_angle(time = world.time)
-	return time * SKY_TURN_RATE
+	var/list/line = SSparallax.turn_line
+	var/list/sun = SSparallax.body_places["sun"]
+	if(!line || !sun)
+		return 0
+	return line[1] + line[3] * (time - line[2]) - (90 - arctan(sun[1], sun[2]))
+
+/// The painted sun's bearing on screen at `time`, degrees clockwise from north as SSsun.azimuth counts; null with no sun painted
+/proc/sky_sun_bearing(time = world.time)
+	var/list/sun = SSparallax.body_places["sun"]
+	if(!sun)
+		return null
+	return SIMPLIFY_DEGREES(90 - arctan(sun[1], sun[2]) + sky_turn_angle(time))
+
+/// How the sky's turn is animated: list(degrees a step, deciseconds a step, steps), enough steps to cover 12 hours but never more
+/// than SKY_TURN_MAX_STEPS (a fast sun: sun_moved() starts the turn again before they run out)
+/proc/sky_turn_plan()
+	var/list/line = SSparallax.turn_line
+	var/rate = line ? line[3] : 0
+	if(!rate)
+		return list(0, 0, 0)
+	var/step_time = SKY_TURN_STEP / abs(rate)
+	return list(SKY_TURN_STEP * SIGN(rate), step_time, min(ceil(12 HOURS / step_time) + 1, SKY_TURN_MAX_STEPS))
+
+/// The whole quarter turn nearest the sky's angle now: where a shuttle's flight holds the sky
+/proc/sky_snap_angle()
+	return round(sky_turn_angle(), SKY_TURN_STEP)
+
+/// Sets a sky home turning from where the sky should be by now, or swinging there over `ease`: the player's own (turn_sky()) and a
+/// camera picture's (map_view.dm) alike
+/proc/sky_turn_home(obj/screen/parallax_home/home, ease = 0)
+	var/angle = sky_turn_angle(world.time + ease)
+	if(ease)
+		animate(home, transform = sky_turned(angle), time = ease, easing = SINE_EASING)
+	else
+		animate(home, transform = sky_turned(angle), time = 0, flags = ANIMATION_END_NOW)
+	var/list/plan = sky_turn_plan()
+	for(var/step in 1 to plan[3])
+		animate(transform = sky_turned(angle + step * plan[1]), time = plan[2])
 
 /proc/sky_turned(angle)
 	var/matrix/M = matrix()
@@ -79,7 +108,8 @@
   * ignores pixel_w and pixel_z (seen on 516: every planet sat dead centre), something drawn through vis_contents doesn't, and
   * those are what a layer's slide animates. tgstation's arrangement.
   * The sky turns by turning this. Its icon draws nothing (no state of that name) but is a tile's size, so it turns about the
-  * middle of a tile: where the middle of each layer is, the middle of the screen. A layer slides in this turned frame.
+  * middle of a tile: the middle of the screen. Its vis_contents are the layers' holders (/obj/screen/parallax_holder), each a tile
+  * the same size in the same place, so each is turned about that same middle. A layer slides in this turned frame.
   */
 /obj/screen/parallax_home
 	icon = 'hippiestation/icons/effects/sky.dmi'
@@ -88,6 +118,28 @@
 	plane = PLANE_SPACE_PARALLAX
 	screen_loc = "CENTER-7,CENTER-7"
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	/// A camera picture's sky (map_view.dm): the angle it's held at while the camera's shuttle flies, null while it turns with the sun.
+	/// A player's own sky keeps this on the client (parallax_snapped).
+	var/view_snap
+
+/obj/screen/parallax_home/Destroy()
+	if(src in SSparallax.view_homes) // a camera picture's: its layers are its own (a player's are the client's, parallax_layers_cached)
+		SSparallax.view_homes -= src
+		var/list/layers = held_layers()
+		vis_contents.Cut()
+		QDEL_LIST(layers)
+	vis_contents.Cut()
+	return ..()
+
+/// A client's sky layers and their holders point at each other, which BYOND never frees by itself: they go with the client
+/client/Destroy()
+	for(var/layer in parallax_animate_timers)
+		deltimer(parallax_animate_timers[layer])
+	parallax_animate_timers = null
+	parallax_layers = null
+	QDEL_NULL(parallax_home)
+	QDEL_LIST(parallax_layers_cached)
+	return ..()
 
 /datum/hud/proc/create_parallax(mob/viewmob)
 	var/mob/screenmob = viewmob || mymob
@@ -117,7 +169,10 @@
 
 	if(!C.parallax_home)
 		C.parallax_home = new
-	C.parallax_home.vis_contents = C.parallax_layers
+	var/list/holders = list()
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		holders += L.holder
+	C.parallax_home.vis_contents = holders
 	C.screen |= C.parallax_home
 	if(isnull(C.parallax_snapped))
 		turn_sky(C)
@@ -202,21 +257,13 @@
 	update_parallax()
 
 /// Sets the client's sky turning from where it should be by now, or swinging there over `ease` (after a shuttle flight).
-/// One animate step a quarter turn, eight of them: an hour a quarter, so a round never runs off the end.
+/// One animate step a quarter turn, as many as 12 hours take (sky_turn_plan()), either way round as the sun goes. SSparallax.sun_moved()
+/// starts it again whenever the sun's line changes.
 /datum/hud/proc/turn_sky(client/C, ease = 0)
 	var/obj/screen/parallax_home/home = C?.parallax_home
 	if(!home)
 		return
-	var/angle = sky_turn_angle(world.time + ease)
-	if(ease)
-		animate(home, transform = sky_turned(angle), time = ease, easing = SINE_EASING)
-	else
-		animate(home, transform = sky_turned(angle), time = 0, flags = ANIMATION_END_NOW)
-	if(SKY_TURN_RATE <= 0)
-		return
-	var/quarter = SKY_TURN_STEP / SKY_TURN_RATE
-	for(var/step in 1 to 8)
-		animate(transform = sky_turned(angle + step * SKY_TURN_STEP), time = quarter)
+	sky_turn_home(home, ease)
 
 // This sets which way the current shuttle is moving (returns true if the shuttle has stopped moving so the caller can append their animation)
 // The wind-up and the loop are tgstation's: each layer gets up to its own speed, then loops from a timer of its own. On top of that the
@@ -239,7 +286,7 @@
 	C.parallax_animate_timers = list()
 
 	if(new_parallax_movedir && isnull(C.parallax_snapped))
-		C.parallax_snapped = round(sky_turn_angle(), SKY_TURN_STEP)
+		C.parallax_snapped = sky_snap_angle()
 		if(C.parallax_home)
 			animate(C.parallax_home, transform = sky_turned(C.parallax_snapped), time = skip_windups ? 0 : SKY_SNAP_TIME, easing = SINE_EASING)
 	// The heading in the sky's own frame: the sky is turned clockwise by the held angle, turn() counts the other way
@@ -361,17 +408,17 @@
 					wrap_y = back.d * wrap_u + back.e * wrap_v
 				new_x += wrap_x
 				new_y += wrap_y
-				L.pixel_w = round(L.offset_x + wrap_x, 1)
-				L.pixel_z = round(L.offset_y + wrap_y, 1)
+				L.slide_to(round(L.offset_x + wrap_x, 1), round(L.offset_y + wrap_y, 1))
 
 		L.offset_x = new_x
 		L.offset_y = new_y
 		// Any move that shows glides with the eye, even the one pixel a far layer moves now and then
-		if(glide && (round(new_x, 1) != L.pixel_w || round(new_y, 1) != L.pixel_z))
-			animate(L, pixel_w = round(new_x, 1), pixel_z = round(new_y, 1), time = glide_time)
+		var/drawn_x = round(new_x, 1)
+		var/drawn_y = round(new_y, 1)
+		if(glide && (drawn_x != L.drawn_x || drawn_y != L.drawn_y))
+			L.slide_to(drawn_x, drawn_y, glide_time)
 		else
-			L.pixel_w = round(new_x, 1)
-			L.pixel_z = round(new_y, 1)
+			L.slide_to(drawn_x, drawn_y)
 
 /atom/movable/proc/update_parallax_contents()
 	if(length(client_mobs_in_contents))
@@ -419,15 +466,55 @@
 	blend_mode = BLEND_ADD
 	plane = PLANE_SPACE_PARALLAX
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
-	// Without RESET_TRANSFORM (which every screen object has): a layer turns with the sky holding it
-	appearance_flags = APPEARANCE_UI & ~RESET_TRANSFORM
+	// Without RESET_TRANSFORM (which every screen object has): a layer turns with the sky holding it. Without PIXEL_SCALE: turned at
+	// an odd angle, nearest-pixel drawing stair-stepped the planets' rims and showed lines at the repeats' seams
+	appearance_flags = APPEARANCE_UI & ~(RESET_TRANSFORM | PIXEL_SCALE)
+	/// Carries the layer at the middle of the screen and slides it by its transform, so the sky's turn swings every layer as one
+	var/obj/screen/parallax_holder/holder
+	/// Pixels the holder has the layer slid by
+	var/drawn_x = 0
+	var/drawn_y = 0
 
 
 /obj/screen/parallax_layer/Initialize(mapload, view)
 	. = ..()
+	holder = new
+	holder.held = src
+	holder.layer = layer
+	holder.vis_contents += src
 	if (!view)
 		view = world.view
 	update_o(view)
+
+/obj/screen/parallax_layer/Destroy()
+	QDEL_NULL(holder)
+	return ..()
+
+/// Slides the layer to x, y pixels from the middle of the screen (in the turned sky's frame), over `time` if it's given
+/obj/screen/parallax_layer/proc/slide_to(x, y, time)
+	drawn_x = x
+	drawn_y = y
+	if(time)
+		animate(holder, transform = matrix(1, 0, x, 0, 1, y), time = time)
+	else
+		holder.transform = matrix(1, 0, x, 0, 1, y)
+
+/// Holds one parallax layer in parallax_home's vis_contents (or a camera picture's sky): its transform is the layer's slide. It's a
+/// tile like the home, at the same place, so the home's turn goes about the same middle for every holder.
+/obj/screen/parallax_holder
+	icon = 'hippiestation/icons/effects/sky.dmi'
+	icon_state = null
+	blend_mode = BLEND_ADD
+	plane = PLANE_SPACE_PARALLAX
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	appearance_flags = NO_CLIENT_COLOR // turns with the home: no RESET_TRANSFORM
+	/// The layer it holds
+	var/obj/screen/parallax_layer/held
+
+/obj/screen/parallax_holder/Destroy()
+	vis_contents.Cut()
+	held = null
+	return ..()
 
 /// Tiles the layer's own icon over the view. A layer with no icon state of its own shows shared art instead (set_quality).
 /obj/screen/parallax_layer/proc/update_o(view)
@@ -498,7 +585,11 @@
 /// Sits turned by `new_angle` degrees on top of the sky's own turn
 /obj/screen/parallax_layer/proc/set_angle(new_angle)
 	angle = new_angle
-	transform = angle ? sky_turned(angle) : matrix()
+	transform = rest_transform()
+
+/// The layer's transform when nothing moves it: turned by its own angle, if it has one
+/obj/screen/parallax_layer/proc/rest_transform()
+	return angle ? sky_turned(angle) : matrix()
 
 /// Whether it streams past in a shuttle's flight. Single things stay put (they're gone in transit anyway), and so does a layer at an
 /// angle of its own: its repeat isn't along the heading, and something that far off wouldn't move.
@@ -588,14 +679,14 @@
 
 /obj/screen/parallax_layer/stars
 	icon_state = "stars_far"
-	speed = SKY_DEPTH_FAR_STARS
+	speed = SKY_DEPTH_FAR
 	flight_speed = 0.45
 	streak = 2.5
 	layer = 4
 
 /obj/screen/parallax_layer/stars/deep
 	icon_state = "stars_deep"
-	speed = SKY_DEPTH_DEEP_STARS
+	speed = SKY_DEPTH_FAR
 	flight_speed = 0.2
 	streak = 1.6
 	layer = 2
@@ -603,7 +694,7 @@
 
 /obj/screen/parallax_layer/stars/mid
 	icon_state = "stars_mid"
-	speed = SKY_DEPTH_MID_STARS
+	speed = SKY_DEPTH_FAR
 	flight_speed = 0.9
 	streak = 4
 	layer = 5
@@ -612,7 +703,7 @@
 /// The few bright ones. Some of them twinkle: three groups, each a shared layer that fades in and out at its own pace.
 /obj/screen/parallax_layer/stars/near
 	icon_state = "stars_near"
-	speed = SKY_DEPTH_NEAR_STARS
+	speed = SKY_DEPTH_FAR
 	flight_speed = 1.6
 	streak = 6
 	layer = 7
@@ -629,19 +720,20 @@
 /obj/screen/parallax_layer/nebula
 	icon_state = null
 	period = PARALLAX_TILE * SKY_NEBULA_SCALE
-	speed = 0.45 * SKY_DEPTH_NEBULA_SCALE
+	speed = SKY_DEPTH_FAR
 	flight_speed = 0.45
 	layer = 3
 	detail = PARALLAX_HIGH
 	/// Which of the theme's clouds this is
 	var/index = 1
 
-/// cloud is one of the theme's nebula entries: list(state, colour, alpha, speed, minutes to drift one repeat, "x,y" heading)
+/// cloud is one of the theme's nebula entries: list(state, colour, alpha, flight speed). The clouds hold still: far enough off that
+/// they slide with the rest of the sky (SKY_DEPTH_FAR), and a shuttle's flight streams them past at their own speeds.
 /obj/screen/parallax_layer/nebula/proc/setup(new_index, list/cloud)
 	index = new_index
-	speed = cloud[4] * SKY_DEPTH_NEBULA_SCALE
 	flight_speed = cloud[4]
 	layer = initial(layer) + index * 0.01
+	holder.layer = layer
 	// Which part of the cloud is overhead changes from round to round, the same for everyone
 	var/list/shift = SSparallax.nebula_shifts[index]
 	offset_x = shift[1]
@@ -656,7 +748,7 @@
 		offset_y = own.d * shift[1] + own.e * shift[2]
 
 /obj/screen/parallax_layer/nebula/set_quality(quality)
-	vis_contents = carry(list(SSparallax.nebula_art(index, quality >= GRAPHICS_QUALITY_MEDIUM)))
+	vis_contents = carry(list(SSparallax.nebula_art(index)))
 
 // ---- Single things: the planet below, another world, the sun, a galaxy. Each sits at one place in the sky.
 
@@ -706,15 +798,22 @@
 	var/away = arctan(-sun[1], -sun[2])
 	return list(cos(away) * SKY_PLANET_REST, sin(away) * SKY_PLANET_REST)
 
-/// The day side toward the sun: the art is lit from screen east (sky_bodies.dmi), so it turns by the sun's bearing
+/// The lit side toward the sun: the art is backlit from the upper left (SKY_PLANET_BAKE_ANGLE, tools/sky_gen/v2/planets.py), so
+/// it turns by that less the sun's bearing. It turns with the sky after that, so the lit side stays on the sun.
 /obj/screen/parallax_layer/body/planet/Initialize(mapload, view)
 	. = ..()
-	face_sun()
+	face_sun(SKY_PLANET_BAKE_ANGLE)
+	SSparallax.planet_layers += src // players' and camera pictures' alike, for the art Lavaland carries (sky_weather.dm)
 
-/obj/screen/parallax_layer/body/proc/face_sun()
+/obj/screen/parallax_layer/body/planet/Destroy()
+	SSparallax.planet_layers -= src
+	return ..()
+
+/// Turns a body so its lit side, baked lit from bake_angle (degrees counter-clockwise from screen east), faces the sun
+/obj/screen/parallax_layer/body/proc/face_sun(bake_angle = 0)
 	var/list/sun = SSparallax.body_places["sun"]
 	if(sun && (sun[1] || sun[2]))
-		set_angle(-arctan(sun[1], sun[2]))
+		set_angle(bake_angle - arctan(sun[1], sun[2]))
 
 /obj/screen/parallax_layer/body/planet/update_status(mob/M)
 	var/turf/T = get_turf(M)
@@ -722,7 +821,7 @@
 
 /// Another world of this system, further off. The theme says which.
 /obj/screen/parallax_layer/body/world
-	speed = SKY_DEPTH_WORLD
+	speed = SKY_DEPTH_FAR
 	layer = 10
 	place = "world"
 
@@ -733,14 +832,14 @@
 /obj/screen/parallax_layer/body/sun
 	icon_state = "sun"
 	blend_mode = BLEND_ADD
-	speed = SKY_DEPTH_SUN
+	speed = SKY_DEPTH_FAR
 	layer = 8
 	place = "sun"
 
 /obj/screen/parallax_layer/body/galaxy
 	icon = 'hippiestation/icons/effects/sky_bodies.dmi' //tools/sky_gen/v2/bodies.py's galaxies
 	icon_state = "galaxy"
-	speed = SKY_DEPTH_GALAXY
+	speed = SKY_DEPTH_FAR
 	layer = 6
 	place = "galaxy"
 
@@ -748,7 +847,7 @@
 /obj/screen/parallax_layer/body/deep
 	icon_state = null
 	blend_mode = BLEND_ADD
-	speed = 0.3 * SKY_DEPTH_DEEP_SCALE
+	speed = SKY_DEPTH_FAR
 	layer = 5.5
 	/// Which of the round's far things it is
 	var/index = 1
@@ -756,9 +855,8 @@
 /obj/screen/parallax_layer/body/deep/proc/setup(new_index)
 	index = new_index
 	place = "deep[index]"
-	var/list/far_thing = SSparallax.deep_sky[index]
-	speed = far_thing[4] * SKY_DEPTH_DEEP_SCALE
 	layer = initial(layer) + index * 0.01
+	holder.layer = layer
 
 /obj/screen/parallax_layer/body/deep/set_quality(quality)
 	vis_contents = carry(SSparallax.deep_art(index, quality >= GRAPHICS_QUALITY_MEDIUM))
@@ -836,3 +934,4 @@
 	var/list/sun = SSparallax.body_places["sun"]
 	if(sun && (sun[1] || sun[2]))
 		icon_state = "asteroids_[round((arctan(sun[1], sun[2]) + 360) / 22.5, 1) % 16]" //nearest heading
+		update_o(view_sized) // the repeats were made from asteroids_0 when ..() tiled it
