@@ -21,6 +21,9 @@ def scenes(path):
 		out[scene] = {
 			"turf processing (ms over the scene)": num(r"  active turfs: ([\d.]+) ms total"),
 			"all of SSair (ms over the scene)": num(r"  all of SSair: ([\d.]+) ms total"),
+			"all of SSair (ms per SSair fire)": num(r"  all of SSair: [\d.]+ ms total, ([\d.]+) ms per"),
+			"tile engine follow-up (ms per SSair fire)": num(r"following up ([\d.]+)"),
+			"follow-up air: writing it, exposing (ms per SSair fire)": num(r"follow-up by part, ms per SSair fire: air ([\d.]+)"),
 			"awake turfs (average)": num(r"active turfs: average ([\d.]+)"),
 			"total moles on the station after": num(r"over \d+ open station turfs: (\d+) mol in all"),
 			"turfs with 1+ mol N2O after": num(r"on (\d+) turfs with a mole or more"),
@@ -28,6 +31,10 @@ def scenes(path):
 			"turfs over 100 C after": num(r"(\d+) turfs over 100 C"),
 		}
 	return out
+
+
+def fmt(value):
+	return f"{value:.0f}" if abs(value) >= 100 else f"{value:.2f}"
 
 
 data = {}
@@ -40,5 +47,5 @@ for scene in SCENES:
 		cells = []
 		for prefix in (a, b):
 			values = [run[scene][key] for run in data[prefix]]
-			cells.append(f"{prefix} {statistics.mean(values):.0f} [{', '.join(f'{v:.0f}' for v in values)}]")
+			cells.append(f"{prefix} {fmt(statistics.mean(values))} [{', '.join(fmt(v) for v in values)}]")
 		print(f"  {key}: " + " | ".join(cells))

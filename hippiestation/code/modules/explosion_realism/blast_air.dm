@@ -44,7 +44,8 @@ GLOBAL_VAR_INIT(explosion_realism, world.params["explosion-realism"] != "off")
 		return 1
 	if(isspaceturf(T))
 		return 0
-	var/datum/gas_mixture/air = T.return_air()
+	var/turf/open/O = T
+	var/datum/gas_mixture/air = O.air // only read: return_air() would have the tile engine send the turf's air again
 	return blast_air_factor_at(air ? air.return_pressure() : 0)
 
 /// blast_air_factor() for air at this many kilopascals
@@ -96,7 +97,8 @@ GLOBAL_VAR_INIT(explosion_realism, world.params["explosion-realism"] != "off")
 		return 0
 	if(isspaceturf(T))
 		return full * BLAST_THIN_AIR_COST
-	var/datum/gas_mixture/air = T.return_air()
+	var/turf/open/O = T
+	var/datum/gas_mixture/air = O.air // only read, on every turf a maxcap reaches: return_air() would have the tile engine send them all again
 	var/pressure = air ? air.return_pressure() : 0
 	if(pressure >= as_thick)
 		return 0
