@@ -5,12 +5,12 @@
 
 use crate::{frame, lock, now};
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, RecvTimeoutError};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const PAGE: &str = include_str!("page.html");
 const DENIED: &str = "<!doctype html><meta charset=utf-8><meta name=viewport content=\"width=device-width\"><title>Dashboard</title>\
@@ -53,11 +53,45 @@ struct Request {
 	cookie_token: Option<String>,
 }
 
-fn read_request(stream: &TcpStream) -> Option<Request> {
-	stream.set_read_timeout(Some(Duration::from_secs(10))).ok()?;
-	let mut reader = BufReader::new(stream);
+/// The longest a request line or one header may be, all the headers together, and how long the whole request may take to come in:
+/// past any of them it's turned away, so a client that sends bytes with no newline, or one a second, can't pile memory up
+const MAX_LINE: u64 = 8192;
+const MAX_HEADERS: usize = 32 * 1024;
+const REQUEST_TIME: Duration = Duration::from_secs(15);
+
+/// The socket with the request's deadline on every read: each read waits only for what's left of REQUEST_TIME, then fails
+struct Deadline<'a> {
+	stream: &'a TcpStream,
+	until: Instant,
+}
+
+impl Read for Deadline<'_> {
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		let left = self.until.saturating_duration_since(Instant::now());
+		if left.is_zero() {
+			return Err(std::io::ErrorKind::TimedOut.into());
+		}
+		self.stream.set_read_timeout(Some(left))?;
+		let mut stream = self.stream;
+		stream.read(buf)
+	}
+}
+
+/// One line of at most MAX_LINE bytes, newline and all; None if it's longer, cut short, or all the lines so far come to too much
+fn read_line_capped(reader: &mut BufReader<Deadline>, total: &mut usize) -> Option<String> {
 	let mut line = String::new();
-	reader.read_line(&mut line).ok()?;
+	let read = reader.by_ref().take(MAX_LINE).read_line(&mut line).ok()?;
+	*total += read;
+	if *total > MAX_HEADERS || (read > 0 && !line.ends_with('\n')) {
+		return None;
+	}
+	Some(line)
+}
+
+fn read_request(stream: &TcpStream) -> Option<Request> {
+	let mut total = 0;
+	let mut reader = BufReader::new(Deadline { stream, until: Instant::now() + REQUEST_TIME });
+	let line = read_line_capped(&mut reader, &mut total)?;
 	let mut parts = line.split_whitespace();
 	if parts.next()? != "GET" {
 		return None;
@@ -65,8 +99,8 @@ fn read_request(stream: &TcpStream) -> Option<Request> {
 	let target = parts.next()?.to_string();
 	let mut cookie_token = None;
 	for _ in 0..100 {
-		let mut header = String::new();
-		if reader.read_line(&mut header).ok()? == 0 {
+		let header = read_line_capped(&mut reader, &mut total)?;
+		if header.is_empty() {
 			break;
 		}
 		let header = header.trim_end();
@@ -133,8 +167,8 @@ fn handle(mut stream: TcpStream) {
 				respond(&mut stream, "403 Forbidden", "text/html; charset=utf-8", &[], DENIED);
 			}
 		}
-		"/events" => match request.cookie_token.as_deref().and_then(valid) {
-			Some((name, expires)) => stream_events(stream, name, expires),
+		"/events" => match request.cookie_token.as_deref().and_then(|token| valid(token).map(|v| (token.to_string(), v))) {
+			Some((token, (name, expires))) => stream_events(stream, token, name, expires),
 			None => respond(&mut stream, "403 Forbidden", "text/plain", &[], "Not logged in"),
 		},
 		"/snapshot" => match request.cookie_token.as_deref().and_then(valid) {
@@ -188,8 +222,9 @@ fn snapshot(name: &str, expires: u64) -> String {
 }
 
 /// The live stream: everything kept so far first (the station's walls before anything that moves on them), then whatever DM sends,
-/// with a comment line every 15 seconds so a page that's gone is noticed. Ends when the token runs out.
-fn stream_events(mut stream: TcpStream, name: String, expires: u64) {
+/// with a comment line every 15 seconds so a page that's gone is noticed. Ends when the token runs out or is taken back
+/// (dashboard_revoke), checked before everything sent: DM pushes twice a second, so a check only when it's quiet would never come.
+fn stream_events(mut stream: TcpStream, token: String, name: String, expires: u64) {
 	let (sender, receiver) = channel::<String>();
 	let mut first = frame("hello", &format!("{{\"name\":{},\"expires\":{expires}}}", json_string(&name)));
 	{
@@ -214,16 +249,66 @@ fn stream_events(mut stream: TcpStream, name: String, expires: u64) {
 	loop {
 		match receiver.recv_timeout(Duration::from_secs(15)) {
 			Ok(text) => {
-				if stream.write_all(text.as_bytes()).is_err() {
+				if valid(&token).is_none() || stream.write_all(text.as_bytes()).is_err() {
 					return;
 				}
 			}
 			Err(RecvTimeoutError::Timeout) => {
-				if now() > expires || stream.write_all(b": ping\n\n").is_err() {
+				if valid(&token).is_none() || stream.write_all(b": ping\n\n").is_err() {
 					return;
 				}
 			}
 			Err(RecvTimeoutError::Disconnected) => return,
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	/// What read_request makes of these bytes, sent down a real socket
+	fn parse(bytes: Vec<u8>) -> Option<(String, Option<String>)> {
+		let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+		let address = listener.local_addr().unwrap();
+		let sender = std::thread::spawn(move || {
+			let mut client = TcpStream::connect(address).unwrap();
+			let _ = client.write_all(&bytes);
+			client
+		});
+		let (stream, _) = listener.accept().unwrap();
+		let request = read_request(&stream);
+		drop(sender.join());
+		request.map(|r| (r.path, r.cookie_token))
+	}
+
+	#[test]
+	fn reads_a_request() {
+		let got = parse(b"GET /events HTTP/1.1\r\nHost: x\r\nCookie: a=1; hd=abc\r\n\r\n".to_vec());
+		assert_eq!(got, Some(("/events".into(), Some("abc".into()))));
+	}
+
+	#[test]
+	fn turns_away_long_lines() {
+		let mut long = b"GET /".to_vec();
+		long.extend(std::iter::repeat(b'a').take(MAX_LINE as usize + 10));
+		long.extend(b" HTTP/1.1\r\n\r\n");
+		assert_eq!(parse(long), None);
+		let mut header = b"GET / HTTP/1.1\r\nX: ".to_vec();
+		header.extend(std::iter::repeat(b'a').take(MAX_LINE as usize + 10));
+		header.extend(b"\r\n\r\n");
+		assert_eq!(parse(header), None);
+	}
+
+	#[test]
+	fn turns_away_too_many_header_bytes() {
+		let mut many = b"GET / HTTP/1.1\r\n".to_vec();
+		for _ in 0..8 {
+			many.extend(b"X: ");
+			many.extend(std::iter::repeat(b'a').take(8000));
+			many.extend(b"\r\n");
+		}
+		many.extend(b"\r\n");
+		assert_eq!(parse(many), None);
 	}
 }

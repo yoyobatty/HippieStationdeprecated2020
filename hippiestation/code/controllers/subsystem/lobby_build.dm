@@ -35,6 +35,9 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	/// Seconds each stage took
 	var/list/lobby_build_stages = list()
 	var/lobby_build_sleep_after = FALSE
+	/// What SSair's and SSlighting's can_fire were before the build paused them (null until it has), for lobby_build_failed()
+	var/lobby_build_air_could_fire
+	var/lobby_build_lighting_could_fire
 
 /datum/controller/subsystem/mapping/var/list/lobby_build_docks = list()
 
@@ -157,7 +160,37 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	lobby_build_stages[name] = (REALTIMEOFDAY - start) / 10
 	return REALTIMEOFDAY
 
+/// The build, and if it has a runtime error part way (a ruin that won't load, say), the round still starts: without this the lobby
+/// would wait at 0 forever, with air and lighting paused
 /datum/controller/subsystem/mapping/proc/lobby_build()
+	try
+		lobby_build_run()
+	catch(var/exception/E)
+		lobby_build_failed(E)
+
+/datum/controller/subsystem/mapping/proc/lobby_build_failed(exception/E)
+	var/msg = "Lobby build failed: [E.name] ([E.file]:[E.line]). Lavaland and the space ruins may be missing or broken this round."
+	log_world(msg)
+	message_admins(msg)
+	lobby_build_status = "failed: [E.name]"
+	lobby_build_loading = FALSE
+	lobby_build_holding = FALSE
+	lobby_build_levels = null
+	if(!isnull(lobby_build_lighting_could_fire))
+		SSlighting.can_fire = lobby_build_lighting_could_fire
+	if(!isnull(lobby_build_air_could_fire))
+		SSair.can_fire = lobby_build_air_could_fire
+	Master.build_ticklimit = 0
+	lobby_build_path_engine_afresh()
+	lobby_build_busy = FALSE
+
+/// The map loader's no_changeturf turfs never told the station picture they'd changed: if the path engine has kept one already,
+/// it starts again (the held levels' turfs as they were before the build may be in it)
+/datum/controller/subsystem/mapping/proc/lobby_build_path_engine_afresh()
+	if(GLOB.station_picture_kept)
+		path_engine_setup()
+
+/datum/controller/subsystem/mapping/proc/lobby_build_run()
 	var/started = REALTIMEOFDAY
 	var/stage = started
 	lobby_build_status = "building"
@@ -169,9 +202,9 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 		Master.build_ticklimit = pace
 	// Neither works on these levels until they're set up, as at startup: air on unready turfs, and lights before the lighting
 	// engine knows which of their turfs are opaque (a lava light would shine through the rock)
-	var/air_could_fire = SSair.can_fire
+	lobby_build_air_could_fire = SSair.can_fire
 	SSair.can_fire = FALSE
-	var/lighting_could_fire = SSlighting.can_fire
+	lobby_build_lighting_could_fire = SSlighting.can_fire
 	SSlighting.can_fire = FALSE
 
 	lobby_build_loading = TRUE
@@ -278,12 +311,13 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	stage = lobby_build_stage("lighting", stage)
 
 	lobby_build_levels = null
-	SSlighting.can_fire = lighting_could_fire
-	SSair.can_fire = air_could_fire
+	SSlighting.can_fire = lobby_build_lighting_could_fire
+	SSair.can_fire = lobby_build_air_could_fire
 
 	repopulate_sorted_areas()
 	lobby_build_place_docks()
 	Master.build_ticklimit = 0
+	lobby_build_path_engine_afresh()
 	lobby_build_busy = FALSE
 	var/took = (REALTIMEOFDAY - started) / 10
 	var/list/parts = list()

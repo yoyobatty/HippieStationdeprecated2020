@@ -119,6 +119,12 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/tile_engine_native_reactions = FALSE
 	/// Turfs the engine reacted so far (for benches)
 	var/tile_engine_reacted_count = 0
+	/// world.maxx and maxy when the engine started. A turf's number (its reference) is worked out from them, so the world
+	/// growing wider or taller (a map loaded with cropMap off) numbers every turf differently, and the engine starts again.
+	var/tile_engine_maxx = 0
+	var/tile_engine_maxy = 0
+	/// The last tick's follow-up, when the MC paused it partway: it carries on from where it got to before anything else
+	var/datum/tile_engine_follow_up/tile_engine_pending
 
 /turf
 	/// SSair.tile_engine_generation when the tile engine was last sent our kind and neighbours, 0 if what it has is out of
@@ -159,9 +165,18 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 		SSair.tile_engine_events.Add(TILE_EVENT_NEW_TURF, src)
 
 /// Turns the tile engine on if the library is there and it's the version this code expects
-/datum/controller/subsystem/air/proc/tile_engine_setup()
-	if(tile_engine_owns) // starting again with the engine running LINDA: DM takes its state back first
-		tile_engine_own_takeback()
+/datum/controller/subsystem/air/proc/tile_engine_setup(resized = FALSE)
+	if(tile_engine_pending) // what's left of the last tick first, while the engine's still the one that did it
+		tile_engine_follow_up_rest(FALSE)
+	// The idle machines the engine watched: it forgets them, so they wake on any change in their air as before it watched them
+	for(var/obj/machinery/M as anything in atmos_machinery)
+		if(M?.atmos_engine_watched)
+			M.atmos_engine_watched = FALSE
+			if(M.atmos_idle_since)
+				atmos_wake_machine(M)
+	if(tile_engine_owns) // starting again with the engine running LINDA: DM takes its state back first (not the turfs the
+		tile_engine_own_takeback(!resized) // engine says, if they were numbered for a world of another size)
+	tile_engine_machine_events = list()
 	tile_engine = FALSE
 	atmos_never_idle = world.params["atmos-idle"] == "off"
 	if(world.params["atmos-idle-shadow"]) // idle_machines.dm: the old check runs the machines, the registry is set against it
@@ -219,6 +234,8 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 		log_world("Atmos: running LINDA, the tile engine failed to start: [error]")
 		return
 	tile_engine = TRUE
+	tile_engine_maxx = world.maxx
+	tile_engine_maxy = world.maxy
 	// A fresh start: the engine has no turfs yet, so every turf has to send its kind and neighbours again
 	var/cache = world.params["atmos-engine-cache"]
 	tile_engine_cache_shadow = cache == "shadow"
@@ -577,6 +594,8 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 
 /// Something went wrong with the library, so atmos goes back to LINDA for the rest of the round
 /datum/controller/subsystem/air/proc/tile_engine_failed(status)
+	if(tile_engine_pending) // the last tick's air is written: what's left of its follow-up is DM's own either way
+		tile_engine_follow_up_rest(FALSE)
 	pipe_engine = "off"
 	if(tile_engine_owns) // LINDA carries on from the engine's awake turfs
 		tile_engine_own_takeback()
@@ -588,6 +607,9 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 
 /// One atmos tick of turfs: pack what the engine asks for until it's done, then follow up
 /datum/controller/subsystem/air/proc/tile_engine_process()
+	if(tile_engine_pending) // a resumed fire: the last tick's follow-up carries on (a fresh fire finished it in tile_engine_fire_start())
+		tile_engine_follow_up_rest(TRUE)
+		return
 	if(tile_engine_owns)
 		tile_engine_own_process()
 		return
@@ -790,6 +812,9 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	// (reactions.rs Effects): reaction_results["fire"] (a hotspot on the turf grows by it), letting the floor know a fire's
 	// there (only where there's no hotspot yet), wet and frozen floors, a tritium fire's chance of a radiation pulse, fusion's
 	// light and radiation, a stimulum ball's particle, and research points.
+	var/datum/tile_engine_follow_up/F = new
+	F.fired = fired
+	F.owns = owns
 	if(tile_engine_native_reactions)
 		var/list/turf/open/reacted = list()
 		var/list/fires = list()
@@ -820,88 +845,208 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 			var/datum/gas_mixture/air = T.air
 			if(air)
 				air.reaction_results = list("fire" = fires[at])
-		at = 0
-		for(var/turf/open/T as anything in expose)
-			at++
-			if(!isopenturf(T))
-				continue
-			if(owns)
-				T.current_cycle = fired
-			// A new hotspot takes its size from reaction_results["fire"] as it was when the fire that lit it was done, in the middle
-			// of react(), before a later fire on the turf set it again. (Only that: a new hotspot can react some of the turf's air
-			// as it's made, so the air itself is left as it is.)
-			var/list/results = T.air?.reaction_results
-			var/final_fire = results?["fire"]
-			if(results)
-				results["fire"] = expose_fires[at]
-			T.hotspot_expose(expose_temperatures[at], CELL_VOLUME)
-			if(results && T.air?.reaction_results == results)
-				results["fire"] = final_fire
-		for(var/turf/open/T as anything in wet)
-			if(isopenturf(T))
-				T.water_vapor_gas_act()
-		for(var/turf/open/T as anything in frozen)
-			if(isopenturf(T))
-				T.freon_gas_act()
-		at = 0
-		for(var/turf/open/T as anything in radiation)
-			at++
-			if(isopenturf(T) && prob(10))
-				radiation_pulse(T, radiation_energy[at] / TRITIUM_BURN_RADIOACTIVITY_FACTOR)
-		at = 0
-		for(var/turf/open/T as anything in fusion)
-			at++
-			if(!isopenturf(T))
-				continue
-			T.set_light(4, 30)
-			T.light_color = LIGHT_COLOR_GREEN
-			radiation_pulse(T, 8, fusion_energy[at] * FUSION_POWER_GENERATION_COEFFICIENT_HIPPIE)
-			addtimer(CALLBACK(T, TYPE_PROC_REF(/atom, set_light), 0, 0), 30)
-		at = 0
-		for(var/turf/open/T as anything in balls)
-			at++
-			if(isopenturf(T))
-				T.fire_nuclear_particle(ball_angles[at])
-		if(research > 0 && SSresearch.science_tech)
-			SSresearch.science_tech.add_point_type(TECHWEB_POINT_TYPE_DEFAULT, research)
-	// One turf's reaction can change the next turf on the list into a wall, so from here on they might not be open any more.
-	// A reaction can light a hotspot here, which wants to know the turf has had its turn this tick.
-	var/tracking = tile_engine_tracking
-	for(var/turf/open/T as anything in react)
-		if(!isopenturf(T))
-			continue
-		var/datum/gas_mixture/air = T.air
-		TILE_ENGINE_TOUCH(T)
-		if(owns)
-			T.current_cycle = fired
-		if(air.react(T))
-			T.tile_engine_reacted = fired
-			T.update_visuals()
-			T.tile_engine_drawn = -1 // drawn from after the reaction, so the next tick checks it again
-			if(tracking)
-				tile_engine_events.Add(TILE_EVENT_UNDRAWN, T)
-			T.consider_superconductivity(TRUE) // a small fire flashing hot starts heating its floor, which is what cools it
-			T.temperature_expose(air, air.temperature)
-
+		F.expose = expose
+		F.expose_temperatures = expose_temperatures
+		F.expose_fires = expose_fires
+		F.wet = wet
+		F.frozen = frozen
+		F.radiation = radiation
+		F.radiation_energy = radiation_energy
+		F.fusion = fusion
+		F.fusion_energy = fusion_energy
+		F.balls = balls
+		F.ball_angles = ball_angles
+		F.research = research
+	F.react = react
+	F.redraw = redraw
+	F.redraw_keys = redraw_keys
+	F.hot = hot
 	tile_engine_apply_parts["react"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
-	part = TICK_USAGE_REAL
-	// Gas overlays that would look different now
-	at = 0
-	for(var/turf/open/T as anything in redraw)
-		at++
-		if(isopenturf(T) && T.tile_engine_reacted != fired)
-			T.update_visuals()
-			T.tile_engine_drawn = redraw_keys[at]
+	tile_engine_apply_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
+	// The rest is DM's own (reactions' effects, react(), overlays, heat through walls), which on a station-wide fire is more
+	// than one tick has room for: it stops when the MC wants the tick back and carries on in the next fire, before anything
+	// else SSair does, so no other stage (and no engine tick) comes between its parts and each turf is done once.
+	tile_engine_pending = F
+	tile_engine_follow_up_rest(TRUE)
 
-	tile_engine_apply_parts["redraw"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
-	part = TICK_USAGE_REAL
-	// Hot enough to conduct heat through walls
-	for(var/turf/open/T as anything in hot)
-		T.consider_superconductivity(TRUE)
-	tile_engine_apply_parts["hot"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part)
+/// A tick's follow-up, kept while the MC has it paused (tile_engine_follow_up_rest())
+/datum/tile_engine_follow_up
+	/// SSair's times_fired and tile_engine_owns when the engine did the tick
+	var/fired
+	var/owns
+	/// Which part it's on, and how far through that part's list
+	var/stage = 1
+	var/at = 0
+	/// tile_engine_air_clock from the first time it paused: a turf whose air was touched since isn't drawn as the engine said
+	var/paused_clock = 0
+	var/list/expose
+	var/list/expose_temperatures
+	var/list/expose_fires
+	var/list/wet
+	var/list/frozen
+	var/list/radiation
+	var/list/radiation_energy
+	var/list/fusion
+	var/list/fusion_energy
+	var/list/balls
+	var/list/ball_angles
+	var/research = 0
+	var/list/react
+	var/list/redraw
+	var/list/redraw_keys
+	var/list/hot
+
+/// The rest of tile_engine_follow_up(), from where it got to. With `check` it stops when the MC wants the tick back and
+/// returns FALSE; without, it finishes. The parts go in the order they always did.
+/datum/controller/subsystem/air/proc/tile_engine_follow_up_rest(check)
+	var/datum/tile_engine_follow_up/F = tile_engine_pending
+	if(!F)
+		return TRUE
+	var/timer = TICK_USAGE_REAL
+	var/part = timer
+	var/fired = F.fired
+	var/owns = F.owns
+	var/at
+	var/list/turfs
+	while(F.stage <= 10)
+		at = F.at
+		switch(F.stage)
+			if(1) // Reactions the engine did itself (tile_engine_follow_up()): a hotspot where one lit a fire
+				turfs = F.expose
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					if(isopenturf(T))
+						if(owns)
+							T.current_cycle = fired
+						// A new hotspot takes its size from reaction_results["fire"] as it was when the fire that lit it was done, in the middle
+						// of react(), before a later fire on the turf set it again. (Only that: a new hotspot can react some of the turf's air
+						// as it's made, so the air itself is left as it is.)
+						var/list/results = T.air?.reaction_results
+						var/final_fire = results?["fire"]
+						if(results)
+							results["fire"] = F.expose_fires[at]
+						T.hotspot_expose(F.expose_temperatures[at], CELL_VOLUME)
+						if(results && T.air?.reaction_results == results)
+							results["fire"] = final_fire
+					if(check && MC_TICK_CHECK)
+						break
+			if(2)
+				turfs = F.wet
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					if(isopenturf(T))
+						T.water_vapor_gas_act()
+					if(check && MC_TICK_CHECK)
+						break
+			if(3)
+				turfs = F.frozen
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					if(isopenturf(T))
+						T.freon_gas_act()
+					if(check && MC_TICK_CHECK)
+						break
+			if(4)
+				turfs = F.radiation
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					if(isopenturf(T) && prob(10))
+						radiation_pulse(T, F.radiation_energy[at] / TRITIUM_BURN_RADIOACTIVITY_FACTOR)
+					if(check && MC_TICK_CHECK)
+						break
+			if(5)
+				turfs = F.fusion
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					if(isopenturf(T))
+						T.set_light(4, 30)
+						T.light_color = LIGHT_COLOR_GREEN
+						radiation_pulse(T, 8, F.fusion_energy[at] * FUSION_POWER_GENERATION_COEFFICIENT_HIPPIE)
+						addtimer(CALLBACK(T, TYPE_PROC_REF(/atom, set_light), 0, 0), 30)
+					if(check && MC_TICK_CHECK)
+						break
+			if(6)
+				turfs = F.balls
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					if(isopenturf(T))
+						T.fire_nuclear_particle(F.ball_angles[at])
+					if(check && MC_TICK_CHECK)
+						break
+			if(7)
+				if(F.research > 0 && SSresearch.science_tech)
+					SSresearch.science_tech.add_point_type(TECHWEB_POINT_TYPE_DEFAULT, F.research)
+			if(8)
+				// One turf's reaction can change the next turf on the list into a wall, so from here on they might not be open any more.
+				// A reaction can light a hotspot here, which wants to know the turf has had its turn this tick.
+				turfs = F.react
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					if(isopenturf(T))
+						var/datum/gas_mixture/air = T.air
+						TILE_ENGINE_TOUCH(T)
+						if(owns)
+							T.current_cycle = fired
+						if(air.react(T))
+							T.tile_engine_reacted = fired
+							T.update_visuals()
+							T.tile_engine_drawn = -1 // drawn from after the reaction, so the next tick checks it again
+							if(tile_engine_tracking)
+								tile_engine_events.Add(TILE_EVENT_UNDRAWN, T)
+							T.consider_superconductivity(TRUE) // a small fire flashing hot starts heating its floor, which is what cools it
+							T.temperature_expose(air, air.temperature)
+					if(check && MC_TICK_CHECK)
+						break
+			if(9) // Gas overlays that would look different now
+				turfs = F.redraw
+				var/paused_clock = F.paused_clock
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					if(isopenturf(T) && T.tile_engine_reacted != fired)
+						T.update_visuals()
+						if(paused_clock && T.air_touched >= paused_clock) // its air changed while this was paused: drawn from
+							T.tile_engine_drawn = -1 // that, not what the engine had, so the next tick checks it again
+							if(tile_engine_tracking)
+								tile_engine_events.Add(TILE_EVENT_UNDRAWN, T)
+						else
+							T.tile_engine_drawn = F.redraw_keys[at]
+					if(check && MC_TICK_CHECK)
+						break
+			if(10) // Hot enough to conduct heat through walls
+				turfs = F.hot
+				while(at < length(turfs))
+					var/turf/open/T = turfs[++at]
+					T.consider_superconductivity(TRUE)
+					if(check && MC_TICK_CHECK)
+						break
+		F.at = at
+		tile_engine_follow_up_time(F.stage, part)
+		part = TICK_USAGE_REAL
+		if(check && state != SS_RUNNING) // paused: it carries on from here
+			if(!F.paused_clock)
+				F.paused_clock = ++tile_engine_air_clock // touches from here on are told apart from the ones before
+			tile_engine_apply_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
+			return FALSE
+		F.stage++
+		F.at = 0
+	tile_engine_pending = null
 	if(owns)
 		tile_engine_machine_wakes() // idle vents and scrubbers whose air now gives them something to do (idle_machines.dm)
 	tile_engine_apply_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
+	return TRUE
+
+/// For benches: the follow-up's time in a part since `part`
+/datum/controller/subsystem/air/proc/tile_engine_follow_up_time(stage, part)
+	tile_engine_apply_parts[stage == 10 ? "hot" : (stage == 9 ? "redraw" : "react")] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part)
+
+/// Before anything else in a fire: a fresh fire finishes the last tick's follow-up if one was left paused (the MC restarted
+/// SSair), and a world that's grown wider or taller has the engine start again
+/datum/controller/subsystem/air/proc/tile_engine_fire_start(resumed)
+	if(!resumed && tile_engine_pending)
+		tile_engine_follow_up_rest(FALSE)
+	if(world.maxx != tile_engine_maxx || world.maxy != tile_engine_maxy)
+		log_world("Atmos: the world grew from [tile_engine_maxx]x[tile_engine_maxy] to [world.maxx]x[world.maxy], which numbers every turf differently: the tile engine starts again")
+		tile_engine_setup(TRUE)
 
 /// Writes air the engine changed into the turfs: the engine writes it straight in if it can (`write_call`), else DM writes
 /// `values`. `expose` has what's on a turf feel its new temperature, as LINDA's process_cell() does (an excited group
@@ -1147,7 +1292,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 
 /// The engine stopped with atmos-engine-own=on: DM takes LINDA's awake turfs back to carry on with, if the engine can
 /// still say what they are, or else wakes every turf with air on the station so LINDA finds its own way back
-/datum/controller/subsystem/air/proc/tile_engine_own_takeback()
+/datum/controller/subsystem/air/proc/tile_engine_own_takeback(trust_turfs = TRUE)
 	var/list/turfs = list()
 	var/list/tickers = list()
 	var/count
@@ -1166,7 +1311,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 		T.excited_group = null
 	active_turfs.Cut()
 	excited_groups.Cut()
-	if(isnum(count) && count == length(turfs) && length(tickers) == length(turfs))
+	if(trust_turfs && isnum(count) && count == length(turfs) && length(tickers) == length(turfs))
 		var/at = 0
 		for(var/turf/open/T as anything in turfs)
 			at++

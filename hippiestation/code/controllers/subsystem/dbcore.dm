@@ -22,6 +22,11 @@ SUBSYSTEM_DEF(dbcore)
 
 	/// rust_g's pool handle, or null
 	var/connection
+	/// A small second pool for blocking queries, with BLOCKING_QUERY_TIMEOUT: they hold the whole server while they wait, so they get
+	/// the shorter limit (one pool has one read timeout). Null before the first blocking query, or when both timeouts are the same.
+	var/blocking_connection
+	/// world.time before which blocking_pool() doesn't try to open that pool again, after it couldn't
+	var/blocking_pool_retry = 0
 	/// a Connect() is waiting on the library: others wait for its answer instead of starting a second
 	var/connecting = FALSE
 	/// failed connects in a row
@@ -60,6 +65,7 @@ SUBSYSTEM_DEF(dbcore)
 
 /datum/controller/subsystem/dbcore/Recover()
 	connection = SSdbcore.connection
+	blocking_connection = SSdbcore.blocking_connection
 
 /datum/controller/subsystem/dbcore/Shutdown()
 	//This is as close as we can get to the true round end before Disconnect() without changing where it's called, defeating the reason this is a subsystem
@@ -73,10 +79,10 @@ SUBSYSTEM_DEF(dbcore)
 
 //nu
 /datum/controller/subsystem/dbcore/can_vv_get(var_name)
-	return var_name != NAMEOF(src, connection) && var_name != NAMEOF(src, active_queries) && ..()
+	return var_name != NAMEOF(src, connection) && var_name != NAMEOF(src, blocking_connection) && var_name != NAMEOF(src, active_queries) && ..()
 
 /datum/controller/subsystem/dbcore/vv_edit_var(var_name, var_value)
-	if(var_name == NAMEOF(src, connection))
+	if(var_name == NAMEOF(src, connection) || var_name == NAMEOF(src, blocking_connection))
 		return FALSE
 	return ..()
 
@@ -92,18 +98,8 @@ SUBSYSTEM_DEF(dbcore)
 		return FALSE
 
 	connecting = TRUE
-	var/timeout = max(CONFIG_GET(number/async_query_timeout), CONFIG_GET(number/blocking_query_timeout)) || null //0 is no limit
-	var/list/options = list(
-		"host" = CONFIG_GET(string/address),
-		"port" = CONFIG_GET(number/port),
-		"user" = CONFIG_GET(string/feedback_login),
-		"pass" = CONFIG_GET(string/feedback_password),
-		"db_name" = CONFIG_GET(string/feedback_database),
-		"read_timeout" = timeout,
-		"write_timeout" = timeout,
-		"min_threads" = CONFIG_GET(number/pooling_min_sql_connections),
-		"max_threads" = CONFIG_GET(number/pooling_max_sql_connections),
-	)
+	//async queries' timeout: blocking ones get their own pool with theirs (blocking_pool())
+	var/list/options = pool_options(CONFIG_GET(number/async_query_timeout), CONFIG_GET(number/pooling_min_sql_connections), CONFIG_GET(number/pooling_max_sql_connections))
 	var/list/result = json_decode(rustg_sql_connect_pool(json_encode(options)))
 	connecting = FALSE
 	if(result?["status"] == "ok")
@@ -120,6 +116,42 @@ SUBSYSTEM_DEF(dbcore)
 	failed_connection_timeout = world.time + wait
 	log_sql("Connect() failed ([failed_connections] in a row, next try in [wait / 10] s) | [last_error]")
 	return FALSE
+
+/// rust_g's options for a pool: timeout in seconds (0 is no limit)
+/datum/controller/subsystem/dbcore/proc/pool_options(timeout, min_threads, max_threads)
+	return list(
+		"host" = CONFIG_GET(string/address),
+		"port" = CONFIG_GET(number/port),
+		"user" = CONFIG_GET(string/feedback_login),
+		"pass" = CONFIG_GET(string/feedback_password),
+		"db_name" = CONFIG_GET(string/feedback_database),
+		"read_timeout" = timeout || null,
+		"write_timeout" = timeout || null,
+		"min_threads" = min_threads,
+		"max_threads" = max_threads,
+	)
+
+/// The pool a blocking query runs on: its own, with BLOCKING_QUERY_TIMEOUT, opened the first time; the main one when the two
+/// timeouts are the same or that pool can't be opened (then not tried again for a minute)
+/datum/controller/subsystem/dbcore/proc/blocking_pool()
+	var/timeout = CONFIG_GET(number/blocking_query_timeout)
+	if(timeout == CONFIG_GET(number/async_query_timeout))
+		return connection
+	if(blocking_connection)
+		var/list/state = json_decode(rustg_sql_connected(blocking_connection))
+		if(state?["status"] == "online")
+			return blocking_connection
+		rustg_sql_disconnect_pool(blocking_connection)
+		blocking_connection = null
+	if(world.time < blocking_pool_retry)
+		return connection
+	var/list/result = json_decode(rustg_sql_connect_pool(json_encode(pool_options(timeout, 1, 2))))
+	if(result?["status"] == "ok")
+		blocking_connection = result["handle"]
+		return blocking_connection
+	blocking_pool_retry = world.time + 1 MINUTES
+	log_sql("Couldn't open the pool for blocking queries, they use the main one for now | [result?["data"] || "rust_g gave no answer"]")
+	return connection
 
 /datum/controller/subsystem/dbcore/proc/CheckSchemaVersion()
 	if(CONFIG_GET(flag/sql_enabled))
@@ -186,6 +218,9 @@ SUBSYSTEM_DEF(dbcore)
 	if(connection)
 		rustg_sql_disconnect_pool(connection)
 	connection = null
+	if(blocking_connection)
+		rustg_sql_disconnect_pool(blocking_connection)
+	blocking_connection = null
 
 /datum/controller/subsystem/dbcore/proc/IsConnected()
 	if(!CONFIG_GET(flag/sql_enabled) || isnull(connection))
@@ -292,6 +327,8 @@ Returns TRUE if every query went in.
 
 	var/last_error
 	var/in_progress
+	/// The pool handle the last run went to, so a lost connection only throws that pool away (Execute())
+	var/ran_on
 
 /datum/DBQuery/New(sql_query, list/arguments)
 	SSdbcore.active_queries[src] = TRUE
@@ -336,10 +373,15 @@ Returns TRUE if every query went in.
 	var/start_time = REALTIMEOFDAY
 	. = run_query(async)
 	if(!. && is_connection_error(last_error))
-		//the database went away (restarted, killed, or the connection timed out): a new pool, and a read is run again on it.
-		//A write isn't, since it may already have gone in before the connection dropped.
+		//the database went away (restarted or killed): a new pool, and a read is run again on it. A write isn't, since it may
+		//already have gone in before the connection dropped. Only the pool this query ran on is thrown away, and only if it's still
+		//the one in use: other queries that hit the same loss while this one waited may have made a new one already.
 		log_sql("Lost the database connection: [last_error]")
-		SSdbcore.Disconnect()
+		if(ran_on && ran_on == SSdbcore.connection)
+			SSdbcore.Disconnect()
+		else if(ran_on && ran_on == SSdbcore.blocking_connection)
+			rustg_sql_disconnect_pool(ran_on)
+			SSdbcore.blocking_connection = null
 		if(SSdbcore.Connect())
 			log_sql("Connection reestablished")
 			if(findtext(trim(sql), "SELECT", 1, 7))
@@ -359,14 +401,19 @@ Returns TRUE if every query went in.
 		if(!async)
 			log_query_debug("Slow blocking query ([took / 10] s): [sql]")
 
-/// Driver and network errors, as against the database refusing the SQL ("MySqlError { ERROR 1064 ... }")
+/// Driver and network errors, as against the database refusing the SQL ("MySqlError { ERROR 1064 ... }"). A read or write that ran
+/// out of time (an IoError of kind TimedOut or WouldBlock, or a pool that waited too long for a free connection) is a slow query or
+/// a busy pool, not a lost database: the pool drops a broken connection itself, and a new pool would only kill the queries in flight.
 /datum/DBQuery/proc/is_connection_error(error)
 	if(!error || findtext(error, "MySqlError") || findtext(error, "named parameter"))
 		return FALSE
-	return findtext(error, "IoError") || findtext(error, "Could not connect") || findtext(error, "ConnectionClosed") || findtext(error, "gone away") || findtext(error, "Lost connection") || findtext(error, "timed out") || findtext(error, "offline")
+	if((findtext(error, "timed out") || findtext(error, "TimedOut") || findtext(error, "WouldBlock")) && !findtext(error, "Could not connect") && !findtext(error, "ConnectionRefused"))
+		return FALSE
+	return findtext(error, "IoError") || findtext(error, "Could not connect") || findtext(error, "ConnectionClosed") || findtext(error, "gone away") || findtext(error, "Lost connection") || findtext(error, "offline")
 
 /datum/DBQuery/proc/run_query(async)
-	var/connection = SSdbcore.connection
+	var/connection = async ? SSdbcore.connection : SSdbcore.blocking_pool()
+	ran_on = connection
 	var/job_result
 	if(async)
 		var/job_id = rustg_sql_query_async(connection, sql, encode_arguments())

@@ -252,7 +252,10 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	L.native_id = 0
 	if(!id)
 		return
-	call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_forget")(id)
+	var/result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_forget")(id)
+	if(result != 1) // its light may still be on the engine's corners: the DM code relights everything instead
+		native_failed("forget: [result]")
+		return
 	if(id <= length(native_lights))
 		native_lights[id] = null
 		native_free_ids += id
@@ -362,7 +365,9 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 		var/flags = lighting_engine_flags()
 		if(flags != lighting_engine_pushed)
 			lighting_engine_pushed = flags
-			call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flag")(src, flags)
+			var/result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flag")(src, flags)
+			if(result != 1)
+				SSlighting.native_failed("flag: [result]")
 
 /// Compares the DM code's corners on a z-level with the engine's, every value exactly, in the shadow check. Returns a line.
 /datum/controller/subsystem/lighting/proc/native_shadow_check(z)

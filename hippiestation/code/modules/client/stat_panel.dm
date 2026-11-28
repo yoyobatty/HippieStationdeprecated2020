@@ -26,6 +26,9 @@ GLOBAL_VAR(stat_panel_page)
 	var/list/waiting
 	/// The tab the player has open
 	var/tab = "Status"
+	/// The tab last sent at once on Set-Tab, and when: the same tab again within half a second waits for SSstatpanels' own pass
+	var/immediate_tab
+	var/immediate_at = 0
 	/// Whether the page has the admin tabs
 	var/admin_tabs = FALSE
 	/// Whether the page has an alt-clicked tile's tab
@@ -117,7 +120,10 @@ GLOBAL_VAR(stat_panel_page)
 		if("Set-Tab")
 			if(istext(payload?["tab"]))
 				tab = copytext(payload["tab"], 1, 100)
-				SSstatpanels.immediate_send_stat_data(owner)
+				if(tab != immediate_tab || world.time >= immediate_at + 5) // a page spamming Set-Tab would scan the turf's pile each time
+					immediate_tab = tab
+					immediate_at = world.time
+					SSstatpanels.immediate_send_stat_data(owner)
 				if(payload["picked"]) // the player clicked it: kept across rounds (game_menu.dm)
 					owner.remember_stat_tab(tab)
 		if("MC-Detail") // a row opened or closed on the MC tab

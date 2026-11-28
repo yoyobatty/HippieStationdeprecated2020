@@ -648,9 +648,13 @@ impl Engine {
 	/// remove_lum()
 	pub fn remove(&mut self, id: usize) {
 		if let Some(mut light) = self.lights.get_mut(id).and_then(|l| l.take()) {
-			self.remove_light(&mut light);
+			// A panic (caught in lib.rs) still puts the light back, so it isn't lost from the engine
+			let removed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.remove_light(&mut light)));
 			// What's left of it (its last brightness and colour) stays, as DM's light source keeps them
 			self.lights[id] = Some(light);
+			if let Err(panic) = removed {
+				std::panic::resume_unwind(panic);
+			}
 		}
 	}
 
@@ -689,7 +693,8 @@ impl Engine {
 	pub fn relight(&mut self, id: usize, power: f32, lum: [f32; 3]) -> Result<(), String> {
 		let mut light = self.lights.get_mut(id).and_then(|l| l.take()).ok_or("no such light")?;
 		let sheets = std::mem::take(&mut self.sheets);
-		let result = (|| {
+		// A panic (caught in lib.rs) still puts the light and the sheets back
+		let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| -> Result<(), String> {
 			let sheet = sheets.get(light.sheet).and_then(|s| s.as_ref()).ok_or("no such sheet")?;
 			let z = light.z;
 			let applied = light.applied;
@@ -726,10 +731,10 @@ impl Engine {
 			light.applied = lum;
 			self.corner_queue = queue;
 			Ok(())
-		})();
+		}));
 		self.sheets = sheets;
 		self.lights[id] = Some(light);
-		result
+		result.unwrap_or_else(|panic| std::panic::resume_unwind(panic))
 	}
 
 	/// lighting_build_overlay()'s recalc_corner() for every light on each of the turf's corners, NE, SE, SW, NW

@@ -307,10 +307,10 @@ SUBSYSTEM_DEF(explosions)
 	var/list/shape_extra //hippie -- turf -> how much further the blast comes round to reach it (explosions_shape.dm)
 	if(reactionary)
 		// hippie start -- a pile going off at once (six maxcaps on a tile, a crate of grenades) is the same sums each time in the same
-		// tick, as nothing's been hit yet: they're worked out once
+		// tick, as nothing's been hit yet: they're worked out once. Not once something has (hits_done: a chained explosion inside a hit)
 		var/static/last_shape_key
 		var/static/list/last_shape
-		var/shape_key = "[x0],[y0],[z0],[max_range],[world.time],[GLOB.explosion_realism]"
+		var/shape_key = "[x0],[y0],[z0],[max_range],[world.time],[GLOB.explosion_realism],[SSexplosions.hits_done]"
 		if(shape_key == last_shape_key)
 			cached_exp_block = last_shape[1]
 			shape_extra = last_shape[2]
@@ -494,6 +494,8 @@ SUBSYSTEM_DEF(explosions)
 /datum/controller/subsystem/explosions/var/list/batch_severity = list()
 /datum/controller/subsystem/explosions/var/batch_pos = 0
 /datum/controller/subsystem/explosions/var/batch_part
+/// How many things have been hit so far: explosion()'s shape cache is good only while nothing has been
+/datum/controller/subsystem/explosions/var/hits_done = 0
 /// Tiles past the damage that only the pressure reaches: turf -> list(strength, epicenter) (explosion_realism/blast_far.dm)
 /datum/controller/subsystem/explosions/var/list/farturf = list()
 /// How many of those are still being worked out (blast_far_ring())
@@ -568,6 +570,7 @@ SUBSYSTEM_DEF(explosions)
 	batch_severity += severities
 
 /datum/controller/subsystem/explosions/proc/hit(thing, severity)
+	hits_done++
 	switch(batch_part)
 		if(SSEXPLOSIONS_TURFS)
 			var/turf/T = thing

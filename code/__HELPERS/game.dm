@@ -242,7 +242,11 @@ GLOBAL_VAR_INIT(hearing_stamp, 0)
 	var/memo_key = "[T.x],[T.y],[T.z],[R],[ignore_radios]"
 	var/list/known = memo[memo_key]
 	if(known)
-		return known.Copy()
+		. = list()
+		for(var/atom/movable/hearer as anything in known) // what was deleted since earlier in the tick doesn't hear
+			if(!QDELETED(hearer))
+				. += hearer
+		return .
 	var/list/found = get_hearers_in_view_uncached(R, T, ignore_radios)
 	memo[memo_key] = found
 	return found.Copy()

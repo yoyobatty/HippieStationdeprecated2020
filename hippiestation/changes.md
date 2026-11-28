@@ -16,7 +16,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__DEFINES/tgs.dm (TGS DMAPI 7.4.0, the upstream file as released; was 5.2.7)
 ## code/__HELPERS/\_logging.dm
 ## code/__HELPERS/AStar.dm
-## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick; get_mobs_in_radio_ranges() doesn't ask a radio with nobody but radios in reach)
+## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick; get_mobs_in_radio_ranges() doesn't ask a radio with nobody but radios in reach; a remembered list skips mobs deleted since)
 ## code/__HELPERS/icon_smoothing.dm (SMOOTH_GROUP_POOL_WATER, MAX_S_TURF 41: pool water edges, pool_water_look.dm)
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm (do_after(), do_mob(), do_after_mob() refuse a deleted mob)
@@ -34,14 +34,15 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/master.dm (starts the lobby build once startup is done, and lets it set its own tick limit while it runs: build_ticklimit, lobby_build.dm)
 ## code/controllers/subsystem.dm
 ## code/controllers/subsystem/adjacent_air.dm (out of the .dme: its queue is SSair's first stage now, as on tg later)
-## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second; setup_template_machinery() runs atmosinit() before the pipelines)
+## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second; setup_template_machinery() runs atmosinit() before the pipelines; fire() starts with tile_engine_fire_start(): a world that grew restarts the engine, and a paused follow-up carries on)
 ## code/controllers/subsystem/assets.dm
 ## code/controllers/subsystem/atoms.dm (startup skips the levels the lobby build makes)
 ## code/controllers/subsystem/blackbox.dm
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
 ## code/controllers/subsystem/discord.dm
-## code/controllers/subsystem/explosions.dm (shaped explosions through hippiestation/code/controllers/subsystem/explosions_shape.dm; Check Bomb Impact; spread over ticks; blame; realistic blasts through hippiestation/code/modules/explosion_realism/: air, sealed rooms, glass past the damage, sounds, fragments)
+## code/controllers/subsystem/explosions.dm (shaped explosions through hippiestation/code/controllers/subsystem/explosions_shape.dm; Check Bomb Impact; spread over ticks; blame; realistic blasts through hippiestation/code/modules/explosion_realism/: air, sealed rooms, glass past the damage, sounds, fragments; the shape cache key counts hits, so a chained blast in the same tick sees the walls already broken)
 ## code/controllers/subsystem/garbage.dm (at startup Queue() keeps refs as two numbers, not kept-alive ref strings; SSdemo marks only while it records, DEMO_ON)
+## code/controllers/subsystem/icon_smooth.dm (Initialize() clears SMOOTH_QUEUED on atoms it skips for having no z)
 ## code/controllers/subsystem/input.dm
 ## code/controllers/subsystem/job.dm
 ## code/controllers/subsystem/mapping.dm (Lavaland and the space ruin levels held for the lobby build; ruins moved to seed_startup_ruins())
@@ -203,6 +204,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/atmospherics/machinery/components/binary_devices/valve.dm (user, not usr: null when a bot does it)
 ## code/modules/atmospherics/machinery/components/components_base.dm (update_parents() marks pipe air for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/trinary_devices/mixer.dm (pipe air marked for the tile engine, pipe_engine.dm)
+## code/modules/atmospherics/machinery/components/unary_devices/cryo.dm (pipe air marked for the tile engine after the cell uses oxygen or swaps heat, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/unary_devices/thermomachine.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/unary_devices/vent_pump.dm
 ## code/modules/atmospherics/machinery/components/unary_devices/vent_scrubber.dm (idle when there's nothing to do; auto_use_power() looks the area up once)
@@ -245,7 +247,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/library/random_books.dm
 ## code/modules/lighting/lighting_object.dm (next to its turf, update_starlight() only when the space isn't lit yet; lighting v2: an opaque turf is drawn as one face in its brightest corner's colour, draw())
 ## code/modules/lighting/lighting_corner.dm (the tone curve in update_objects(): light past the knee eases toward full instead of being cut off at 1, see ~hippie_defines/lighting_tone.dm)
-## code/modules/lighting/lighting_source.dm (lighting v2: falloff_at_coord() takes light_v2_falloff() for lamps, and v2 sheets have keys of their own, see lighting_v2_lamps.dm)
+## code/modules/lighting/lighting_source.dm (lighting v2: falloff_at_coord() takes light_v2_falloff() for lamps, and v2 sheets have keys of their own, see lighting_v2_lamps.dm; a failed native remove or relight fails over to DM)
+## code/modules/lighting/lighting_turf.dm (native lighting: lighting_build_overlay() hands the corners to the engine, and a failed recalc fails over to DM, lighting_engine.dm)
 ## code/modules/mapping/map_template.dm (tile engine neighbour cache, tile_engine.dm; a ruin on a level the lobby build is making loads as at startup)
 ## code/modules/mapping/reader.dm (plain turf-and-area tiles made in _load_impl(); parsing by hippie_map.dll, map_engine.dm)
 ## code/modules/mapping/space_management/space_reservation.dm

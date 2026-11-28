@@ -26,11 +26,15 @@ pub struct Picture {
 	kinds: Vec<u8>,
 	/// Tiles in a hallway, where bot_sealed_pocket() stops: nowhere small is shut in if it reaches one
 	hubs: Vec<bool>,
+	/// How many times a tile has been forgotten, in all, and when each tile last was (that count then): an answer DM worked out
+	/// before a tile was forgotten mustn't put the tile back (DM can yield between answering and handing the answers over)
+	forgets: u32,
+	forgotten_at: Vec<u32>,
 }
 
 impl Picture {
 	pub fn new(size: usize) -> Picture {
-		Picture { kinds: vec![UNKNOWN; size], hubs: Vec::new() }
+		Picture { kinds: vec![UNKNOWN; size], hubs: Vec::new(), forgets: 0, forgotten_at: vec![0; size] }
 	}
 
 	pub fn kind(&self, turf: u32) -> u8 {
@@ -50,6 +54,22 @@ impl Picture {
 		if let Some(kind) = self.kinds.get_mut(turf as usize) {
 			*kind = UNKNOWN;
 		}
+		let at = turf as usize;
+		if at >= self.forgotten_at.len() {
+			self.forgotten_at.resize(at + 1, 0);
+		}
+		self.forgets = self.forgets.wrapping_add(1);
+		self.forgotten_at[at] = self.forgets;
+	}
+
+	/// Where the count of forgets is now, to ask forgotten_since() about later
+	pub fn forgets(&self) -> u32 {
+		self.forgets
+	}
+
+	/// Whether the tile has been forgotten since forgets() said `since`
+	pub fn forgotten_since(&self, turf: u32, since: u32) -> bool {
+		*self.forgotten_at.get(turf as usize).unwrap_or(&0) > since
 	}
 
 	/// What DM would answer for this tile in a search from `start`, if the picture knows without asking
@@ -112,5 +132,12 @@ mod tests {
 		assert_eq!(p.answer(1, 0, false), None);
 		p.set(20, OPEN);
 		assert_eq!(p.answer(20, 0, false), Some(0), "grows for a new z-level");
+		let asked = p.forgets();
+		assert!(!p.forgotten_since(20, asked));
+		p.forget(20);
+		assert!(p.forgotten_since(20, asked), "forgotten after it was asked about");
+		assert!(!p.forgotten_since(3, asked), "the rest weren't");
+		p.forget(30);
+		assert!(p.forgotten_since(30, asked), "grows for a new z-level too");
 	}
 }

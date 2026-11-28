@@ -162,6 +162,7 @@ SUBSYSTEM_DEF(bans)
 	var/primary_ok = FALSE //bans.json read fine or has been written: only then is it copied over the backup
 	var/next_sync = 0
 	var/db_busy = FALSE
+	var/db_sending = 0 // hippie -- world.time bans made here started on their way to the database (db_flush(), async), or 0: lift() and edit() wait for them (a minute at most, in case a runtime left it set)
 	var/list/refused = list() //bans made here that the database said no to this round: still enforced here, not retried until next round
 	var/list/known_cids = list() //ckey = the computer ID it logged in with this round, for role bans on that computer
 
@@ -424,6 +425,7 @@ SUBSYSTEM_DEF(bans)
 
 //lift() and edit() return "done", "queued" (the database is out of reach: done here, and sent when it's back), or null if refused
 /datum/controller/subsystem/bans/proc/lift(id, admin_ckey, admin_key, admin_ip, admin_cid)
+	UNTIL(!db_sending || world.time > db_sending + 1 MINUTES) // hippie -- not while bans made here go in: get() then finds one by its new id, in the database
 	var/datum/ban_record/B = get(id)
 	if(B && B.is_local())
 		set_unbanned(B, admin_ckey, admin_key, admin_ip, admin_cid)
@@ -450,6 +452,7 @@ SUBSYSTEM_DEF(bans)
 
 //op: id, mirror, old_ckey, old_ip, old_cid, amount, unit, applies_to_admins, reason, ckey, key, ip, cid, edit_text
 /datum/controller/subsystem/bans/proc/edit(list/op)
+	UNTIL(!db_sending || world.time > db_sending + 1 MINUTES) // hippie -- as in lift()
 	var/datum/ban_record/target = get(op["id"])
 	if(!target && !text2num(op["id"]))
 		return
@@ -551,13 +554,17 @@ SUBSYSTEM_DEF(bans)
 //FALSE if the connection went
 /datum/controller/subsystem/bans/proc/db_flush()
 	var/sent = 0
+	// hippie start -- the inserts are async: one blocking insert after another held the whole server on a slow database. While
+	// they go in, lift() and edit() wait (db_sending), so a change made meanwhile isn't lost with the local copy
+	db_sending = max(world.time, 1)
 	for(var/id in records.Copy())
 		var/datum/ban_record/B = records[id]
 		if(!B?.is_local() || refused[id])
 			continue
-		var/new_id = db_insert(list(B), async = FALSE)
+		var/new_id = db_insert(list(B))
 		if(!new_id)
 			if(!SSdbcore.IsConnected())
+				db_sending = 0
 				return FALSE
 			//the database answered and said no; the ban still holds here, and it's tried again next round
 			refused[id] = TRUE
@@ -570,6 +577,8 @@ SUBSYSTEM_DEF(bans)
 			B.id = new_id
 			add(B)
 		sent++
+	db_sending = 0
+	// hippie end
 	for(var/list/op as anything in queued_ops.Copy())
 		var/datum/DBQuery/query_ban_change = op_query(op)
 		var/ok = query_ban_change.Execute()

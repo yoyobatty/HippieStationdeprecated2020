@@ -38,7 +38,10 @@ SUBSYSTEM_DEF(icon_smooth)
 	while(length(queue))
 		var/atom/smoothing_atom = queue[length(queue)]
 		queue.len--
-		if(QDELETED(smoothing_atom) || !(smoothing_atom.smoothing_flags & SMOOTH_QUEUED) || !smoothing_atom.z)
+		if(QDELETED(smoothing_atom) || !(smoothing_atom.smoothing_flags & SMOOTH_QUEUED))
+			continue
+		if(!smoothing_atom.z) // hippie -- not queued any more, or a later QUEUE_SMOOTH (put on the map) would never smooth it
+			smoothing_atom.smoothing_flags &= ~SMOOTH_QUEUED
 			continue
 		smoothing_atom.smooth_icon()
 		CHECK_TICK

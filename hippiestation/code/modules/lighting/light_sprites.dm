@@ -29,8 +29,13 @@
 #define LIGHT_TEXTURE_RANGE 12
 /// Chunks redrawn per call to the engine
 #define LIGHT_TEXTURE_BATCH 200
-/// Where the engine writes the pictures (sprites.rs DIR)
+/// Where the engine writes the pictures (sprites.rs DIR), in a folder per server named by its port (sprites.rs dir())
 #define LIGHTMAP_DIR "data/lightmaps"
+/// Bytes of pictures loaded into the resource cache in a round before light textures give way to lighting objects. Every new
+/// picture (a flashlight walking makes a few each step) stays in the resource cache, in `lightmaps` and on disk, and goes to each
+/// player who sees it, for the rest of the round: nothing can take it back out, so this caps the lot. 32 MB is some 60000
+/// pictures (a picture a corner) or 6000 fine ones.
+#define LIGHT_TEXTURE_BUDGET (32 * 1024 * 1024)
 #define LIGHT_SPRITES_TEXTURES 1
 #define LIGHT_SPRITES_OVERLAYS 2
 #define LIGHT_SPRITES_FINE 3
@@ -57,6 +62,8 @@
 	/// Since light textures were turned on: chunks redrawn, pictures loaded into the resource cache, and the time those took (ms)
 	var/sprites_drawn = 0
 	var/lightmaps_loaded = 0
+	/// Their size (bytes), against LIGHT_TEXTURE_BUDGET; never goes down in a round, as the resource cache doesn't
+	var/lightmap_bytes = 0
 	var/sprites_engine_ms = 0
 	var/sprites_load_ms = 0
 
@@ -99,7 +106,10 @@
 		return "the lighting engine isn't running ([native_status])"
 	if(sprite_kind)
 		// The last kind off first, whatever comes next
-		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_textures")(0)
+		try
+			call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_textures")(0)
+		catch(var/exception/off_error)
+			log_world("Lighting: couldn't turn the engine's light textures off: [off_error]")
 		for(var/client/C as anything in GLOB.clients)
 			drop_light_holder(C)
 		for(var/key in light_textures)
@@ -111,12 +121,23 @@
 		light_texture_epoch++
 	sprite_kind = kind
 	var/on = !!kind
+	if((kind == LIGHT_SPRITES_TEXTURES || kind == LIGHT_SPRITES_FINE) && lightmap_bytes >= LIGHT_TEXTURE_BUDGET)
+		kind = 0
+		sprite_kind = 0
+		on = FALSE
+		. = "the light textures' budget for this round is spent ([round(lightmap_bytes / 1024 / 1024)] MB)"
+		log_world("Lighting: [.]")
 	if(kind == LIGHT_SPRITES_TEXTURES || kind == LIGHT_SPRITES_FINE)
-		var/result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_textures")(1)
+		var/result
+		try
+			result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_textures")(1, world.port)
+		catch(var/exception/on_error)
+			result = "[on_error]" // a DLL without light textures: drawn with lighting objects
 		if(!isnum(result) || result < 0)
 			sprite_kind = 0
 			on = FALSE
 			. = "the engine can't draw light textures: [result]"
+			log_world("Lighting: [.], drawn with lighting objects")
 		else
 			log_world("Lighting: drawn with [kind == LIGHT_SPRITES_FINE ? "fine " : ""]light textures, [result] chunks to draw")
 	else if(kind == LIGHT_SPRITES_OVERLAYS)
@@ -202,7 +223,11 @@
 	while(left > 0)
 		out.Cut()
 		var/started = TICK_USAGE_REAL
-		left = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_texture_take")(LIGHT_TEXTURE_BATCH, out, sprite_kind == LIGHT_SPRITES_FINE)
+		try
+			left = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_texture_take")(LIGHT_TEXTURE_BATCH, out, sprite_kind == LIGHT_SPRITES_FINE)
+		catch(var/exception/error)
+			left = "[error]"
+			out.Cut()
 		sprites_engine_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
 		if(!isnum(left) || left < 0)
 			stack_trace("Lighting: light textures: [left]")
@@ -210,6 +235,10 @@
 			return TRUE
 		for(var/at = 1, at <= length(out), at += 7)
 			draw_texture(out[at], out[at + 1], out[at + 2], out[at + 3] || out[at + 4] || out[at + 5] || out[at + 6] ? "[out[at + 3]]_[out[at + 4]]_[out[at + 5]]_[out[at + 6]]" : null)
+		if(lightmap_bytes >= LIGHT_TEXTURE_BUDGET)
+			log_world("Lighting: light textures loaded [round(lightmap_bytes / 1024 / 1024)] MB of pictures, their budget for this round: drawn with lighting objects")
+			set_sprites(FALSE)
+			return TRUE
 		if(init_tick_checks)
 			CHECK_TICK
 		else if(left > 0 && MC_TICK_CHECK)
@@ -245,7 +274,9 @@
 	var/picture = lightmaps[name]
 	if(!picture)
 		var/started = TICK_USAGE_REAL
-		picture = fcopy_rsc(file("[LIGHTMAP_DIR]/[name].png"))
+		var/picture_file = file("[LIGHTMAP_DIR]/[world.port]/[name].png")
+		lightmap_bytes += length(picture_file)
+		picture = fcopy_rsc(picture_file)
 		sprites_load_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - started)
 		lightmaps[name] = picture
 		lightmaps_loaded++
@@ -371,6 +402,7 @@ SUBSYSTEM_DEF(light_sprites)
 #undef LIGHT_TEXTURE_RANGE
 #undef LIGHT_TEXTURE_BATCH
 #undef LIGHTMAP_DIR
+#undef LIGHT_TEXTURE_BUDGET
 #undef LIGHT_SPRITES_TEXTURES
 #undef LIGHT_SPRITES_OVERLAYS
 #undef LIGHT_SPRITES_FINE

@@ -8,12 +8,13 @@
 //! fades the picture out over the tile beyond its edge, where the next chunk's picture is drawn whole, so where two overlap
 //! both draw the same colours and it doesn't matter which is on top.
 //!
-//! Pictures are PNG files in data/lightmaps/, named by a hash of what's in them, so a chunk that goes back to how it was
-//! (a door shut again) uses the picture it had. No dependencies: the PNG's deflate stream is stored, not compressed.
+//! Pictures are PNG files in data/lightmaps/<port>/ (each server its own folder: see dir()), named by a hash of what's in them, so
+//! a chunk that goes back to how it was (a door shut again) uses the picture it had. No dependencies: the PNG's deflate stream
+//! is stored, not compressed.
 
 use crate::engine::Engine;
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const DIR: &str = "data/lightmaps";
 pub const CHUNK: i32 = 8;
@@ -24,6 +25,14 @@ pub const SIDE: i32 = CHUNK + 3;
 pub struct Chunks {
 	pub dirty: Vec<(u32, i32, i32)>,
 	marked: HashSet<(u32, i32, i32)>,
+	/// Where the pictures go (dir())
+	pub dir: PathBuf,
+}
+
+/// This server's folder of pictures, DIR/<port>: two servers run from one folder (a bench beside a live one) each have their own,
+/// and each only ever empties its own
+pub fn dir(port: i32) -> PathBuf {
+	Path::new(DIR).join(port.to_string())
 }
 
 impl Chunks {
@@ -71,8 +80,8 @@ pub fn mark_all(engine: &mut Engine) -> usize {
 	n
 }
 
-/// A chunk's picture, written to DIR unless a file of that name is there already. None for a chunk with no light in it.
-pub fn chunk_picture(engine: &Engine, z: usize, kx: i32, ky: i32, scratch: &mut Vec<u8>) -> Result<Option<u64>, String> {
+/// A chunk's picture, written to `dir` unless a file of that name is there already. None for a chunk with no light in it.
+pub fn chunk_picture(engine: &Engine, dir: &Path, z: usize, kx: i32, ky: i32, scratch: &mut Vec<u8>) -> Result<Option<u64>, String> {
 	let Some(Some(level)) = engine.levels.get(z) else {
 		return Ok(None);
 	};
@@ -103,12 +112,12 @@ pub fn chunk_picture(engine: &Engine, z: usize, kx: i32, ky: i32, scratch: &mut 
 	if !any {
 		return Ok(None);
 	}
-	write_picture(SIDE as u32, scratch).map(Some)
+	write_picture(dir, SIDE as u32, scratch).map(Some)
 }
 
-fn write_picture(side: u32, rows: &[u8]) -> Result<u64, String> {
+fn write_picture(dir: &Path, side: u32, rows: &[u8]) -> Result<u64, String> {
 	let hash = fnv1a(rows);
-	let path = Path::new(DIR).join(file_name(hash));
+	let path = dir.join(file_name(hash));
 	if !path.exists() {
 		std::fs::write(&path, png(side, side, rows)).map_err(|e| format!("writing {}: {e}", path.display()))?;
 	}
@@ -132,7 +141,7 @@ const WALL_DEPTH_FADE: f32 = 0.8;
 /// Bounce light comes from the corners as it is, and the tone curve goes on last, as on a corner.
 ///
 /// Positions here are in tiles, turf x covering x - 1 .. x, so corner cx (the turf's north-east) is at cx.
-pub fn fine_picture(engine: &Engine, z: usize, kx: i32, ky: i32, scratch: &mut Vec<u8>) -> Result<Option<u64>, String> {
+pub fn fine_picture(engine: &Engine, dir: &Path, z: usize, kx: i32, ky: i32, scratch: &mut Vec<u8>) -> Result<Option<u64>, String> {
 	let Some(Some(level)) = engine.levels.get(z) else {
 		return Ok(None);
 	};
@@ -299,7 +308,7 @@ pub fn fine_picture(engine: &Engine, z: usize, kx: i32, ky: i32, scratch: &mut V
 	if !any {
 		return Ok(None);
 	}
-	write_picture(side as u32, scratch).map(Some)
+	write_picture(dir, side as u32, scratch).map(Some)
 }
 
 /// A light's sheet read anywhere, between its corners: what LUM_FALLOFF() gives at a corner

@@ -82,6 +82,8 @@ GENERAL_PROTECT_DATUM(/datum/note_record)
 		"edits" = edits || null,
 		"deleted" = deleted ? 1 : 0))
 	. = warn ? query_note_insert.warn_execute(async) : query_note_insert.Execute(async)
+	if(. && query_note_insert.last_insert_id) // hippie -- its new id, for db_flush()'s moved_ids
+		. = num2text(query_note_insert.last_insert_id, 12)
 	qdel(query_note_insert)
 
 //One note as every reader gets it
@@ -103,6 +105,8 @@ SUBSYSTEM_DEF(notes)
 	var/last_saved
 	var/primary_ok = FALSE
 	var/db_busy = FALSE
+	var/db_sending = 0 // hippie -- world.time notes made here started on their way to the database (db_flush(), async), or 0: change() waits for them (a minute at most)
+	var/list/moved_ids = list() // hippie -- "L7" = 123 once a note made here reaches the database, for a change() still on the old id
 	var/list/refused = list() //ones the database said no to this round: still kept here, tried again next round
 
 /datum/controller/subsystem/notes/stat_entry()
@@ -293,6 +297,11 @@ SUBSYSTEM_DEF(notes)
 //A change to one. changes: "text", "severity", "secret" (TRUE/FALSE), "expire_seconds" (from now; 0 for never), "deleted",
 //"kind". edit_text goes on the end of its edit log. TRUE if done; the reason in a message to usr if not.
 /datum/controller/subsystem/notes/proc/change(id, list/changes, editor_ckey, editor_key, edit_text)
+	// hippie start -- not while notes made here go in (db_flush()): one that went in is changed in the database, by its new id
+	UNTIL(!db_sending || world.time > db_sending + 1 MINUTES)
+	if(moved_ids["[id]"])
+		id = moved_ids["[id]"]
+	// hippie end
 	var/datum/note_record/R = records["[id]"]
 	if(R)
 		if(!isnull(changes["text"]))
@@ -346,18 +355,26 @@ SUBSYSTEM_DEF(notes)
 		db_busy = FALSE
 		return
 	var/sent = 0
+	// hippie start -- the inserts are async: one blocking insert after another held the whole server on a slow database. While they
+	// go in, change() waits (db_sending), so a change made meanwhile isn't lost with the local copy
+	db_sending = max(world.time, 1)
 	for(var/id in records.Copy())
 		var/datum/note_record/R = records[id]
 		if(!R || refused[id])
 			continue
-		if(!R.db_insert(async = FALSE))
+		var/new_id = R.db_insert()
+		if(!new_id)
 			if(!SSdbcore.IsConnected())
 				break
 			refused[id] = TRUE
 			log_sql("Notes: the database refused [R.kind] [R.id] for [R.targetckey], keeping it on this server")
 			continue
+		if(istext(new_id))
+			moved_ids[id] = new_id
 		records -= id
 		sent++
+	db_sending = 0
+	// hippie end
 	if(sent)
 		log_sql("Notes: sent [sent] note\s, message\s or memo\s made while the database was out of reach")
 		message_admins("[sent] note\s, message\s or memo\s made while the database was out of reach have been saved to it.")

@@ -223,6 +223,7 @@
 				beaker.reagents.reaction(occupant, VAPOR)
 				air1.moles[/datum/gas/oxygen] -= max(0,air1.moles[/datum/gas/oxygen] - 2 / efficiency) //Let's use gas for this
 				air1.garbage_collect()
+				PIPE_AIR_TOUCH(air1) // hippie -- the pipe engine keeps this air: send it again or the oxygen comes back (pipe_engine.dm)
 			if(++reagent_transfer >= 10 * efficiency) // Throttle reagent transfer (higher efficiency will transfer the same amount but consume less from the beaker).
 				reagent_transfer = 0
 
@@ -260,6 +261,7 @@
 
 		air1.moles[/datum/gas/oxygen] = max(0,air1.moles[/datum/gas/oxygen] - 0.5 / efficiency) // Magically consume gas? Why not, we run on cryo magic.
 		air1.garbage_collect()
+		PIPE_AIR_TOUCH(air1) // hippie -- the pipe engine keeps this air: send it again or the oxygen and heat come back (pipe_engine.dm)
 
 /obj/machinery/atmospherics/components/unary/cryo_cell/relaymove(mob/user)
 	if(message_cooldown <= world.time)

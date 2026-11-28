@@ -24,6 +24,9 @@ SUBSYSTEM_DEF(eye_adapt)
 	var/list/client/currentrun = list()
 	/// The engine can't measure (a library from before lighting_eye()): nobody adapts while it's running
 	var/engine_cant = FALSE
+	/// When to try the engine again after it couldn't measure, and how long the wait after the next failure is (doubles up to 5 minutes)
+	var/engine_retry_at = 0
+	var/engine_retry_wait = 30 SECONDS
 	/// Players whose lighting is turned up at the moment, as of the last full pass
 	var/adapted = 0
 	var/adapting = 0
@@ -35,6 +38,8 @@ SUBSYSTEM_DEF(eye_adapt)
 
 /datum/controller/subsystem/eye_adapt/fire(resumed)
 	if(!resumed)
+		if(engine_cant && world.time >= engine_retry_at) // try again: a failed call (a lighting restart, a z-level not loaded yet) needn't last the round
+			engine_cant = FALSE
 		currentrun = GLOB.clients.Copy()
 		adapted = adapting
 		adapting = 0
@@ -104,8 +109,11 @@ SUBSYSTEM_DEF(eye_adapt)
 		catch(var/exception/error)
 			result = "[error]"
 		if(!isnum(result) || result < 0)
-			engine_cant = TRUE
-			log_world("Eye adaptation: the lighting engine can't measure ([result]), off until it can")
+			if(!engine_cant)
+				engine_cant = TRUE
+				engine_retry_at = world.time + engine_retry_wait
+				log_world("Eye adaptation: the lighting engine can't measure ([result]), off for [DisplayTimeText(engine_retry_wait)]")
+				engine_retry_wait = min(engine_retry_wait * 2, 5 MINUTES)
 			return -1
 		return result
 	// The DM corners: everything round about with a lighting object, in sight or not

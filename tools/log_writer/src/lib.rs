@@ -28,7 +28,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, BufWriter, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Condvar, Mutex, OnceLock};
 use std::thread;
@@ -42,6 +42,11 @@ pub const FEATURES: &str = "zst replace";
 
 /// Past this many lines waiting, new ones are dropped (and counted) rather than held: the drive has been gone a while
 const MAX_QUEUED: u64 = 2_000_000;
+/// The same for what they come to: past this many bytes waiting (text, path and MSG_OVERHEAD each), new ones are dropped too. Two
+/// million lines of a few hundred bytes were 0.6 to 0.9 GB, in a 32-bit process that can't spare it.
+const MAX_QUEUED_BYTES: u64 = 64 * 1024 * 1024;
+/// What one queued message costs beyond its text and path: the Msg itself and two allocations' headers
+const MSG_OVERHEAD: u64 = 64;
 /// How long closing the files waits for the queue to empty
 const CLOSE_WAIT: Duration = Duration::from_secs(10);
 /// zstd's level for ".zst" files. 6 was 27x on a shift's trace, 9 only 29x for four times the memory (~20 MB a file, in a 32-bit
@@ -122,6 +127,8 @@ pub fn is_compressed(path: &Path) -> bool {
 
 struct Stats {
 	queued: AtomicU64,
+	/// What the queued lines and files come to (queued_size()), against MAX_QUEUED_BYTES
+	queued_bytes: AtomicU64,
 	written: AtomicU64,
 	dropped: AtomicU64,
 	failed: AtomicU64,
@@ -132,6 +139,7 @@ struct Stats {
 
 static STATS: Stats = Stats {
 	queued: AtomicU64::new(0),
+	queued_bytes: AtomicU64::new(0),
 	written: AtomicU64::new(0),
 	dropped: AtomicU64::new(0),
 	failed: AtomicU64::new(0),
@@ -156,9 +164,36 @@ fn queue() -> &'static Queue {
 	})
 }
 
+/// False once the writer thread has ended (it shouldn't: a panic in one message is caught, see writer()); nothing's sent then
+static WRITER_ALIVE: AtomicBool = AtomicBool::new(true);
+
+/// What a line or a file waiting in the queue counts for against MAX_QUEUED_BYTES
+fn queued_size(path: &[u8], data: &[u8]) -> u64 {
+	(path.len() + data.len()) as u64 + MSG_OVERHEAD
+}
+
+/// Room for one more of this size? If not, it's dropped and counted
+fn make_room(size: u64) -> bool {
+	if STATS.queued.load(Ordering::Relaxed) >= MAX_QUEUED || STATS.queued_bytes.load(Ordering::Relaxed) + size > MAX_QUEUED_BYTES {
+		STATS.dropped.fetch_add(1, Ordering::Relaxed);
+		return false;
+	}
+	STATS.queued.fetch_add(1, Ordering::Relaxed);
+	STATS.queued_bytes.fetch_add(size, Ordering::Relaxed);
+	true
+}
+
+fn unqueue(size: u64) {
+	STATS.queued.fetch_sub(1, Ordering::Relaxed);
+	STATS.queued_bytes.fetch_sub(size, Ordering::Relaxed);
+}
+
 /// Onto the queue; `now` wakes the writer for it
 fn send(msg: Msg, now: bool) -> bool {
 	let queue = queue();
+	if !WRITER_ALIVE.load(Ordering::Relaxed) {
+		return false;
+	}
 	match queue.items.lock() {
 		Ok(mut items) => items.push(msg),
 		Err(_) => return false,
@@ -207,7 +242,29 @@ fn note_error(text: String) {
 	}
 }
 
+/// Marks the writer gone when its thread ends, however it ends, and empties the queue: a flush or close waiting on an answer gets
+/// one at once (its sender dropped) instead of waiting out its time, and send() says the writer's gone from then on
+struct WriterGone;
+
+impl Drop for WriterGone {
+	fn drop(&mut self) {
+		WRITER_ALIVE.store(false, Ordering::Relaxed);
+		if let Some(queue) = QUEUE.get() {
+			let mut items = queue.items.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+			for msg in items.drain(..) {
+				match &msg {
+					Msg::Line { path, data, .. } | Msg::Replace(path, data) => unqueue(queued_size(path, data)),
+					Msg::Flush(_) | Msg::CloseAll(_) => {}
+				}
+			}
+		}
+	}
+}
+
+/// The library stays loaded across reboots (pin_self), so this thread is the only writer it will ever have: a panic in one message
+/// is caught and counted as a failure rather than ending it
 fn writer() {
+	let _gone = WriterGone;
 	let queue = queue();
 	let mut files: HashMap<Vec<u8>, Sink> = HashMap::new();
 	// Swapped with the queue each time round, so neither side allocates once they've grown
@@ -224,9 +281,14 @@ fn writer() {
 			std::mem::swap(&mut *items, &mut taken);
 		}
 		for msg in taken.drain(..) {
-			handle(msg, &mut files);
+			if catch_unwind(AssertUnwindSafe(|| handle(msg, &mut files))).is_err() {
+				note_error("hippie_log: the writer panicked on a message".into());
+			}
 		}
-		flush_all(&mut files, false); // caught up: out to the drive (a compressed file once a second)
+		// caught up: out to the drive (a compressed file once a second)
+		if catch_unwind(AssertUnwindSafe(|| flush_all(&mut files, false))).is_err() {
+			note_error("hippie_log: the writer panicked flushing".into());
+		}
 	}
 }
 
@@ -253,7 +315,7 @@ fn handle(msg: Msg, files: &mut HashMap<Vec<u8>, Sink>) {
 			if stall > 0 {
 				thread::sleep(Duration::from_millis(stall));
 			}
-			STATS.queued.fetch_sub(1, Ordering::Relaxed);
+			unqueue(queued_size(&path, &data));
 			if !files.contains_key(&path) {
 				match Sink::open(&PathBuf::from(path_text(&path))) {
 					Ok(file) => {
@@ -274,7 +336,7 @@ fn handle(msg: Msg, files: &mut HashMap<Vec<u8>, Sink>) {
 			}
 		}
 		Msg::Replace(path, bytes) => {
-			STATS.queued.fetch_sub(1, Ordering::Relaxed);
+			unqueue(queued_size(&path, &bytes));
 			if let Some(file) = files.remove(&path) {
 				let _ = file.close(); // it was being appended to as well: what was written goes first, then this over it
 			}
@@ -442,13 +504,13 @@ pub unsafe extern "C" fn log_write(argc: c_int, argv: *const *const c_char) -> *
 			return "hippie_log: log_write wants a path and some text".into();
 		};
 		let timestamped = arg(argc, argv, 2) != Some(b"false".as_slice());
-		if STATS.queued.load(Ordering::Relaxed) >= MAX_QUEUED {
-			STATS.dropped.fetch_add(1, Ordering::Relaxed);
+		let path = full_path(path);
+		let size = queued_size(&path, data);
+		if !make_room(size) {
 			return String::new();
 		}
-		STATS.queued.fetch_add(1, Ordering::Relaxed);
-		if !send(Msg::Line { path: full_path(path), data: data.to_vec(), timestamped, at: now }, false) {
-			STATS.queued.fetch_sub(1, Ordering::Relaxed);
+		if !send(Msg::Line { path, data: data.to_vec(), timestamped, at: now }, false) {
+			unqueue(size);
 			return "hippie_log: the writer is gone".into();
 		}
 		String::new()
@@ -462,9 +524,13 @@ pub unsafe extern "C" fn log_replace(argc: c_int, argv: *const *const c_char) ->
 		let (Some(path), Some(data)) = (arg(argc, argv, 0), arg(argc, argv, 1)) else {
 			return "hippie_log: log_replace wants a path and some text".into();
 		};
-		STATS.queued.fetch_add(1, Ordering::Relaxed);
-		if !send(Msg::Replace(full_path(path), data.to_vec()), false) {
-			STATS.queued.fetch_sub(1, Ordering::Relaxed);
+		let path = full_path(path);
+		let size = queued_size(&path, data);
+		if !make_room(size) {
+			return "hippie_log: queue full, file dropped".into();
+		}
+		if !send(Msg::Replace(path, data.to_vec()), false) {
+			unqueue(size);
 			return "hippie_log: the writer is gone".into();
 		}
 		String::new()

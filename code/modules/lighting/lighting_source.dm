@@ -362,7 +362,9 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 /datum/light_source/proc/remove_lum()
 	applied = FALSE
 	if (native_id)
-		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_remove")(native_id)
+		var/result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_remove")(native_id)
+		if (result != 1) // hippie -- the engine failed (a caught panic leaves the light stuck in it): the DM code takes over
+			SSlighting.native_failed("remove: [result]")
 	if (SSlighting.native)
 		return
 	SETUP_CORNERS_REMOVAL_CACHE(src)
@@ -727,8 +729,10 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 /datum/light_source/proc/relight_in_place()
 	SSlighting.relit_in_place++
 	if (native_id)
-		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_relight")(native_id, light_power, lum_r, lum_g, lum_b)
-		if (SSlighting.native)
+		var/result = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_relight")(native_id, light_power, lum_r, lum_g, lum_b)
+		if (result != 1) // hippie -- the engine failed: the DM code takes over (native_failed() updates every light afresh)
+			SSlighting.native_failed("relight: [result]")
+		else if (SSlighting.native)
 			applied_lum_r = lum_r
 			applied_lum_g = lum_g
 			applied_lum_b = lum_b

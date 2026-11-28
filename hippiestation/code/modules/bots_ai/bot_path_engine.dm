@@ -56,6 +56,8 @@ GLOBAL_LIST_EMPTY(path_picture_samples)
 GLOBAL_VAR(path_engine_timing)
 /// Slow steps logged so far (world.log), up to 20
 GLOBAL_VAR_INIT(path_engine_slow_noted, 0)
+/// world.time the engine was last told the hallway tiles (path_engine_tell_hubs()), null since setup
+GLOBAL_VAR(path_engine_hubs_told_at)
 
 /// The turfs the ground checks look at more closely than its density: space, the floors bot_turf_is_deadly() knows, and pools
 GLOBAL_LIST_INIT(path_engine_special_types, typecacheof(list(/turf/open/space, /turf/open/lava, /turf/open/chasm, /turf/open/pool)))
@@ -122,6 +124,7 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 	GLOB.path_picture_mode = (picture == "off" || picture == "check") ? picture : "on"
 	// a fresh picture: nothing to hear of from before it (the engine starts it empty)
 	GLOB.station_picture_dirty.Cut()
+	GLOB.path_engine_hubs_told_at = null // and no hallway tiles: told again at the next flood that stops at them
 	GLOB.station_picture_kept = (GLOB.path_picture_mode != "off")
 	GLOB.path_engine_status = "[GLOB.path_engine_shadow ? "shadowing AStar()" : "on"], station picture [GLOB.path_picture_mode]"
 	log_world("Path engine: [GLOB.path_engine_status]")
@@ -503,17 +506,28 @@ GLOBAL_LIST_INIT(path_engine_penalties, path_engine_penalty_types())
 
 /// The hallway tiles, so a flood with PATH_MODE_STOP_AT_HUB stops at the first one: told again now and then, should an area change
 /proc/path_engine_tell_hubs()
-	var/static/list/hubs = typecacheof(list(/area/hallway)) // as bot_sealed_pocket()'s
-	var/static/hubs_told_at
-	if(!isnull(hubs_told_at) && world.time <= hubs_told_at + 5 MINUTES)
+	var/told_at = GLOB.path_engine_hubs_told_at
+	if(!isnull(told_at) && world.time <= told_at + 5 MINUTES)
 		return
-	hubs_told_at = world.time
+	GLOB.path_engine_hubs_told_at = world.time
+	if(isnull(told_at))
+		path_engine_send_hubs(FALSE) // the first time (or since setup): the flood about to run needs them
+	else
+		INVOKE_ASYNC(GLOBAL_PROC, GLOBAL_PROC_REF(path_engine_send_hubs), TRUE) // the engine keeps the ones it has meanwhile
+
+/// path_engine_tell_hubs()'s list. Every `for(turf in area)` scans the whole world in this BYOND (tools/byond_reports), a few
+/// tenths of a ms each, so with `yields` it lets the tick go between areas.
+/proc/path_engine_send_hubs(yields)
+	var/static/list/hubs = typecacheof(list(/area/hallway)) // as bot_sealed_pocket()'s
 	var/list/hub_turfs = list()
-	for(var/area/A as anything in GLOB.sortedAreas)
+	for(var/area/A as anything in GLOB.sortedAreas.Copy())
 		if(hubs[A.type])
 			for(var/turf/T in A)
 				hub_turfs += T
-	call_ext(GLOB.path_engine_lib, "byond:path_hubs")(hub_turfs)
+			if(yields)
+				CHECK_TICK
+	if(GLOB.path_engine_on && GLOB.path_engine_maxx == world.maxx && GLOB.path_engine_maxy == world.maxy) // not set up afresh since
+		call_ext(GLOB.path_engine_lib, "byond:path_hubs")(hub_turfs)
 
 /// is_shut_in()'s flood in the engine (bot_doors.dm): every tile `caller` can walk to from `start` under bot_reachable_strict(), as keys,
 /// if fewer than `limit` and (with `stop_at_hub`) none is in a hallway; null if it's roomier than that. PATH_ENGINE_FALLBACK if the

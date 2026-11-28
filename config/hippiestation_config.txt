@@ -85,3 +85,11 @@ BOT_CREW_TRAITORS 2
 ## One player's actions get logged the way the bots' are, in data/logs/<round>/player_telemetry.jsonl: where they are, what they
 ## click, press and carry. It's how bots get compared with a person. Nobody else is ever recorded. Unset is nobody.
 PLAYER_LOG_CKEY yoyobatty
+
+## The admins' live dashboard (a web page from inside the game, links from the "Dashboard Link" verb): its port. Unset or 0 is off.
+#DASHBOARD_PORT 8080
+
+## The dashboard listens on this machine only unless this is set. Plain HTTP sends the links and their login cookies in the clear:
+## put an https proxy in front of it and give its address as DASHBOARD_URL. DASHBOARD_LOCAL_ONLY keeps it on this machine either way.
+#DASHBOARD_BIND_ALL
+#DASHBOARD_URL https://dashboard.example.org

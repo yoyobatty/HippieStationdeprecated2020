@@ -210,6 +210,9 @@ struct Flags {
 	return_tiles: bool,
 	start: u32,
 	simulated_only: bool,
+	/// The station picture's forgets() when the search last said which tiles it wanted told about: a tile forgotten since (DM
+	/// yielded between answering and handing the answers over, and heard it change) isn't put back in the picture from its answer
+	asked_at: u32,
 }
 
 /// A tile the station picture would have answered differently from DM, in the picture check
@@ -322,17 +325,21 @@ pub unsafe extern "C" fn path_setup(argc: u32, argv: *const ByondValue) -> Byond
 				return Err(format!("turf ({x},{y},{z}) is numbered {} (type {}), not {expected}", turf.data, turf.kind));
 			}
 		}
-		*STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(State {
+		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		// Numbers carry on from before a setup again (the world grew): a search DM paused, or a /datum/path_region it kept, would
+		// otherwise answer for a new one with the same number. Theirs are gone, so they're told they're not known.
+		let (next_id, next_region) = guard.as_ref().map_or((1, 1), |old| (old.next_id, old.next_region));
+		*guard = Some(State {
 			maxx,
 			maxy,
 			per_level,
 			searches: BTreeMap::new(),
 			floods: BTreeMap::new(),
-			next_id: 1,
+			next_id,
 			picture: Picture::new(per_level as usize * maxz as usize),
 			regions: BTreeMap::new(),
 			region_tiles: 0,
-			next_region: 1,
+			next_region,
 			samples: Vec::new(),
 			values: Vec::new(),
 			out: Vec::new(),
@@ -388,6 +395,7 @@ pub unsafe extern "C" fn path_begin(argc: u32, argv: *const ByondValue) -> Byond
 			return_tiles: mode & MODE_RETURN_TILES != 0,
 			start: args[0].data,
 			simulated_only,
+			asked_at: state.picture.forgets(),
 		};
 		while state.searches.len() >= MAX_SEARCHES {
 			let oldest = *state.searches.keys().next().unwrap();
@@ -442,6 +450,7 @@ pub unsafe extern "C" fn path_step(argc: u32, argv: *const ByondValue) -> ByondV
 		let mut finished = None;
 		let status = match outcome {
 			Outcome::Need => {
+				flags.asked_at = picture.forgets();
 				out.extend(search.asked.iter().map(|&t| ByondValue::turf(t)));
 				1.0
 			}
@@ -506,7 +515,7 @@ fn take_answers(asked: &[u32], answers: &mut [u32], picture: &mut Picture, stats
 				}
 			}
 		}
-		if kind != picture::UNKNOWN {
+		if kind != picture::UNKNOWN && !picture.forgotten_since(turf, flags.asked_at) {
 			picture.set(turf, kind);
 		}
 	}
@@ -548,6 +557,7 @@ pub unsafe extern "C" fn path_flood_begin(argc: u32, argv: *const ByondValue) ->
 			return_tiles: backward || mode & MODE_RETURN_TILES != 0,
 			start: start_for_answers,
 			simulated_only,
+			asked_at: state.picture.forgets(),
 		};
 		while state.floods.len() >= MAX_SEARCHES {
 			let oldest = *state.floods.keys().next().unwrap();
@@ -588,6 +598,7 @@ pub unsafe extern "C" fn path_flood_step(argc: u32, argv: *const ByondValue) -> 
 		let mut out = Vec::new();
 		let status = match outcome {
 			FloodOutcome::Need => {
+				flags.asked_at = picture.forgets();
 				out.extend(flood.asked.iter().map(|&t| ByondValue::turf(t)));
 				1.0
 			}
@@ -794,4 +805,25 @@ pub unsafe extern "C" fn path_check_samples(argc: u32, argv: *const ByondValue) 
 		}
 		Ok((values.len() / 4) as f32)
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn answers_given_before_a_forget_dont_put_the_tile_back() {
+		let mut picture = Picture::new(10);
+		let mut stats = Stats::default();
+		let mut samples = Vec::new();
+		let flags = Flags { check: false, return_tiles: false, start: NO_TILE, simulated_only: false, asked_at: picture.forgets() };
+		let open = (picture::OPEN as u32) << picture::KIND_SHIFT;
+		// DM answered both, yielded, and heard tile 1 change before it handed the answers over
+		picture.forget(1);
+		let mut answers = [open, open];
+		take_answers(&[1, 2], &mut answers, &mut picture, &mut stats, &mut samples, &flags);
+		assert_eq!(answers, [0, 0], "the answers lose their kinds either way");
+		assert_eq!(picture.kind(1), picture::UNKNOWN, "the changed tile stays forgotten");
+		assert_eq!(picture.kind(2), picture::OPEN, "the other is kept");
+	}
 }

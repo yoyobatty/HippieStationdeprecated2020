@@ -11,6 +11,9 @@
 #define EXPLOSION_SHAPE_UNREACHABLE 1000000
 /// Below this the extra is float noise from adding up steps (blast.rs NOISE)
 #define EXPLOSION_SHAPE_NOISE 0.001
+/// The biggest square the DM search is run on (range 40): it never yields, and a 201x201 admin bomb froze the server. Bigger ones
+/// without the native search take the straight line.
+#define EXPLOSION_SHAPE_DM_MAX_SIZE 81
 
 GLOBAL_VAR_INIT(explosion_shape_mode, world.params["explosion-shape"] || "native")
 /// What a block counts for in the shaped blast (world param explosion-block-weight). 1.5, the user's pick (2026-11-09): with blocks as they
@@ -43,6 +46,8 @@ GLOBAL_VAR_INIT(explosion_shape_differed, 0)
 	var/list/extra
 	if(mode != "dm")
 		extra = explosion_shape_native(grid, size)
+	if(!extra && size > EXPLOSION_SHAPE_DM_MAX_SIZE)
+		return null
 	if(!extra || mode == "check")
 		var/list/in_dm = explosion_shape_dm(grid, size)
 		if(extra)
@@ -64,7 +69,8 @@ GLOBAL_VAR_INIT(explosion_shape_differed, 0)
 		log_world("Shaped explosions: [GLOB.path_engine_lib] has no path_blast ([E.name]), so they're worked out in DM")
 		return null
 	if(result != size * size || length(out) != size * size)
-		log_world("Shaped explosions: path_blast returned [result] with [length(out)] of [size * size] tiles; worked out in DM")
+		GLOB.explosion_shape_native = FALSE //not asked again: every explosion would pay for both searches and the log line
+		log_world("Shaped explosions: path_blast returned [result] with [length(out)] of [size * size] tiles; worked out in DM from now on")
 		return null
 	GLOB.explosion_shape_native = TRUE
 	return out
@@ -229,3 +235,4 @@ GLOBAL_VAR_INIT(explosion_shape_differed, 0)
 
 #undef EXPLOSION_SHAPE_UNREACHABLE
 #undef EXPLOSION_SHAPE_NOISE
+#undef EXPLOSION_SHAPE_DM_MAX_SIZE

@@ -5,8 +5,10 @@
 // each subsystem costs, the native engines), everyone on the crew (job, health, where, what each bot is doing) and an alerts feed
 // (deaths, explosions with their blame, new ahelps, the admin alerts).
 //
-// Config: DASHBOARD_PORT (0, the default, is off), DASHBOARD_LOCAL_ONLY (this machine only), DASHBOARD_URL (the address to put in
-// the links, if not http://<the server's address>:<port>). World param dashboard-port=<port> turns it on for a test run.
+// Config: DASHBOARD_PORT (0, the default, is off), DASHBOARD_BIND_ALL (every address; without it, the default, this machine only),
+// DASHBOARD_LOCAL_ONLY (this machine only, even with DASHBOARD_BIND_ALL), DASHBOARD_URL (the address to put in the links, if not
+// http://<the server's address>:<port>: an https proxy in front of it, since plain HTTP sends the link and its cookie in the clear).
+// World param dashboard-port=<port> turns it on for a test run.
 // SSdashboard only builds what a page is showing while one is open (dashboard_clients()). Included after the bot AI (its states)
 // and the admin alerts (raise()).
 
@@ -16,7 +18,10 @@
 	max_val = 65535
 	protection = CONFIG_ENTRY_LOCKED
 
-/datum/config_entry/flag/dashboard_local_only	// only this machine can open the dashboard (admin/dashboard.dm)
+/datum/config_entry/flag/dashboard_local_only	// only this machine can open the dashboard, even with DASHBOARD_BIND_ALL (admin/dashboard.dm)
+	protection = CONFIG_ENTRY_LOCKED
+
+/datum/config_entry/flag/dashboard_bind_all	// the dashboard listens on every address, not this machine only (admin/dashboard.dm)
 	protection = CONFIG_ENTRY_LOCKED
 
 /datum/config_entry/string/dashboard_url	// the dashboard's address for the links, if not http://<server address>:<port>
@@ -56,8 +61,9 @@ SUBSYSTEM_DEF(dashboard)
 		log_world("Dashboard: [status]")
 		return ..()
 	var/result
+	var/bind_all = CONFIG_GET(flag/dashboard_bind_all) && !CONFIG_GET(flag/dashboard_local_only)
 	try
-		result = call_ext(DASHBOARD_LIB, "dashboard_start")("[port]", CONFIG_GET(flag/dashboard_local_only) ? "local" : "all")
+		result = call_ext(DASHBOARD_LIB, "dashboard_start")("[port]", bind_all ? "all" : "local")
 	catch(var/exception/E)
 		result = "error: [E.name]"
 	if(!findtext(result, "ok", 1, 3))
@@ -65,8 +71,10 @@ SUBSYSTEM_DEF(dashboard)
 		can_fire = FALSE
 		log_world("Dashboard: [status]")
 		return ..()
-	status = "on, port [port]"
+	status = "on, port [port][bind_all ? "" : ", this machine only"]"
 	log_world("Dashboard: [status] ([result])")
+	if(bind_all && !findtext(CONFIG_GET(string/dashboard_url), "https://", 1, 9))
+		log_world("Dashboard WARNING: listening on every address with no https DASHBOARD_URL: admins' links and their login cookies go over plain HTTP, readable by anyone on the way. Put an https proxy in front and set DASHBOARD_URL to it.")
 	RegisterSignal(SSdcs, COMSIG_GLOB_EXPLOSION, PROC_REF(explosion_alert))
 	return ..()
 
@@ -278,7 +286,8 @@ SUBSYSTEM_DEF(dashboard)
 // ---------------------------------------------------------------------------------------------
 
 /proc/dashboard_alert(kind, text)
-	if(!SSdashboard?.can_fire)
+	// can_fire is TRUE before Initialize has looked for the library: only once it's started is call_ext safe
+	if(!SSdashboard?.can_fire || !SSdashboard.initialized || !findtext(SSdashboard.status, "on", 1, 3))
 		return
 	call_ext(DASHBOARD_LIB, "dashboard_event")(json_encode(list("t" = dashboard_shift_time(), "k" = kind, "m" = text)))
 
@@ -321,6 +330,27 @@ SUBSYSTEM_DEF(dashboard)
 /client/remove_admin_verbs()
 	. = ..()
 	verbs.Remove(/client/proc/cmd_dashboard_link)
+
+/// Takes back every dashboard link an admin has, and closes their open pages: deadminned, removed, or their rank changed
+/proc/dashboard_revoke(ckey)
+	if(!ckey || !SSdashboard?.initialized || !findtext(SSdashboard.status, "on", 1, 3))
+		return
+	var/taken = text2num(call_ext(DASHBOARD_LIB, "dashboard_revoke")(ckey))
+	if(taken)
+		log_admin("[ckey]'s dashboard links ([taken]) were taken back")
+
+// Not remove_admin_verbs: "Adminverbs - Hide All" calls that too. disassociate() is what deadmin, removal and a rank change go
+// through for an admin that's here; deactivate() covers deadminning one who isn't.
+/datum/admins/disassociate()
+	var/was = owner?.ckey
+	. = ..()
+	if(was && !owner)
+		dashboard_revoke(was)
+
+/datum/admins/deactivate()
+	. = ..()
+	if(deadmined)
+		dashboard_revoke(target)
 
 /client/proc/cmd_dashboard_link()
 	set name = "Dashboard Link"

@@ -10,7 +10,7 @@
  *    the server can be named: the sampler kept counting while the game stood still.
  * The stack is read without stopping the game's thread, so a sample can catch it mid-push: a proc id one call stale, never a
  * bad one (ids are checked against the proc table). A runtime error that unwinds past the hook leaves the depth high until
- * the next hooked frame below it returns, which puts it back.
+ * the next hooked frame below it returns, which puts it back, or the next server tick, which starts it from 0.
  *
  * Where exec_proc, server_tick, send_maps and the string, misc and proc tables are in byondcore.dll comes from byond-tracy
  * (BSD, (c) 2022 anon; ParadiseSS13 fork's offsets/windows.h) for 516.1666; for 516.1688 they were found from 1666's by
@@ -73,6 +73,7 @@ static exec_proc_fn orig_exec_proc;
 static server_tick_fn orig_server_tick;
 static send_maps_fn orig_send_maps;
 static int hooked;
+static int hooks_attempted;
 static int byond_build;
 
 /* the shadow stack: written by the game's thread only */
@@ -125,6 +126,10 @@ static struct object __cdecl hook_exec_proc(struct proc *p) {
 }
 
 static int __stdcall hook_server_tick(void) {
+	/* No proc frame is on the game thread's native stack here (a sleeping proc returns out of exec_proc; it doesn't hold the
+	   stack), so the depth is 0 by rights. A runtime error that unwound past a hooked frame with nothing hooked below it to
+	   put the depth back left it high; it's put right here, once a tick. */
+	depth = 0;
 	phase = PHASE_TICK;
 	int r = orig_server_tick();
 	phase = PHASE_IDLE;
@@ -261,15 +266,21 @@ static const char *find_byond(void) {
 	trampolines = VirtualAlloc(NULL, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
 	if(!trampolines)
 		return "no memory for trampolines";
+	/* Hooking is tried once only: a hook that went in stays in even if a later one fails, so a second try would hook the
+	   hook (exec_proc's trampoline would jump back into hook_exec_proc) */
+	if(hooks_attempted)
+		return "hooking failed before: not trying again in this process";
+	hooks_attempted = 1;
+	/* byondcore jumps into this DLL as soon as the first hook is in: it must never be unloaded from then on, even if a later
+	   hook fails (BYOND unloads call_ext DLLs at world close) */
+	HMODULE self;
+	GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN, (LPCSTR)hook_exec_proc, &self);
 	unsigned char *tr = (unsigned char *)trampolines;
 	orig_exec_proc = (exec_proc_fn)install_hook(base + o->exec_proc, (void *)hook_exec_proc, (o->prologues >> 0) & 0xFF, tr);
 	orig_server_tick = (server_tick_fn)install_hook(base + o->server_tick, (void *)hook_server_tick, (o->prologues >> 8) & 0xFF, tr + 64);
 	orig_send_maps = (send_maps_fn)install_hook(base + o->send_maps, (void *)hook_send_maps, (o->prologues >> 16) & 0xFF, tr + 128);
 	if(!orig_exec_proc || !orig_server_tick || !orig_send_maps)
 		return "couldn't hook";
-	/* byondcore jumps into this DLL from now on: it must never be unloaded (BYOND unloads call_ext DLLs at world close) */
-	HMODULE self;
-	GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN, (LPCSTR)hook_exec_proc, &self);
 	hooked = 1;
 	return NULL;
 }

@@ -64,7 +64,9 @@
 
 	if (SSlighting.native) // hippie -- the engine keeps the corners (lighting_engine.dm)
 		new/atom/movable/lighting_object(src)
-		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_recalc")(src)
+		var/recalced = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_recalc")(src)
+		if (recalced != 1) // hippie -- the engine failed (a caught panic is -2): the DM code relights everything
+			SSlighting.native_failed("recalc: [recalced]")
 		return
 
 	if (!lighting_corners_initialised)

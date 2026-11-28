@@ -28,6 +28,9 @@
 	var/pipe_engine = "off"
 	/// The last mixture number handed out
 	var/pipe_engine_ids = 0
+	/// Numbers of mixtures deleted since the last evening out, for the engine to forget what it kept of them (it would keep
+	/// every mixture there ever was otherwise)
+	var/list/pipe_engine_dropped = list()
 	/// Networks evened out by the engine and by DM, mixtures sent and kept, refilled by DM, lists made afresh (for benches)
 	var/list/pipe_engine_counts = list("engine" = 0, "dm" = 0, "sent" = 0, "kept" = 0, "rewritten" = 0, "lists" = 0)
 
@@ -46,7 +49,26 @@
 	pipe_engine = (wanted == "shadow" || !tile_engine_writes) ? "shadow" : "on"
 	for(var/datum/pipeline/net as anything in networks) // the engine starts with nothing kept
 		net.pipe_engine_gl = null
+	pipe_engine_dropped = list()
 	log_world("Atmos: the tile engine evens out pipe networks ([pipe_engine])")
+
+/// A mixture that's deleted: the engine forgets it at the next evening out. Its number goes with it, so if anything still
+/// holds it and it's evened out again, it's a new one to the engine.
+/datum/gas_mixture/Destroy()
+	pipe_engine_drop()
+	return ..()
+
+/// A network's own air isn't deleted when the network is, only let go of (temporarily_store_air() hands its gases to the pipes)
+/datum/pipeline/Destroy()
+	air?.pipe_engine_drop()
+	return ..()
+
+/datum/gas_mixture/proc/pipe_engine_drop()
+	if(!pipe_engine_id)
+		return
+	if(SSair.pipe_engine != "off")
+		SSair.pipe_engine_dropped += pipe_engine_id
+	pipe_engine_id = 0
 
 /// atmos-engine-pipes=shadow so far: list(mixtures checked, how many differed though nothing marked them changed)
 /datum/controller/subsystem/air/proc/pipe_engine_check()
@@ -108,9 +130,11 @@
 		total.Cut()
 		rewrite.Cut()
 		try
-			status = call_ext(GLOB.tile_engine_lib, "byond:atmos_engine_reconcile")(write ? pipe_engine_refs : null, pipe_engine_ids, rows, write ? 1 : 2, total, rewrite)
+			status = call_ext(GLOB.tile_engine_lib, "byond:atmos_engine_reconcile")(write ? pipe_engine_refs : null, pipe_engine_ids, rows, write ? 1 : 2, total, rewrite, length(SSair.pipe_engine_dropped) ? SSair.pipe_engine_dropped : null)
 		catch(var/exception/error)
 			status = "[error]"
+		if(length(SSair.pipe_engine_dropped)) // forgotten now (or the engine's gone off): sent once
+			SSair.pipe_engine_dropped = list()
 		if(status == 3) // it hasn't got some of them (it started afresh): the same again, with theirs
 			if(resend)
 				status = "asked for mixtures twice"

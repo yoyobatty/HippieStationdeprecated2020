@@ -1006,6 +1006,11 @@ unsafe fn write_air(state: &State, writer: &Writer, refs: &[ByondValue], changes
 	if refs.len() != changes.len() * 2 {
 		return Err(format!("{} references for {} changed turfs", refs.len(), changes.len()));
 	}
+	// A null or a number where a mixture or its list should be fails before anything is written, rather than halfway through
+	// the tick (one pass over the kinds, nothing read from BYOND)
+	if let Some(bad) = refs.iter().position(|value| value.kind == TYPE_NULL || value.kind == TYPE_NUMBER) {
+		return Err(format!("changed turf {} has no {} to write into, nothing written", bad / 2 + 1, if bad % 2 == 0 { "air" } else { "gas list" }));
+	}
 	let mut removed = Vec::new();
 	let mut hot = Vec::new();
 	for (position, &(first, count, temperature)) in changes.iter().enumerate() {
@@ -1017,7 +1022,7 @@ unsafe fn write_air(state: &State, writer: &Writer, refs: &[ByondValue], changes
 			let amount = amount as f32;
 			if amount != 0.0 {
 				if !(writer.write_list_index)(moles, path, &ByondValue::num(amount)) {
-					return Err(format!("couldn't write a gas into changed turf {}'s list", position + 1));
+					return Err(format!("couldn't write a gas into changed turf {}'s list, after writing {} of {} turfs (the tick is half written)", position + 1, position, changes.len()));
 				}
 			} else {
 				removed.push(ByondValue::num((position + 1) as f32));
@@ -1026,7 +1031,7 @@ unsafe fn write_air(state: &State, writer: &Writer, refs: &[ByondValue], changes
 		}
 		let temperature = temperature as f32;
 		if !(writer.write_var)(air, state.temperature_id, &ByondValue::num(temperature)) {
-			return Err(format!("couldn't write changed turf {}'s temperature", position + 1));
+			return Err(format!("couldn't write changed turf {}'s temperature, after writing {} of {} turfs (the tick is half written)", position + 1, position, changes.len()));
 		}
 		if temperature >= 10000.0 {
 			hot.push(ByondValue::num((position + 1) as f32));
@@ -1696,6 +1701,8 @@ pub unsafe extern "C" fn atmos_engine_machine_wakes(argc: u32, argv: *const Byon
 /// works it out and keeps it (DM evens the air out itself). `total` gets the total volume and temperature, how many gases, then a
 /// path and moles for each. Returns 1, or 3 with the positions of mixtures the engine hasn't got in `rewrite`, for DM to send
 /// again with their air.
+/// An optional seventh argument, `dropped`, has the numbers of mixtures that are gone (deleted since the last call): the engine
+/// forgets what it kept of them first. A DM from before it passes six and nothing is forgotten.
 #[no_mangle]
 pub unsafe extern "C" fn atmos_engine_reconcile(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
@@ -1707,6 +1714,11 @@ pub unsafe extern "C" fn atmos_engine_reconcile(argc: u32, argv: *const ByondVal
 		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 		let state = guard.as_mut().ok_or("reconcile before setup")?;
 		let write = args[3].as_number() == 1.0;
+		if let Some(dropped) = args.get(6).filter(|list| list.kind != TYPE_NULL) {
+			for id in read_numbers(api, dropped)? {
+				state.pipes.kept.remove(&(id as u32));
+			}
+		}
 		let ids: Vec<u32> = read_numbers(api, &args[1])?.into_iter().map(|id| id as u32).collect();
 		let mut rows = std::mem::take(&mut state.rows);
 		read_values(api, &args[2], &mut rows)?;
@@ -1803,17 +1815,21 @@ unsafe fn reconcile(api: &Api, state: &mut State, args: &[ByondValue], ids: &[u3
 			if refs.len() != members.len() * 2 {
 				return Err(format!("{} references for {} mixtures", refs.len(), members.len()));
 			}
+			// A null or a number where a mixture or its list should be fails before anything is written (see write_air())
+			if let Some(bad) = refs.iter().position(|value| value.kind == TYPE_NULL || value.kind == TYPE_NUMBER) {
+				return Err(format!("mixture {} has no {} to write into, nothing written", bad / 2 + 1, if bad % 2 == 0 { "datum" } else { "gas list" }));
+			}
 			for (k, member) in members.iter().enumerate() {
 				let new = pipes::share_of(&total, member.volume);
 				if !(writer.write_var)(&refs[k * 2], state.temperature_id, &ByondValue::num(new.temperature)) {
-					return Err(format!("couldn't write mixture {}'s temperature", k + 1));
+					return Err(format!("couldn't write mixture {}'s temperature, after writing {} of {} (the network is half written)", k + 1, k, members.len()));
 				}
 				// Its list already has the total's gases in the total's order: just the amounts. Otherwise DM cuts and refills it.
 				let same_keys = member.gases.len() == new.gases.len() && member.gases.iter().zip(&new.gases).all(|(a, b)| a.0 == b.0);
 				if same_keys {
 					for &(gas, amount) in &new.gases {
 						if !(writer.write_list_index)(&refs[k * 2 + 1], &state.gas_paths[gas as usize], &ByondValue::num(amount)) {
-							return Err(format!("couldn't write a gas into mixture {}", k + 1));
+							return Err(format!("couldn't write a gas into mixture {}, after writing {} of {} (the network is half written)", k + 1, k, members.len()));
 						}
 					}
 				} else {

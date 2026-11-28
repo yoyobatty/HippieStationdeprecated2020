@@ -917,8 +917,9 @@ pub unsafe extern "C" fn lighting_check(_argc: u32, _argv: *const ByondValue) ->
 	})
 }
 
-/// lighting_textures(on): light textures (sprites.rs) on or off. Turned on, every chunk with light in it will be taken by
-/// lighting_texture_take() once, and data/lightmaps/ is emptied the first time. Returns how many chunks that is.
+/// lighting_textures(on, port): light textures (sprites.rs) on or off. Turned on, every chunk with light in it will be taken by
+/// lighting_texture_take() once, and the pictures go in data/lightmaps/<port>/ (world.port: sprites::dir()), which is emptied
+/// the first time. Returns how many chunks that is.
 #[no_mangle]
 pub unsafe extern "C" fn lighting_textures(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
@@ -928,12 +929,20 @@ pub unsafe extern "C" fn lighting_textures(argc: u32, argv: *const ByondValue) -
 		if !on {
 			return Ok(0.0);
 		}
-		static CLEARED: std::sync::Once = std::sync::Once::new();
-		CLEARED.call_once(|| {
-			let _ = std::fs::remove_dir_all(sprites::DIR);
-		});
-		std::fs::create_dir_all(sprites::DIR).map_err(|e| format!("making {}: {e}", sprites::DIR))?;
-		Ok(sprites::mark_all(&mut state.engine) as f32)
+		let dir = sprites::dir(args.get(1).map(|a| a.as_int()).unwrap_or(0));
+		// Only this server's own folder, and only the first time: another server's in the same folder may be in use
+		static CLEARED: Mutex<Option<std::path::PathBuf>> = Mutex::new(None);
+		let mut cleared = CLEARED.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+		if cleared.as_ref() != Some(&dir) {
+			let _ = std::fs::remove_dir_all(&dir);
+			*cleared = Some(dir.clone());
+		}
+		std::fs::create_dir_all(&dir).map_err(|e| format!("making {}: {e}", dir.display()))?;
+		let n = sprites::mark_all(&mut state.engine);
+		if let Some(chunks) = state.engine.chunks.as_mut() {
+			chunks.dir = dir;
+		}
+		Ok(n as f32)
 	})
 }
 
@@ -955,26 +964,40 @@ pub unsafe extern "C" fn lighting_texture_take(argc: u32, argv: *const ByondValu
 		};
 		let taken = chunks.take(max);
 		let left = chunks.dirty.len();
+		let dir = chunks.dir.clone();
 		state.engine.chunks = Some(chunks);
 		let mut out = std::mem::take(&mut state.out);
 		out.clear();
 		let mut scratch = Vec::new();
-		for (z, kx, ky) in taken {
-			let picture = if fine {
-				sprites::fine_picture(&state.engine, z as usize, kx, ky, &mut scratch)?
-			} else {
-				sprites::chunk_picture(&state.engine, z as usize, kx, ky, &mut scratch)?
-			};
-			let p = match picture {
-				Some(hash) => sprites::hash_parts(hash),
-				None => [0; 4],
-			};
-			out.extend([z as f32, kx as f32, ky as f32, p[0] as f32, p[1] as f32, p[2] as f32, p[3] as f32].map(ByondValue::num));
-		}
-		if !out.is_empty() {
-			write_values(api, &args[1], &out)?;
-		}
+		let engine = &state.engine;
+		let drawn = catch_unwind(AssertUnwindSafe(|| -> Result<(), String> {
+			for &(z, kx, ky) in taken.iter() {
+				let picture = if fine {
+					sprites::fine_picture(engine, &dir, z as usize, kx, ky, &mut scratch)?
+				} else {
+					sprites::chunk_picture(engine, &dir, z as usize, kx, ky, &mut scratch)?
+				};
+				let p = match picture {
+					Some(hash) => sprites::hash_parts(hash),
+					None => [0; 4],
+				};
+				out.extend([z as f32, kx as f32, ky as f32, p[0] as f32, p[1] as f32, p[2] as f32, p[3] as f32].map(ByondValue::num));
+			}
+			if !out.is_empty() {
+				write_values(api, &args[1], &out)?;
+			}
+			Ok(())
+		}));
 		state.out = out;
+		if !matches!(drawn, Ok(Ok(()))) {
+			// DM gets none of this batch: every chunk taken waits to be drawn again
+			if let Some(chunks) = state.engine.chunks.as_mut() {
+				for &(z, kx, ky) in taken.iter() {
+					chunks.mark(z as usize, kx, ky);
+				}
+			}
+		}
+		drawn.unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
 		Ok(left as f32)
 	})
 }

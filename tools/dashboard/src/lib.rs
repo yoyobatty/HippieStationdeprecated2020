@@ -5,6 +5,7 @@
 //! DM talks to it through classic call_ext() calls, every argument and answer a string (it's all JSON):
 //!   dashboard_start(port, bind)        -> "ok" or "error: ..."    bind "all" for every address, otherwise this machine only
 //!   dashboard_token(name, seconds)     -> a new token for that admin, good for that long
+//!   dashboard_revoke(name)             -> how many of that admin's tokens were taken back (their open pages close)
 //!   dashboard_push(channel, json)      -> "ok"                    the latest of a kind ("health", "map_static"...): kept, sent on
 //!   dashboard_event(json)              -> "ok"                    one for the alerts feed: the last few hundred kept
 //!   dashboard_clients()                -> how many pages are open, so DM only builds what somebody's looking at
@@ -166,6 +167,22 @@ pub unsafe extern "C" fn dashboard_token(argc: c_int, argv: *const *const c_char
 		shared.tokens.retain(|_, t| t.expires > at);
 		shared.tokens.insert(token.clone(), Token { name, expires: at + seconds });
 		token
+	})
+}
+
+/// dashboard_revoke(name): takes back every link that admin has (deadminned, or their admin taken away); their open pages stop
+/// before the next thing sent. Answers how many there were.
+#[no_mangle]
+pub unsafe extern "C" fn dashboard_revoke(argc: c_int, argv: *const *const c_char) -> *const c_char {
+	let args = arguments(argc, argv);
+	guarded(|| {
+		let Some(name) = args.first() else {
+			return "error: wanted the admin's name".into();
+		};
+		let mut shared = lock();
+		let before = shared.tokens.len();
+		shared.tokens.retain(|_, t| &t.name != name);
+		(before - shared.tokens.len()).to_string()
 	})
 }
 

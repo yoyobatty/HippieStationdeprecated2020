@@ -29,7 +29,8 @@ FEEDBACK_LOGIN username
 ## Password used to access the database.
 FEEDBACK_PASSWORD password
 
-## Seconds a query may take to read or write before it fails (the larger of these two is used). 0 for no limit.
+## Seconds a query may take to read or write before it fails: async ones, and blocking ones (which hold the whole server while they
+## wait, so they get a small pool of their own with this limit when the two differ). 0 for no limit.
 ASYNC_QUERY_TIMEOUT 10
 BLOCKING_QUERY_TIMEOUT 5
 

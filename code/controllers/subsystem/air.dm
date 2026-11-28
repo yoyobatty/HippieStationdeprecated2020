@@ -101,6 +101,9 @@ SUBSYSTEM_DEF(air)
 	var/timer = TICK_USAGE_REAL
 	var/delta_time = wait * 0.1
 
+	if(tile_engine) // hippie -- a paused follow-up finished on a fresh fire, the engine restarted if the world grew (tile_engine.dm)
+		tile_engine_fire_start(resumed)
+
 	//Rebuilds can happen at any time, so this needs to be done outside of the normal system
 	cost_rebuilds = 0
 
