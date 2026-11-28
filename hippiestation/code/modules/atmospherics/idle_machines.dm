@@ -375,6 +375,18 @@
 	tile_engine_machine_events.Add(1, serial, T, params[1], params[2], params[3], params[4])
 	M.atmos_engine_watched = TRUE
 
+/// The engine stops watching idle machines (it's starting again, or it's off and LINDA carries on): each one it watched wakes,
+/// so from here any change in its air wakes it as before it was watched, and nothing more is queued for the engine.
+/// tile_engine_machine_setup() turns the watching back on when the engine starts again.
+/datum/controller/subsystem/air/proc/tile_engine_machines_let_go()
+	for(var/obj/machinery/M as anything in atmos_machinery)
+		if(M?.atmos_engine_watched)
+			M.atmos_engine_watched = FALSE
+			if(M.atmos_idle_since)
+				atmos_wake_machine(M)
+	tile_engine_machine_events = list()
+	tile_engine_machine_filter = "off"
+
 /// The machines the engine woke, after it changed some turfs' air
 /datum/controller/subsystem/air/proc/tile_engine_machine_wakes()
 	if(tile_engine_machine_filter == "off")

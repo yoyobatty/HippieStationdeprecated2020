@@ -3,7 +3,9 @@
 # (loop gone, freezes, a fire() asleep, lag, a subsystem that keeps crashing it) and checks what they did and told admins.
 # About 6 minutes. Builds its own copy (mccheck.mdme -> mccheck.mdme.dmb), so hippiestation.dmb is left alone.
 # Usage: tools/mc_check/run_mc_check.sh        STEPS=freeze_outside,lag to run only those (names in mc_selftest.dm run_all())
+#        PARAMS="prof-lib=C:/scratch/hippie_prof_test.dll" for more -params (a DLL build to try: native, prof_depth)
 # Results: data/mc_check/results.txt, and the server's logs in data/logs/mc_check_logs
+unset __COMPAT_LAYER # dm.exe leaks handles with it set
 set -u
 cd "$(dirname "$0")/../.."
 BYOND_BIN="${BYOND_BIN:-/c/Program Files (x86)/BYOND/bin}"
@@ -20,7 +22,7 @@ if [ ! -f mccheck.mdme.dmb ]; then echo "Compile failed"; rm -f mccheck.mdme; ex
 
 rm -rf data/mc_check data/logs/mc_check_logs
 began=$(date +%s)
-"$BYOND_BIN/dd.exe" mccheck.mdme.dmb "$PORT" -trusted -invisible -params "mc-selftest=1&log-directory=mc_check_logs&bot-map=$MAP${STEPS:+&mc-steps=$STEPS}" > /dev/null 2>&1 &
+"$BYOND_BIN/dd.exe" mccheck.mdme.dmb "$PORT" -trusted -invisible -params "mc-selftest=1&log-directory=mc_check_logs&bot-map=$MAP${STEPS:+&mc-steps=$STEPS}${PARAMS:+&$PARAMS}" > /dev/null 2>&1 &
 dd=$!
 while kill -0 $dd 2>/dev/null; do
 	sleep 2

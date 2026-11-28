@@ -15,6 +15,11 @@ if [ -n "${LINUX:-}" ]; then
 	# (cargo install cargo-zigbuild) and rustup target add i686-unknown-linux-gnu. Asking for glibc 2.17 keeps it to what any Linux
 	# since 2012 has. cargo-zigbuild's wrappers break on a path with a space in it: if yours has one, put zig on PATH by its short
 	# (8.3) path and set CARGO_ZIGBUILD_CACHE_DIR to a short path too.
+	# cargo-zigbuild's wrappers break on a space in the path (a Windows user folder with one): use the short (8.3) name of its cache
+	if [ -z "${CARGO_ZIGBUILD_CACHE_DIR:-}" ] && [ -n "${LOCALAPPDATA:-}" ]; then
+		mkdir -p "$(cygpath -u "$LOCALAPPDATA")/cargo-zigbuild"
+		export CARGO_ZIGBUILD_CACHE_DIR="$(cygpath -m -s "$LOCALAPPDATA/cargo-zigbuild")"
+	fi
 	cargo zigbuild --release --target i686-unknown-linux-gnu.2.17
 	cp target/i686-unknown-linux-gnu/release/libhippie_atmos.so ../../libhippie_atmos.so
 	echo "Built ../../libhippie_atmos.so"

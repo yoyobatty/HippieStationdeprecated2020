@@ -15,6 +15,11 @@
 // 8 PROFILE 30 S (10 here) during lag: the alert names the proc that took the time, and the profiler goes off again.
 // 9 A fresh subsystem in place of one that stopped the MC twice, as the MC makes it, for SSobj and SSair (no Recover() of
 //   their own): it keeps the old one's lists and goes on firing.
+// 10 stale: a fire() asleep, started afresh through the watchdog's wake, its run after it asleep too when the old one wakes
+//   and hits MC_TICK_CHECK: the old one's pause() leaves the new run's state alone (and, with the guard off, as before, doesn't:
+//   the bug). An old one with no tick check left runs to its end, logged and on the MC tab. A new run's own pause() with an old
+//   one out still pauses it.
+// 11 prof_depth (hippie_prof): runtimes 40 procs deep that unwind past the hook leave its stack depth where it was a tick later.
 
 /datum/controller/master/Initialize(delay, init_sss, tgs_prime)
 	if("mc-selftest" in world.params)
@@ -36,9 +41,21 @@ SUBSYSTEM_DEF(mctest)
 	var/hogging = FALSE
 	var/fires = 0
 	var/backlog_until = 0
+	/// stale step: what each fresh (not resumed) fire() does next, first first: list(name, ds to sleep, "check"|"end"|"run_on")
+	var/list/plan
+	/// stale step: name = list("state_before", "stopped", "state_after", "ran_on", "ended", ...) of each planned run
+	var/list/stale_log = list()
+	var/resumed_fires = 0
 
 /datum/controller/subsystem/mctest/fire(resumed)
 	fires++
+	if(resumed)
+		resumed_fires++
+	if(length(plan) && !resumed)
+		var/list/next = plan[1]
+		plan.Cut(1, 2)
+		planned_run(next[1], next[2], next[3])
+		return
 	switch(mode)
 		if("sleep")
 			mode = "idle"
@@ -56,6 +73,28 @@ SUBSYSTEM_DEF(mctest)
 				if(MC_TICK_CHECK)
 					return
 			mode = "idle"
+
+/// One run of the stale step's plan, inside fire(): sleeps, then (check) one MC_TICK_CHECK, stopping if it says so, (run_on) work
+/// with no tick check to the end, or (end) just returns. What it saw goes in stale_log[name].
+/datum/controller/subsystem/mctest/proc/planned_run(name, sleep_ds, then)
+	var/list/seen = list("started" = world.time, "generation" = fire_generation)
+	stale_log[name] = seen
+	sleep(sleep_ds)
+	seen["woke"] = world.time
+	seen["state_before"] = state
+	switch(then)
+		if("check")
+			var/stopped = MC_TICK_CHECK
+			seen["stopped"] = stopped
+			seen["state_after"] = state
+			if(stopped)
+				return
+			seen["ran_on"] = TRUE
+		if("run_on")
+			mc_check_busy(0.05)
+			seen["ran_on"] = TRUE
+			seen["state_after"] = state
+	seen["ended"] = TRUE
 
 /// Keep the server busy for `ds` deciseconds of real time without sleeping
 /proc/mc_check_busy(ds)
@@ -143,7 +182,7 @@ SUBSYSTEM_DEF(mctest)
 	// dd -invisible reports world.sleep_offline as 1 and won't take 0, though the world keeps ticking: without this the watchdog
 	// takes the freezes for the world asleep with nobody on
 	MCWatchdog.watch_with_nobody_on = TRUE
-	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "native", "asleep", "lag", "strikes", "tgui_strikes", "timer_edge", "timers", "timers_late", "backlog", "profile", "recover", "inits", "status", "duty")
+	var/list/steps = list("stack_end", "freeze_outside", "freeze_inside", "native", "prof_depth", "asleep", "stale", "lag", "strikes", "tgui_strikes", "timer_edge", "timers", "timers_late", "backlog", "profile", "recover", "inits", "status", "duty")
 	// init_fail runs only when asked (STEPS=init_fail): its subsystem breaks at boot
 	if(world.params["mc-steps"]) // STEPS=freeze_outside,lag on the runner: only those
 		steps = splittext(world.params["mc-steps"], ",")
@@ -227,6 +266,142 @@ SUBSYSTEM_DEF(mctest)
 	fires = SSmctest.fires
 	sleep(5 SECONDS)
 	check("and the state was left alone: it still fires", SSmctest.fires > fires && (SSmctest.state in list(SS_IDLE, SS_QUEUED)), "[SSmctest.fires - fires] fires in 5 s, state [SSmctest.state]")
+
+/// Wait (up to `timeout`) for `condition`, an expression, sleeping a tick at a time; FALSE if it never came
+#define MC_CHECK_WAIT(condition, timeout) do { var/_until = world.time + (timeout); while(!(condition) && world.time < _until) { sleep(world.tick_lag); } } while(0)
+
+/// One case of the stale step: run `first` (asleep when the watchdog wakes the subsystem), then `second` as the run after it.
+/// `guard_off`: stale_fires set back to 0 at once, so pause() acts as it did before the guard. Returns list(first's record,
+/// second's record, resumed fires after the wake, stale_fires once both ended, the MC tab's line while the first was out).
+/datum/mc_selftest/proc/stale_case(list/first, list/second, guard_off = FALSE)
+	var/datum/controller/subsystem/mctest/T = SSmctest
+	MC_CHECK_WAIT(T.state == SS_IDLE || T.state == SS_QUEUED, 10 SECONDS)
+	T.plan = list(first, second)
+	T.next_fire = world.time
+	MC_CHECK_WAIT(T.stale_log[first[1]] && T.state == SS_SLEEPING, 5 SECONDS)
+	var/resumed_before = T.resumed_fires
+	var/stale_before = T.stale_fires
+	. = list(null, null, 0, -1, "")
+	if(!mc_watchdog_wake(T)) // the watchdog's path at 60 s, and its START IT NOW link's
+		check("stale [first[1]]: the watchdog started it afresh", FALSE, "state [T.state]")
+		return
+	if(guard_off)
+		T.stale_fires = stale_before
+	MC_CHECK_WAIT(T.stale_log[second[1]], 5 SECONDS)
+	var/tab = MCWatchdog.stat_line()
+	var/list/first_seen = T.stale_log[first[1]]
+	var/list/second_seen = T.stale_log[second[1]]
+	MC_CHECK_WAIT(first_seen["woke"] && second_seen && second_seen["woke"], first[2] + second[2] + 5 SECONDS)
+	sleep(1 SECONDS) // the MC's turn after the second ended: a wrongly paused run is resumed in it
+	return list(first_seen, second_seen, T.resumed_fires - resumed_before, T.stale_fires, tab)
+
+/// A fire() asleep, started afresh by the watchdog (mc_watchdog_wake()), whose old fire() wakes while the run after it sleeps.
+/datum/mc_selftest/proc/stale()
+	var/datum/controller/subsystem/mctest/T = SSmctest
+	var/runtimes_before = GLOB.total_runtimes
+	T.stale_log.Cut()
+	// 1 as before the guard: the old fire()'s MC_TICK_CHECK turns the asleep new run's SS_SLEEPING into SS_PAUSING, and the MC
+	// resumes the new run (fire(TRUE)) though it had ended
+	var/list/r = stale_case(list("old A", 3 SECONDS, "check"), list("old B", 6 SECONDS, "end"), TRUE)
+	var/list/A = r[1]
+	var/list/B = r[2]
+	check("stale, no guard (as before): the old fire()'s pause() set the asleep new run pausing (the bug)", A && A["state_before"] == SS_SLEEPING && A["state_after"] == SS_PAUSING, "state [A?["state_before"]] -> [A?["state_after"]]")
+	check("stale, no guard: and the MC resumed the new run after it ended", r[3] > 0, "[r[3]] resumed fire\s")
+	// 2 with it
+	r = stale_case(list("new A", 3 SECONDS, "check"), list("new B", 6 SECONDS, "end"))
+	A = r[1]
+	B = r[2]
+	check("stale: the old fire() woke while the new run slept", A && A["state_before"] == SS_SLEEPING && B && B["woke"] > A["woke"], "old woke at [A?["woke"]], state [A?["state_before"]]; new woke at [B?["woke"]]")
+	check("stale: its pause() left the new run asleep", A && A["state_after"] == SS_SLEEPING, "state [A?["state_before"]] -> [A?["state_after"]]")
+	check("stale: it still stopped at its MC_TICK_CHECK", A && A["stopped"] && !A["ended"])
+	check("stale: the new run ended once, not resumed", B && B["ended"] && r[3] == 0, "[r[3]] resumed fire\s")
+	check("stale: the MC tab showed the old fire() out", findtext(r[5], "Old fire() out: MC test"), r[5])
+	check("stale: and counted it back in", r[4] == 0, "stale_fires [r[4]]")
+	// 3 an old fire() with no tick check after its sleep: nothing stops it, it runs to its end beside the new run; it leaves
+	// the state alone and the MC goes on firing it
+	var/fires = T.fires
+	r = stale_case(list("run_on A", 3 SECONDS, "run_on"), list("run_on B", 1 SECONDS, "end"))
+	A = r[1]
+	check("stale, no tick check: the old fire() ran to its end (nothing in DM can stop it)", A && A["ran_on"] && A["ended"])
+	sleep(3 SECONDS)
+	check("stale, no tick check: the state was left alone, it goes on firing", T.fires > fires + 2 && (T.state in list(SS_IDLE, SS_QUEUED)) && !T.stale_fires, "[T.fires - fires] fires, state [T.state], stale_fires [T.stale_fires]")
+	// 4 the new run's own MC_TICK_CHECK after a sleep, with an old fire() still out: it pauses as it always did, and is resumed
+	r = stale_case(list("own A", 8 SECONDS, "check"), list("own B", 1 SECONDS, "check"))
+	B = r[2]
+	check("stale: the new run's own pause() with an old fire() out still pauses it", B && B["state_after"] == SS_PAUSING && B["stopped"], "state [B?["state_before"]] -> [B?["state_after"]]")
+	check("stale: and the MC resumed it", r[3] == 1, "[r[3]] resumed fire\s")
+	MC_CHECK_WAIT(!T.stale_fires, 10 SECONDS)
+	check("stale: no runtimes", GLOB.total_runtimes == runtimes_before, "[GLOB.total_runtimes - runtimes_before] runtimes")
+
+/proc/mc_check_deep(n)
+	if(n > 0)
+		return mc_check_deep(n - 1) + 1
+	var/list/nothing
+	return nothing.len // a runtime, n procs deep
+
+/// After a sleep, as a proc woken by BYOND itself: nothing hooked below it puts hippie_prof's depth back when it unwinds
+/proc/mc_check_deep_runtime(n)
+	set waitfor = FALSE
+	sleep(world.tick_lag)
+	mc_check_deep(n)
+
+/// Woken in the same tick as the runtimes started before it (sleepers due together wake in the order they slept): the depth
+/// hippie_prof has then, before the next server tick puts it right
+/proc/mc_check_depth_reader(list/out)
+	set waitfor = FALSE
+	sleep(world.tick_lag)
+	out += json_decode(hippie_prof("status"))["depth"]
+
+/// Recursion with no end: BYOND stops it at its recursion limit
+/proc/mc_check_recurse(n)
+	return mc_check_recurse(n + 1) + 1
+
+/proc/mc_check_recurse_runtime()
+	set waitfor = FALSE
+	sleep(world.tick_lag)
+	mc_check_recurse(0)
+
+/// hippie_prof's stack depth across runtimes that unwind past its hook: put right by the next server tick (hook_server_tick())
+/datum/mc_selftest/proc/prof_depth()
+	if(SSprofiler.engine != "hippie")
+		check("prof_depth: hippie_prof is the profiler", FALSE, "engine [SSprofiler.engine]")
+		return
+	sleep(world.tick_lag)
+	var/base = json_decode(hippie_prof("status"))["depth"]
+	try // caught here: the 40 frames it unwinds past leave the depth high until this proc's own frame returns or sleeps
+		mc_check_deep(40)
+	catch
+	var/caught = json_decode(hippie_prof("status"))["depth"]
+	sleep(world.tick_lag)
+	note("prof_depth: depth [base]; right after a runtime 40 procs deep caught in this proc [caught]; a tick later [json_decode(hippie_prof("status"))["depth"]]")
+	var/list/same_tick = list()
+	for(var/n in 1 to 50)
+		mc_check_deep_runtime(40)
+	mc_check_depth_reader(same_tick)
+	sleep(world.tick_lag * 3)
+	var/after = json_decode(hippie_prof("status"))["depth"]
+	check("prof_depth: 50 runtimes 40 procs deep: the depth a few ticks later is what it was", after <= base + 2, "depth [base] before, [same_tick.len ? same_tick[1] : "?"] in their tick after them, [after] a few ticks later")
+	// a recursion that runs into BYOND's limit: the deepest unwind there is
+	var/runtimes_before = GLOB.total_runtimes
+	same_tick = list()
+	mc_check_recurse_runtime()
+	mc_check_depth_reader(same_tick)
+	sleep(world.tick_lag * 3)
+	after = json_decode(hippie_prof("status"))["depth"]
+	check("prof_depth: a recursion stopped at BYOND's limit: the depth a few ticks later is what it was", after <= base + 2, "depth [base] before, [same_tick.len ? same_tick[1] : "?"] in its tick after it, [after] a few ticks later; [GLOB.total_runtimes - runtimes_before] runtime\s")
+	var/deepest = 0
+	for(var/list/S as anything in SSprofiler.recent_stacks(3000))
+		deepest = max(deepest, S["depth"])
+	check("prof_depth: no sampled stack deeper than the runtimes' own", deepest < 200, "deepest of the top stacks [deepest]")
+	var/list/top = SSprofiler.recent(2000)
+	var/list/names = list()
+	for(var/name in top)
+		names += "[name] [round(top[name], 0.001)] s"
+		if(names.len >= 4)
+			break
+	note("prof_depth: the last 2 s: [jointext(names, ", ")]")
+
+#undef MC_CHECK_WAIT
 
 /// Other code taking `share` ticks of every tick, for `ds` of real time. Started from inside a subsystem's turn it goes to sleep
 /// before the MC does, so it wakes before the MC every tick and the MC finds the tick used up: the worst case.
@@ -716,6 +891,9 @@ SUBSYSTEM_DEF(mctest_init)
 		return
 	var/list/status = json_decode(hippie_prof("status"))
 	check("native: sampling", status["sampling"] && status["samples"] > 1000, "[status["samples"]] samples, [status["procs"]] procs, build [status["build"]]")
+	check("native: hooked on this BYOND build, from [GLOB.hippie_prof_lib]", status["hooked"] && status["build"] == world.byond_build, "build [status["build"]], world.byond_build [world.byond_build]")
+	SSprofiler.stat_entry() // the overrides return nothing: the MC tab's text is kept in stat_text
+	check("native: the MC tab says hippie_prof", findtext(SSprofiler.stat_text, "hippie_prof"), SSprofiler.stat_text)
 	sleep(16 SECONDS) // past the last freeze alert's hold-back
 	SSmctest.hog_for = 6 SECONDS
 	SSmctest.mode = "hog"

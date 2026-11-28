@@ -6,10 +6,10 @@
 use crate::{frame, lock, now};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{IpAddr, Ipv4Addr, TcpListener, TcpStream};
 use std::panic::{catch_unwind, AssertUnwindSafe};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, RecvTimeoutError};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 const PAGE: &str = include_str!("page.html");
@@ -18,7 +18,54 @@ const DENIED: &str = "<!doctype html><meta charset=utf-8><meta name=viewport con
 <p>This link has run out or isn't valid. Make a new one in game: <b>Admin &gt; Dashboard Link</b>.</p>";
 /// More than this many open at once and new ones are turned away
 const MAX_CONNECTIONS: usize = 32;
-static OPEN: AtomicUsize = AtomicUsize::new(0);
+/// The last few of those only this machine may have: with DASHBOARD_BIND_ALL, connections from elsewhere that never finish their
+/// request (each held REQUEST_TIME) can't fill every slot, so an admin here, or the https proxy in front, still gets in
+const LOCAL_RESERVED: usize = 4;
+/// Open at once from any one address that isn't this machine: one client dripping can't take more than this. This machine has no
+/// cap of its own (an https proxy in front brings every admin from 127.0.0.1)
+const MAX_PER_ADDRESS: usize = 4;
+
+/// The connections open: in all, and from each address
+#[derive(Default)]
+struct Open {
+	total: usize,
+	by_address: HashMap<IpAddr, usize>,
+}
+
+fn open() -> MutexGuard<'static, Open> {
+	static OPEN: OnceLock<Mutex<Open>> = OnceLock::new();
+	OPEN.get_or_init(|| Mutex::new(Open::default())).lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Whether one more from `address` may come in, with these open
+fn admit(open: &Open, address: IpAddr) -> bool {
+	if address.is_loopback() {
+		return open.total < MAX_CONNECTIONS;
+	}
+	open.total < MAX_CONNECTIONS - LOCAL_RESERVED && open.by_address.get(&address).copied().unwrap_or(0) < MAX_PER_ADDRESS
+}
+
+/// Counts one more from `address` in, if it may come in
+fn take_slot(address: IpAddr) -> bool {
+	let mut open = open();
+	if !admit(&open, address) {
+		return false;
+	}
+	open.total += 1;
+	*open.by_address.entry(address).or_default() += 1;
+	true
+}
+
+fn give_slot(address: IpAddr) {
+	let mut open = open();
+	open.total = open.total.saturating_sub(1);
+	if let Some(n) = open.by_address.get_mut(&address) {
+		*n -= 1;
+		if *n == 0 {
+			open.by_address.remove(&address);
+		}
+	}
+}
 
 pub fn start(port: u16, all: bool) -> Result<(), String> {
 	let address = if all { format!("0.0.0.0:{port}") } else { format!("127.0.0.1:{port}") };
@@ -30,16 +77,17 @@ pub fn start(port: u16, all: bool) -> Result<(), String> {
 				let Ok(stream) = stream else {
 					continue;
 				};
-				if OPEN.load(Ordering::Relaxed) >= MAX_CONNECTIONS {
+				// (no address: counted with the other addresses that aren't this machine, under one)
+				let from = stream.peer_addr().map(|a| a.ip().to_canonical()).unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+				if !take_slot(from) {
 					continue; // dropped: closed
 				}
-				OPEN.fetch_add(1, Ordering::Relaxed);
 				let spawned = std::thread::Builder::new().name("hippie_dashboard_page".into()).spawn(move || {
 					let _ = catch_unwind(AssertUnwindSafe(|| handle(stream)));
-					OPEN.fetch_sub(1, Ordering::Relaxed);
+					give_slot(from);
 				});
 				if spawned.is_err() {
-					OPEN.fetch_sub(1, Ordering::Relaxed);
+					give_slot(from);
 				}
 			}
 		})
@@ -298,6 +346,39 @@ mod tests {
 		header.extend(std::iter::repeat(b'a').take(MAX_LINE as usize + 10));
 		header.extend(b"\r\n\r\n");
 		assert_eq!(parse(header), None);
+	}
+
+	#[test]
+	fn caps_each_address_and_keeps_slots_for_this_machine() {
+		let local: IpAddr = "127.0.0.1".parse().unwrap();
+		let a: IpAddr = "10.0.0.1".parse().unwrap();
+		let mut open = Open::default();
+		let take = |open: &mut Open, address: IpAddr| {
+			let ok = admit(open, address);
+			if ok {
+				open.total += 1;
+				*open.by_address.entry(address).or_default() += 1;
+			}
+			ok
+		};
+		// One address: MAX_PER_ADDRESS, then no more
+		for _ in 0..MAX_PER_ADDRESS {
+			assert!(take(&mut open, a));
+		}
+		assert!(!take(&mut open, a));
+		// Many addresses: up to MAX_CONNECTIONS - LOCAL_RESERVED in all
+		let mut i = 2;
+		while open.total < MAX_CONNECTIONS - LOCAL_RESERVED {
+			assert!(take(&mut open, IpAddr::V4(Ipv4Addr::new(10, 0, 1, i))));
+			i += 1;
+		}
+		assert!(!take(&mut open, "10.0.2.1".parse().unwrap()));
+		// This machine still gets the rest, and then the cap holds for it too
+		for _ in 0..LOCAL_RESERVED {
+			assert!(take(&mut open, local));
+		}
+		assert!(!take(&mut open, local));
+		assert!(!take(&mut open, "::1".parse().unwrap()));
 	}
 
 	#[test]

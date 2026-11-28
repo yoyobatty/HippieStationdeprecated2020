@@ -18,6 +18,11 @@ fi
 cargo build --release --target i686-pc-windows-msvc
 cp target/i686-pc-windows-msvc/release/hippie_log.dll ../../hippie_log.dll
 if [ -n "${LINUX:-}" ]; then
+	# cargo-zigbuild's wrappers break on a space in the path (a Windows user folder with one): use the short (8.3) name of its cache
+	if [ -z "${CARGO_ZIGBUILD_CACHE_DIR:-}" ] && [ -n "${LOCALAPPDATA:-}" ]; then
+		mkdir -p "$(cygpath -u "$LOCALAPPDATA")/cargo-zigbuild"
+		export CARGO_ZIGBUILD_CACHE_DIR="$(cygpath -m -s "$LOCALAPPDATA/cargo-zigbuild")"
+	fi
 	cargo zigbuild --release --target i686-unknown-linux-gnu.2.17
 	cp target/i686-unknown-linux-gnu/release/libhippie_log.so ../../libhippie_log.so
 	echo "Built ../../libhippie_log.so"

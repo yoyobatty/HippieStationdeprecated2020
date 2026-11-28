@@ -1,5 +1,6 @@
 @echo off
-rem Builds hippie_prof.dll (32-bit, like BYOND) into the repository root.
+rem Builds hippie_prof.dll (32-bit, like BYOND) into the repository root, or to the path given: build.bat C:\scratch\hippie_prof_test.dll
+rem (a build to try with -params "prof-lib=..." while running servers have the root one open; its .obj and .lib go beside it).
 rem Needs Visual Studio with the C++ x86 tools. Set VCVARSALL to override where it's looked for.
 setlocal
 if not defined VCVARSALL (
@@ -13,6 +14,12 @@ if not defined VCVARSALL (
 )
 call "%VCVARSALL%" x64_x86 >nul 2>&1
 cd /d "%~dp0"
-if not exist build mkdir build
-cl /nologo /O2 /MT /LD /W3 /D_CRT_SECURE_NO_WARNINGS hippie_prof.c /Fo:build\ /Fe:..\..\hippie_prof.dll /link /NOLOGO /IMPLIB:build\hippie_prof.lib
+set "OUT=..\..\hippie_prof.dll"
+set "OBJ=build\"
+if not "%~1"=="" (
+	set "OUT=%~f1"
+	set "OBJ=%~dp1"
+)
+if not exist "%OBJ%" mkdir "%OBJ%"
+cl /nologo /O2 /MT /LD /W3 /D_CRT_SECURE_NO_WARNINGS hippie_prof.c /Fo:"%OBJ%hippie_prof.obj" /Fe:"%OUT%" /link /NOLOGO /IMPLIB:"%OBJ%hippie_prof.lib"
 exit /b %ERRORLEVEL%

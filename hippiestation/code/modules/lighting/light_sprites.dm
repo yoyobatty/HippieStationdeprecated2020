@@ -142,8 +142,10 @@
 			log_world("Lighting: drawn with [kind == LIGHT_SPRITES_FINE ? "fine " : ""]light textures, [result] chunks to draw")
 	else if(kind == LIGHT_SPRITES_OVERLAYS)
 		log_world("Lighting: drawn with chunks wearing their lighting objects")
-	else
+	else if(sprites)
 		log_world("Lighting: drawn with lighting objects")
+	if(!on && !sprites)
+		return // refused (the budget, the engine) with lighting objects drawing already: they're on their turfs, nothing to move or redraw
 	sprites = on
 	// Each lighting object out of the world, or back into it; luminosity goes with it
 	for(var/z in 1 to world.maxz)

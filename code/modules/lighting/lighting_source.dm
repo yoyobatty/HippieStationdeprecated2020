@@ -517,7 +517,13 @@ GLOBAL_LIST_EMPTY(lighting_sheets)
 		needs_update = LIGHTING_CHECK_UPDATE
 		applied = TRUE
 	else if (needs_update == LIGHTING_CHECK_UPDATE)
-		return //nothing's changed
+		// hippie -- unless what we can see changed while we were queued to check (vis_update() leaves a queued check as it is):
+		// look again for that. Without this, a door opening by a lamp queued for a set_light() to what it already had didn't
+		// let the lamp's light through (nor did one closing keep it in) until something else made the lamp look again, and a
+		// lamp waiting for somebody to see it (can_wait_unseen()) can sit queued for a check all round.
+		if (!vis_changed)
+			return //nothing's changed
+		needs_update = LIGHTING_VIS_UPDATE
 
 	var/bounces = SSlighting.bounce_lighting && source_atom.light_bounce && light_power > 0
 	// Only brighter, dimmer or another colour, with nothing we can see changed since: an emergency light running down, a lamp on

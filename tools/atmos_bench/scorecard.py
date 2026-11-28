@@ -35,6 +35,8 @@ def read(path):
 		"breaches: turfs + groups": num(breach, turfs) + num(breach, groups),
 		"breaches: heat through walls": num(breach, walls),
 		"WORK": None,
+		"fire: whole atmos ticks (90 s)": num(fire, r"(\d+) whole atmos ticks"),
+		"breaches: whole atmos ticks (90 s)": num(breach, r"(\d+) whole atmos ticks"),
 		"fire: awake turfs, average": num(fire, r"active turfs: average ([\d.]+)"),
 		"breaches: awake turfs, average": num(breach, r"active turfs: average ([\d.]+)"),
 		"GAS": None,

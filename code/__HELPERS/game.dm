@@ -234,11 +234,13 @@ GLOBAL_VAR_INIT(hearing_stamp, 0)
 	// hippie start -- the same tile and range asked again in the same tick gets the same answer (a copy: callers add to it). A radio
 	// message asks this for every radio and intercom that hears it, and a room of spammers asks it hundreds of times a tick from the
 	// same tiles (2026-11-11, tools/mob_storm speech). Something that moves mid-tick is placed where it was for the rest of the tick.
-	var/static/list/memo = list()
-	var/static/memo_time = -1
-	if(memo_time != world.time)
-		memo = list()
-		memo_time = world.time
+	// The memo is let go of once its tick is over (clear_hearers_memo()), so it holds no deleted mob until the next speech.
+	var/list/memo = GLOB.hearers_memo
+	if(GLOB.hearers_memo_time != world.time)
+		if(!length(memo))
+			addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(clear_hearers_memo)), 1)
+		memo = GLOB.hearers_memo = list()
+		GLOB.hearers_memo_time = world.time
 	var/memo_key = "[T.x],[T.y],[T.z],[R],[ignore_radios]"
 	var/list/known = memo[memo_key]
 	if(known)
@@ -250,6 +252,16 @@ GLOBAL_VAR_INIT(hearing_stamp, 0)
 	var/list/found = get_hearers_in_view_uncached(R, T, ignore_radios)
 	memo[memo_key] = found
 	return found.Copy()
+
+GLOBAL_LIST_EMPTY(hearers_memo)
+GLOBAL_VAR_INIT(hearers_memo_time, -1)
+
+/// Lets go of get_hearers_in_view()'s memo once its tick is over, and asks again while speech keeps it filled
+/proc/clear_hearers_memo()
+	if(GLOB.hearers_memo_time == world.time)
+		addtimer(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(clear_hearers_memo)), 1)
+		return
+	GLOB.hearers_memo = list()
 
 /// get_hearers_in_view() past the zero range case, without the tick's memo
 /proc/get_hearers_in_view_uncached(R, turf/T, ignore_radios)

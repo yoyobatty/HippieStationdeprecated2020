@@ -44,6 +44,7 @@
 	var/unbanned_cid
 	var/unbanned_round_id
 	var/exact_bantime = FALSE //a role added to a ban already made: it goes to the database with that ban's time, so they stay together
+	var/maybe_sent = FALSE // hippie -- its INSERT got no answer (the connection dropped under it): it may be in the database already, so db_flush() looks for it before sending it again
 
 GENERAL_PROTECT_DATUM(/datum/ban_record)
 
@@ -75,7 +76,7 @@ GENERAL_PROTECT_DATUM(/datum/ban_record)
 	return list("id" = id, "bantime" = bantime, "round_id" = round_id, "expiration_time" = expiration_text(), "duration" = duration_minutes(), "applies_to_admins" = applies_to_admins, "reason" = reason, "key" = key || ckey, "ip" = ip, "computerid" = cid, "admin_key" = a_key || a_ckey)
 
 /datum/ban_record/proc/fields()
-	var/static/list/names = list("id", "role", "ckey", "key", "ip", "cid", "bantime", "bantime_rt", "expire_rt", "amount", "unit", "applies_to_admins", "reason", "round_id", "a_ckey", "a_key", "a_ip", "a_cid", "who", "adminwho", "edits", "unbanned_datetime", "unbanned_rt", "unbanned_ckey", "unbanned_key", "unbanned_ip", "unbanned_cid", "unbanned_round_id")
+	var/static/list/names = list("id", "role", "ckey", "key", "ip", "cid", "bantime", "bantime_rt", "expire_rt", "amount", "unit", "applies_to_admins", "reason", "round_id", "a_ckey", "a_key", "a_ip", "a_cid", "who", "adminwho", "edits", "unbanned_datetime", "unbanned_rt", "unbanned_ckey", "unbanned_key", "unbanned_ip", "unbanned_cid", "unbanned_round_id", "maybe_sent") // hippie -- maybe_sent
 	return names
 
 //world.realtime goes into the file as text: json_encode keeps six digits of it, which is five minutes
@@ -404,11 +405,12 @@ SUBSYSTEM_DEF(bans)
 //Returns "database" or "local" (kept here: the database is off or out of reach), or null if the database refused them
 /datum/controller/subsystem/bans/proc/add_bans(list/new_bans)
 	if(CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
-		if(!db_insert(new_bans, warn = TRUE))
-			return
 		var/datum/ban_record/first = new_bans[1]
-		db_sync(first.ckey, first.ip, first.cid) //back with their ids
-		return "database"
+		if(db_insert(new_bans, warn = TRUE))
+			db_sync(first.ckey, first.ip, first.cid) //back with their ids
+			return "database"
+		if(!first.maybe_sent) // hippie -- refused. With no answer they're kept here, as when the database is down, and db_flush() checks first
+			return
 	for(var/datum/ban_record/B as anything in new_bans)
 		B.id = "L[next_local_id++]"
 		add(B)
@@ -493,10 +495,14 @@ SUBSYSTEM_DEF(bans)
 /datum/controller/subsystem/bans/proc/run_or_queue(list/op)
 	if(CONFIG_GET(flag/sql_enabled) && SSdbcore.Connect())
 		var/datum/DBQuery/query_ban_change = op_query(op)
-		if(query_ban_change.warn_execute())
-			. = "done"
+		var/ok = query_ban_change.warn_execute()
+		var/unanswered = query_ban_change.unanswered // hippie
 		qdel(query_ban_change)
-		return
+		if(ok)
+			return "done"
+		if(!unanswered) // hippie -- refused. With no answer it may have gone in: queued, and sent again so it changes nothing more (op_query())
+			return
+		op["maybe_sent"] = TRUE // hippie
 	queued_ops += list(op)
 	return "queued"
 
@@ -510,7 +516,30 @@ SUBSYSTEM_DEF(bans)
 	var/datum/DBQuery/query_ban_insert = SSdbcore.NewQuery("INSERT INTO [format_table_name("ban")] ([BAN_SQL_COLUMNS]) VALUES [rows.Join(", ")]", arguments)
 	var/ok = warn ? query_ban_insert.warn_execute(async) : query_ban_insert.Execute(async)
 	. = ok ? (query_ban_insert.last_insert_id ? num2text(query_ban_insert.last_insert_id, 12) : TRUE) : FALSE
+	if(!ok && query_ban_insert.unanswered) // hippie -- no answer: they may have gone in (maybe_sent)
+		for(var/datum/ban_record/B as anything in bans)
+			B.maybe_sent = TRUE
 	qdel(query_ban_insert)
+
+// hippie start -- after an INSERT that got no answer: the id the ban went in with after all, "none" if it didn't, null if the
+// database couldn't be asked, "refused" if it said no. The same ban (role, player, admin, reason) made at the same time by the
+// database's clock (ten minutes either way: world.realtime is coarse) is taken for it.
+/datum/controller/subsystem/bans/proc/db_find_sent(datum/ban_record/B)
+	var/datum/DBQuery/query_ban_sent = SSdbcore.NewQuery("SELECT id FROM [format_table_name("ban")] WHERE role = :role AND ckey <=> :ckey AND ip <=> INET_ATON(:ip) AND computerid <=> :cid AND a_ckey = :a_ckey AND reason = :reason AND bantime BETWEEN NOW() - INTERVAL :oldest SECOND AND NOW() - INTERVAL :newest SECOND ORDER BY id DESC LIMIT 1", list(
+		"role" = "[B.role]",
+		"ckey" = B.ckey || null,
+		"ip" = B.ip || null,
+		"cid" = B.cid || null,
+		"a_ckey" = "[B.a_ckey]",
+		"reason" = "[B.reason]",
+		"oldest" = max(0, round((world.realtime - B.bantime_rt) / 10)) + 600,
+		"newest" = max(0, round((world.realtime - B.bantime_rt) / 10)) - 600)) //signed: an unsigned age - 600 would overflow
+	if(query_ban_sent.Execute())
+		. = query_ban_sent.NextRow() ? query_ban_sent.item[1] : "none"
+	else
+		. = query_ban_sent.unanswered ? null : "refused"
+	qdel(query_ban_sent)
+// hippie end
 
 //The query for a change to a database ban (op from lift() or edit())
 /datum/controller/subsystem/bans/proc/op_query(list/op)
@@ -526,7 +555,7 @@ SUBSYSTEM_DEF(bans)
 		if("edit")
 			//One fixed query text: the interval's unit is picked by CASE (an INTERVAL's unit can't be a parameter), and a mirrored ban
 			//by its bantime and old identity rather than its id.
-			return SSdbcore.NewQuery("UPDATE [format_table_name("ban")] SET expiration_time = CASE :unit WHEN 'SECOND' THEN bantime + INTERVAL :amount SECOND WHEN 'MINUTE' THEN bantime + INTERVAL :amount MINUTE WHEN 'HOUR' THEN bantime + INTERVAL :amount HOUR WHEN 'DAY' THEN bantime + INTERVAL :amount DAY WHEN 'WEEK' THEN bantime + INTERVAL :amount WEEK WHEN 'MONTH' THEN bantime + INTERVAL :amount MONTH WHEN 'YEAR' THEN bantime + INTERVAL :amount YEAR ELSE NULL END, applies_to_admins = :applies_to_admins, reason = :reason, ckey = :ckey, ip = INET_ATON(:ip), computerid = :cid, edits = CONCAT(IFNULL(edits, ''), :edit_text) WHERE ((:mirror = 0 AND id = :id) OR (:mirror = 1 AND bantime = :bantime AND (:old_ckey IS NULL OR ckey = :old_ckey) AND (:old_ip IS NULL OR ip = INET_ATON(:old_ip)) AND (:old_cid IS NULL OR computerid = :old_cid)))", list(
+			return SSdbcore.NewQuery("UPDATE [format_table_name("ban")] SET expiration_time = CASE :unit WHEN 'SECOND' THEN bantime + INTERVAL :amount SECOND WHEN 'MINUTE' THEN bantime + INTERVAL :amount MINUTE WHEN 'HOUR' THEN bantime + INTERVAL :amount HOUR WHEN 'DAY' THEN bantime + INTERVAL :amount DAY WHEN 'WEEK' THEN bantime + INTERVAL :amount WEEK WHEN 'MONTH' THEN bantime + INTERVAL :amount MONTH WHEN 'YEAR' THEN bantime + INTERVAL :amount YEAR ELSE NULL END, applies_to_admins = :applies_to_admins, reason = :reason, ckey = :ckey, ip = INET_ATON(:ip), computerid = :cid, edits = IF(:once = 1 AND RIGHT(IFNULL(edits, ''), CHAR_LENGTH(:edit_text)) = :edit_text, edits, CONCAT(IFNULL(edits, ''), :edit_text)) WHERE ((:mirror = 0 AND id = :id) OR (:mirror = 1 AND bantime = :bantime AND (:old_ckey IS NULL OR ckey = :old_ckey) AND (:old_ip IS NULL OR ip = INET_ATON(:old_ip)) AND (:old_cid IS NULL OR computerid = :old_cid)))", list(
 				"unit" = (op["amount"] && (op["unit"] in BAN_INTERVALS)) ? op["unit"] : null,
 				"mirror" = (op["mirror"] && op["bantime"]) ? 1 : 0,
 				"amount" = op["amount"],
@@ -540,7 +569,8 @@ SUBSYSTEM_DEF(bans)
 				"ckey" = op["ckey"] || null,
 				"ip" = op["ip"] || null,
 				"cid" = op["cid"] || null,
-				"edit_text" = op["edit_text"]))
+				"edit_text" = op["edit_text"],
+				"once" = op["maybe_sent"] ? 1 : 0)) // hippie -- sent again after no answer: its edit log line isn't added twice
 
 //The minute's check: send what waited, then refresh the copy
 /datum/controller/subsystem/bans/proc/db_update()
@@ -561,10 +591,25 @@ SUBSYSTEM_DEF(bans)
 		var/datum/ban_record/B = records[id]
 		if(!B?.is_local() || refused[id])
 			continue
-		var/new_id = db_insert(list(B))
-		if(!new_id)
-			if(!SSdbcore.IsConnected())
+		var/new_id
+		if(B.maybe_sent) //its INSERT got no answer, so it may be in already: looked for before it's sent again
+			new_id = db_find_sent(B)
+			if(!new_id)
 				db_sending = 0
+				save()
+				return FALSE
+			if(new_id == "refused") //the check itself was refused: kept and enforced here, and looked for again at the next check
+				log_sql("Bans: the database refused the check for ban [B.id] ([B.role] for [B.ckey || "[B.ip]-[B.cid]"]), whose INSERT got no answer; keeping it on this server")
+				continue
+			if(new_id == "none")
+				new_id = null
+			B.maybe_sent = FALSE
+		if(!new_id)
+			new_id = db_insert(list(B))
+		if(!new_id)
+			if(B.maybe_sent || !SSdbcore.IsConnected()) //no answer (db_insert() set maybe_sent): tried again at the next check, not refused
+				db_sending = 0
+				save()
 				return FALSE
 			//the database answered and said no; the ban still holds here, and it's tried again next round
 			refused[id] = TRUE
@@ -582,9 +627,12 @@ SUBSYSTEM_DEF(bans)
 	for(var/list/op as anything in queued_ops.Copy())
 		var/datum/DBQuery/query_ban_change = op_query(op)
 		var/ok = query_ban_change.Execute()
+		var/unanswered = query_ban_change.unanswered // hippie
 		qdel(query_ban_change)
 		if(!ok)
-			if(!SSdbcore.IsConnected())
+			if(unanswered || !SSdbcore.IsConnected()) // hippie -- no answer: kept, and sent again at the next check so it changes nothing more
+				op["maybe_sent"] = TRUE // hippie
+				save() // hippie -- the bans sent above, with their new ids
 				return FALSE
 			log_sql("Bans: the database refused a waiting [op["op"]] of ban [op["id"]], dropped it")
 		queued_ops -= list(op) //by reference: the list can change while the query sleeps

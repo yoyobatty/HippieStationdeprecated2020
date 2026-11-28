@@ -13,8 +13,8 @@
  * the next hooked frame below it returns, which puts it back, or the next server tick, which starts it from 0.
  *
  * Where exec_proc, server_tick, send_maps and the string, misc and proc tables are in byondcore.dll comes from byond-tracy
- * (BSD, (c) 2022 anon; ParadiseSS13 fork's offsets/windows.h) for 516.1666; for 516.1688 they were found from 1666's by
- * matching code (tools/hippie_prof/find_offsets.py). An unknown build is refused, not guessed at.
+ * (BSD, (c) 2022 anon; ParadiseSS13 fork's offsets/windows.h) for 516.1666; for 516.1688 and 516.1689 they were found from
+ * 1666's by matching code (tools/hippie_prof/find_offsets.py). An unknown build is refused, not guessed at.
  *
  * The last ~16 s of whole stacks are kept as well (the 32 frames nearest the top of each), so a spike can be put down to
  * what called what, not just the proc it ended in: stacks <ms> [count].
@@ -61,6 +61,7 @@ struct build_offsets {
 static const struct build_offsets known_builds[] = {
 	{1666, 0x0042CA18, 0x0042CA1C, 0x0042CA2C, 0x0042CA30, 0x0042CA3C, 0x0042CA40, 0x001C002C, 0x0013D6D0, 0x002287E0, 0x001DA860, 0x00050606},
 	{1688, 0x00430BF0, 0x00430BF4, 0x00430C00, 0x00430C04, 0x00430C10, 0x00430C14, 0x001C002C, 0x0013E750, 0x00229950, 0x001DB7B0, 0x00050606},
+	{1689, 0x00431BF0, 0x00431BF4, 0x00431C00, 0x00431C04, 0x00431C10, 0x00431C14, 0x001C002C, 0x0013E9F0, 0x00229CA0, 0x001DBA90, 0x00050606},
 };
 
 /* what BYOND has, once found */

@@ -3,7 +3,7 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 # Atmos bench: compile, boot headless, time every stage of SSair over a calm station, a gas release, a plasma fire and
 # hull breaches, print the results. See hippiestation/code/modules/atmospherics/atmos_bench.dm.
 # Usage: tools/atmos_bench/run_atmos_bench.sh [profile | series | shadow | trace | failover | machine-times | idle-check |
-#   blocker-check | toxins-check | door-check | machines]
+#   blocker-check | toxins-check | door-check | heat-check | fire-check | machines]
 #   profile: also profiles the scenes, into data/atmos_bench/profile.json (read it with tools/bot_gym/shift_profile.py)
 #   series: also prints where a fire's heat is every 5 seconds of each scene
 #   shadow: LINDA runs the round and the engine has to predict every tick; says how many turfs it got wrong and shows some.
@@ -14,6 +14,10 @@ unset __COMPAT_LAYER # with this set, dm.exe leaks two kernel handles for every 
 #   idle-check: checks idle vents and scrubbers still wake up when their air changes (run it with ENGINE=linda too)
 #   blocker-check: checks every kind of air blocker lets air through once deleted, wrecked or taken apart, and walls too
 #   toxins-check: lights the real toxins lab and deletes its firelocks
+#   heat-check: hot air with nothing to burn, and where its heat goes (floors, space) by atmos tick: should match ENGINE=linda
+#   fire-check: the fire scene's fire on a calm station, by atmos tick (luck still gets in by tick 8 or so): vs ENGINE=linda
+#     For both, EXTRA_PARAMS: atmos-bench-heat=6000 for hotter air, atmos-bench-ledger=1 for where the heat near the spot
+#     went by SSair stage, atmos-bench-dump=1 for every turf around the spot, atmos-bench-shadow=1 to shadow it
 #   door-check: what shut doors do with the air on their tiles, on the real map (door_seals.dm); EXTRA_PARAMS="door-seals=off" for how it was
 #   machines: just counts what's in SSair.atmos_machinery
 # Compare runs: tools/atmos_bench/scorecard.py (everything, against LINDA), tools/atmos_bench/compare_runs.py (two builds)

@@ -35,7 +35,7 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	/// Seconds each stage took
 	var/list/lobby_build_stages = list()
 	var/lobby_build_sleep_after = FALSE
-	/// What SSair's and SSlighting's can_fire were before the build paused them (null until it has), for lobby_build_failed()
+	/// What SSair's and SSlighting's can_fire were before the build paused them (null until it has), for lobby_build_finish()
 	var/lobby_build_air_could_fire
 	var/lobby_build_lighting_could_fire
 
@@ -160,29 +160,101 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	lobby_build_stages[name] = (REALTIMEOFDAY - start) / 10
 	return REALTIMEOFDAY
 
-/// The build, and if it has a runtime error part way (a ruin that won't load, say), the round still starts: without this the lobby
-/// would wait at 0 forever, with air and lighting paused
-/datum/controller/subsystem/mapping/proc/lobby_build()
-	try
-		lobby_build_run()
-	catch(var/exception/E)
-		lobby_build_failed(E)
+/// What the lobby build's stages hand on to each other
+/datum/lobby_build_work
+	/// REALTIMEOFDAY when the build began, and when the stage under way did
+	var/started
+	var/stage
+	var/started_time
+	/// Its tick limit (LOBBY_BUILD_TICKLIMIT, or lobby-build-ticklimit)
+	var/pace
+	/// The held levels (z -> TRUE), and what waited for the build outside the map loader
+	var/list/held
+	var/list/pending
+	var/list/turfs = list()
+	var/list/mobs = list()
+	var/list/objs = list()
+	var/list/held_areas = list()
+	var/list/cables = list()
+	var/list/atmos_machines = list()
 
-/datum/controller/subsystem/mapping/proc/lobby_build_failed(exception/E)
-	var/msg = "Lobby build failed: [E.name] ([E.file]:[E.line]). Lavaland and the space ruins may be missing or broken this round."
-	log_world(msg)
-	message_admins(msg)
-	lobby_build_status = "failed: [E.name]"
+/// The build, a stage at a time. A runtime error part way only ends the proc it happens in, as at startup: in an atom's Initialize()
+/// or a ruin that won't load, the stage goes on without it; in a stage's own code, that stage stops there and the rest still run.
+/// However it went, lobby_build_finish() puts air and lighting back and lets the round start (without that the lobby would wait at 0
+/// forever) and tells admins of any runtime. Not try/catch around it all: that made every runtime anywhere under it, one bad atom on
+/// Lavaland included, stop the whole build, leaving the levels' things uninitialized (canisters with no air runtimed every air tick),
+/// and one in the map loader left SSatoms at map_loader_begin(), so nothing made for the rest of the round initialized
+/// (tools/review_smoke, lobby_* steps, 2026-11-28).
+/datum/controller/subsystem/mapping/proc/lobby_build()
+	var/runtimes_before = GLOB.total_runtimes
+	var/datum/lobby_build_work/W = new
+	W.started = REALTIMEOFDAY
+	W.stage = W.started
+	W.started_time = world.time
+	var/list/failed = list()
+	if(!lobby_build_begin(W))
+		failed += "start"
+	if(!lobby_build_load(W))
+		failed += "maps"
+	// Everything is there. From here on, what's made on these levels initializes as it's made. The levels stay held for
+	// ChangeTurf() until the lighting pass (it leaves their lighting to it, as at startup).
+	lobby_build_loading = FALSE
+	loading_ruins = FALSE
+	lobby_build_atoms_back()
+	W.held = lobby_build_levels
+	W.pending = lobby_build_pending
+	lobby_build_holding = FALSE
+	lobby_build_pending = list()
+	if(!lobby_build_gather(W))
+		failed += "gathering"
+	if(!lobby_build_atoms(W))
+		failed += "atoms"
+	if(!lobby_build_networks(W))
+		failed += "powernets and pipes"
+	if(!lobby_build_air(W))
+		failed += "air"
+	if(!lobby_build_lighting(W))
+		failed += "lighting"
+	lobby_build_finish(W, failed, GLOB.total_runtimes - runtimes_before)
+
+/// SSatoms as the lobby has it. A runtime between a map load's map_loader_begin() and _stop(), or in InitializeAtoms()'s own code,
+/// leaves it as it was then: InitializeAtoms() would then do nothing, and nothing made after would initialize
+/datum/controller/subsystem/mapping/proc/lobby_build_atoms_back()
+	if(SSatoms.initialized != INITIALIZATION_INNEW_REGULAR)
+		log_world("Lobby build: SSatoms was left at [SSatoms.initialized] part way, put back to [INITIALIZATION_INNEW_REGULAR]")
+		SSatoms.initialized = INITIALIZATION_INNEW_REGULAR
+
+/// However the stages went: the levels let go, air and lighting back on, the round let start, admins told of any runtime
+/datum/controller/subsystem/mapping/proc/lobby_build_finish(datum/lobby_build_work/W, list/failed, runtimes)
+	lobby_build_levels = null
 	lobby_build_loading = FALSE
 	lobby_build_holding = FALSE
-	lobby_build_levels = null
 	if(!isnull(lobby_build_lighting_could_fire))
 		SSlighting.can_fire = lobby_build_lighting_could_fire
 	if(!isnull(lobby_build_air_could_fire))
 		SSair.can_fire = lobby_build_air_could_fire
+	lobby_build_atoms_back()
 	Master.build_ticklimit = 0
+	repopulate_sorted_areas()
+	lobby_build_place_docks()
 	lobby_build_path_engine_afresh()
 	lobby_build_busy = FALSE
+	var/took = (REALTIMEOFDAY - W.started) / 10
+	var/list/parts = list()
+	for(var/name in lobby_build_stages)
+		parts += "[name] [lobby_build_stages[name]]s"
+	lobby_build_status = "done in [took]s: [length(W.turfs)] turfs, [length(W.mobs) + length(W.objs)] things[length(failed) ? ", stopped part way in [jointext(failed, ", ")]" : ""]"
+	log_world("Lobby build: [lobby_build_status] ([jointext(parts, ", ")]; [round((world.time - W.started_time) / world.tick_lag)] ticks, pace [W.pace > 0 ? W.pace : "MC"])")
+	if(length(failed) || runtimes > 0)
+		var/msg = "Lobby build: [runtimes] runtime error\s while it built Lavaland and the space ruins[length(failed) ? ", stopped part way in [jointext(failed, ", ")]" : ""]. They may be missing or broken in places this round: see the runtime log."
+		log_world(msg)
+		message_admins(msg)
+	// Only if nothing has wanted the world awake since (a headless run sets FALSE): a Bot Shift on a map with Lavaland used to
+	// fall asleep here, before its round started, and never woke (2026-11-16, every full-station shift stalled after this line)
+	if(lobby_build_sleep_after && isnull(Master.sleep_offline_after_initializations))
+		Master.sleep_offline_after_initializations = TRUE
+		if(!length(GLOB.clients) && !CONFIG_GET(flag/resume_after_initializations))
+			world.sleep_offline = TRUE
 
 /// The map loader's no_changeturf turfs never told the station picture they'd changed: if the path engine has kept one already,
 /// it starts again (the held levels' turfs as they were before the build may be in it)
@@ -190,23 +262,27 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	if(GLOB.station_picture_kept)
 		path_engine_setup()
 
-/datum/controller/subsystem/mapping/proc/lobby_build_run()
-	var/started = REALTIMEOFDAY
-	var/stage = started
+// The stages, in order. Each returns TRUE when it gets to its end (one stopped by a runtime returns null).
+
+/// The pace set, and air and lighting paused
+/datum/controller/subsystem/mapping/proc/lobby_build_begin(datum/lobby_build_work/W)
 	lobby_build_status = "building"
-	var/started_time = world.time
-	var/pace = LOBBY_BUILD_TICKLIMIT
+	W.pace = LOBBY_BUILD_TICKLIMIT
 	if(!isnull(world.params["lobby-build-ticklimit"]))
-		pace = text2num(world.params["lobby-build-ticklimit"])
-	if(pace > 0)
-		Master.build_ticklimit = pace
+		W.pace = text2num(world.params["lobby-build-ticklimit"])
+	if(W.pace > 0)
+		Master.build_ticklimit = W.pace
 	// Neither works on these levels until they're set up, as at startup: air on unready turfs, and lights before the lighting
 	// engine knows which of their turfs are opaque (a lava light would shine through the rock)
 	lobby_build_air_could_fire = SSair.can_fire
 	SSair.can_fire = FALSE
 	lobby_build_lighting_could_fire = SSlighting.can_fire
 	SSlighting.can_fire = FALSE
+	return TRUE
 
+/// Lavaland's map, its ruins and rivers, and the space ruins
+/datum/controller/subsystem/mapping/proc/lobby_build_load(datum/lobby_build_work/W)
+	W.stage = REALTIMEOFDAY
 	lobby_build_loading = TRUE
 	if(lobby_build_lavaland_z)
 		var/datum/parsed_map/lavaland = new(file("_maps/map_files/Mining/Lavaland.dmm"))
@@ -214,24 +290,21 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 			var/msg = "RED ALERT! Lavaland failed to load in the lobby build. Yell at your server host!"
 			to_chat(world, "<span class='boldannounce'>[msg]</span>")
 			log_world(msg)
-		stage = lobby_build_stage("Lavaland", stage)
+		W.stage = lobby_build_stage("Lavaland", W.stage)
 	seed_startup_ruins()
-	stage = lobby_build_stage("ruins", stage)
-	lobby_build_loading = FALSE
+	W.stage = lobby_build_stage("ruins", W.stage)
+	return TRUE
 
-	// Everything is there. From here on, what's made on these levels initializes as it's made. The levels stay held for
-	// ChangeTurf() until the lighting pass below (it leaves their lighting to it, as at startup).
-	var/list/held = lobby_build_levels
-	var/list/pending = lobby_build_pending
-	lobby_build_holding = FALSE
-	lobby_build_pending = list()
-
-	var/list/turfs = list()
-	var/list/mobs = list()
-	var/list/objs = list()
+/// Everything on the held levels, and what waited that the turfs don't hold
+/datum/controller/subsystem/mapping/proc/lobby_build_gather(datum/lobby_build_work/W)
+	W.stage = REALTIMEOFDAY
+	var/list/held = W.held
+	var/list/turfs = W.turfs
+	var/list/mobs = W.mobs
+	var/list/objs = W.objs
 	var/list/areas = list()
-	var/list/cables = list()
-	var/list/atmos_machines = list()
+	var/list/cables = W.cables
+	var/list/atmos_machines = W.atmos_machines
 	for(var/z in 1 to length(held))
 		if(!held[z])
 			continue
@@ -249,8 +322,8 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 					atmos_machines += AM
 		CHECK_TICK
 	// What waited that the turfs don't hold: areas the build made, things inside other things
-	var/list/held_areas = list()
-	for(var/atom/A as anything in pending)
+	var/list/held_areas = W.held_areas
+	for(var/atom/A as anything in W.pending)
 		if(QDELETED(A) || (A.flags_1 & INITIALIZED_1))
 			continue
 		if(isarea(A))
@@ -261,20 +334,30 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 				mobs += A
 			else
 				objs += A
-	stage = lobby_build_stage("gathering", stage)
+	W.stage = lobby_build_stage("gathering", W.stage)
+	return TRUE
 
-	// Startup's order: BYOND's world loop gives mobs, objs, areas, then turfs
-	SSatoms.InitializeAtoms(mobs + objs + held_areas + turfs)
-	stage = lobby_build_stage("atoms", stage)
+/// Everything gathered initialized, in startup's order: BYOND's world loop gives mobs, objs, areas, then turfs
+/datum/controller/subsystem/mapping/proc/lobby_build_atoms(datum/lobby_build_work/W)
+	W.stage = REALTIMEOFDAY
+	SSatoms.InitializeAtoms(W.mobs + W.objs + W.held_areas + W.turfs)
+	W.stage = lobby_build_stage("atoms", W.stage)
+	return TRUE
 
-	// (areas put themselves in areas_in_z as they initialize, as at startup)
-	SSmachines.setup_template_powernets(cables)
-	SSair.setup_template_machinery(atmos_machines)
-	stage = lobby_build_stage("powernets and pipes", stage)
+/// (areas put themselves in areas_in_z as they initialize, as at startup)
+/datum/controller/subsystem/mapping/proc/lobby_build_networks(datum/lobby_build_work/W)
+	W.stage = REALTIMEOFDAY
+	SSmachines.setup_template_powernets(W.cables)
+	SSair.setup_template_machinery(W.atmos_machines)
+	W.stage = lobby_build_stage("powernets and pipes", W.stage)
+	return TRUE
 
+/datum/controller/subsystem/mapping/proc/lobby_build_air(datum/lobby_build_work/W)
+	W.stage = REALTIMEOFDAY
 	// What initializing queued for these levels' turfs, as SSair's startup takes it (process_adjacent_rebuild(TRUE)): walls
 	// and space work out their neighbours now, the rest is left to the pass below, and the wakes are dropped (startup clears
 	// active_turfs before it). Left in the queue, every turf here would be worked out twice and woken once SSair fires again.
+	var/list/held = W.held
 	var/list/rebuild = SSair.adjacent_rebuild
 	var/list/kept = list()
 	var/held_count = length(held)
@@ -288,18 +371,20 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 
 	// Air, as SSair's setup_allturfs() did it for the rest of the world
 	var/fired = SSair.times_fired
-	for(var/turf/T as anything in turfs)
+	for(var/turf/T as anything in W.turfs)
 		if(T.blocks_air || isspaceturf(T))
 			continue
 		T.Initalize_Atmos(fired)
 		CHECK_TICK
-	stage = lobby_build_stage("air", stage)
+	W.stage = lobby_build_stage("air", W.stage)
+	return TRUE
 
-	// Lighting objects, as create_all_lighting_objects() made them at startup: no light here has been worked out yet
-	// (SSlighting is paused), so there's nothing for them to take up until it is. And the lighting engine told of every turf:
-	// native_ready() left these levels out, and the engine starts every turf at 0, so one never told anything and still 0
-	// needn't be sent.
-	for(var/turf/T as anything in turfs)
+/// Lighting objects, as create_all_lighting_objects() made them at startup: no light here has been worked out yet (SSlighting is
+/// paused), so there's nothing for them to take up until it is. And the lighting engine told of every turf: native_ready() left
+/// these levels out, and the engine starts every turf at 0, so one never told anything and still 0 needn't be sent.
+/datum/controller/subsystem/mapping/proc/lobby_build_lighting(datum/lobby_build_work/W)
+	W.stage = REALTIMEOFDAY
+	for(var/turf/T as anything in W.turfs)
 		var/area/A = T.loc
 		if(IS_DYNAMIC_LIGHTING(A) && IS_DYNAMIC_LIGHTING(T) && !T.lighting_object)
 			new /atom/movable/lighting_object(T)
@@ -308,28 +393,7 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 		else
 			T.lighting_engine_push()
 		CHECK_TICK
-	stage = lobby_build_stage("lighting", stage)
-
-	lobby_build_levels = null
-	SSlighting.can_fire = lobby_build_lighting_could_fire
-	SSair.can_fire = lobby_build_air_could_fire
-
-	repopulate_sorted_areas()
-	lobby_build_place_docks()
-	Master.build_ticklimit = 0
-	lobby_build_path_engine_afresh()
-	lobby_build_busy = FALSE
-	var/took = (REALTIMEOFDAY - started) / 10
-	var/list/parts = list()
-	for(var/name in lobby_build_stages)
-		parts += "[name] [lobby_build_stages[name]]s"
-	lobby_build_status = "done in [took]s: [length(turfs)] turfs, [length(mobs) + length(objs)] things"
-	log_world("Lobby build: [lobby_build_status] ([jointext(parts, ", ")]; [round((world.time - started_time) / world.tick_lag)] ticks, pace [pace > 0 ? pace : "MC"])")
-	// Only if nothing has wanted the world awake since (a headless run sets FALSE): a Bot Shift on a map with Lavaland used to
-	// fall asleep here, before its round started, and never woke (2026-11-16, every full-station shift stalled after this line)
-	if(lobby_build_sleep_after && isnull(Master.sleep_offline_after_initializations))
-		Master.sleep_offline_after_initializations = TRUE
-		if(!length(GLOB.clients) && !CONFIG_GET(flag/resume_after_initializations))
-			world.sleep_offline = TRUE
+	W.stage = lobby_build_stage("lighting", W.stage)
+	return TRUE
 
 #undef LOBBY_BUILD_TICKLIMIT

@@ -119,6 +119,8 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/tile_engine_native_reactions = FALSE
 	/// Turfs the engine reacted so far (for benches)
 	var/tile_engine_reacted_count = 0
+	/// Archives DM took from the engine for heat through walls so far (for benches)
+	var/tile_engine_archives_set = 0
 	/// world.maxx and maxy when the engine started. A turf's number (its reference) is worked out from them, so the world
 	/// growing wider or taller (a map loaded with cropMap off) numbers every turf differently, and the engine starts again.
 	var/tile_engine_maxx = 0
@@ -168,15 +170,9 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 /datum/controller/subsystem/air/proc/tile_engine_setup(resized = FALSE)
 	if(tile_engine_pending) // what's left of the last tick first, while the engine's still the one that did it
 		tile_engine_follow_up_rest(FALSE)
-	// The idle machines the engine watched: it forgets them, so they wake on any change in their air as before it watched them
-	for(var/obj/machinery/M as anything in atmos_machinery)
-		if(M?.atmos_engine_watched)
-			M.atmos_engine_watched = FALSE
-			if(M.atmos_idle_since)
-				atmos_wake_machine(M)
+	tile_engine_machines_let_go()
 	if(tile_engine_owns) // starting again with the engine running LINDA: DM takes its state back first (not the turfs the
 		tile_engine_own_takeback(!resized) // engine says, if they were numbered for a world of another size)
-	tile_engine_machine_events = list()
 	tile_engine = FALSE
 	atmos_never_idle = world.params["atmos-idle"] == "off"
 	if(world.params["atmos-idle-shadow"]) // idle_machines.dm: the old check runs the machines, the registry is set against it
@@ -547,42 +543,47 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 
 /// Heat through walls works from turfs' archives, which nothing else needs, so the engine only hands over the ones it's
 /// about to read. Run before process_super_conductivity() goes through the conducting turfs. A turf the engine didn't
-/// archive this tick archives itself, as it would when heat through walls got to it.
+/// archive this tick is left as it is, as LINDA leaves it: heat through walls archives a turf it reaches that hasn't been
+/// archived this tick (conductivity_directions(), super_conduct()), but an open turf's own heat through walls works from the
+/// archive it last had, from the tick it last had its turn (tile_engine_keep_archives() keeps that for DM). Archiving them
+/// all afresh here (as this did) had a conducting turf that had gone to sleep share heat with its floor by its air as it is
+/// now, where LINDA's goes on sharing by the hotter air of its last turn and cools faster (atmos-bench=heat-check).
 /datum/controller/subsystem/air/proc/tile_engine_archives()
 	var/fired = times_fired
+	if(tile_engine_swept_at != fired) // no awake turfs this tick, so the engine archived nothing in it
+		return
 	var/list/turf/open/wanted = list()
+	var/list/seen = list()
 	for(var/turf/T as anything in active_super_conductivity)
-		if(isopenturf(T) && T.archived_cycle < fired)
-			T.archived_cycle = fired
+		if(isopenturf(T) && T.archived_cycle < fired && !seen[T])
+			seen[T] = TRUE
 			wanted += T
 		for(var/direction in GLOB.cardinals)
 			var/turf/neighbour = get_step(T, direction)
-			if(isopenturf(neighbour) && neighbour.archived_cycle < fired)
-				neighbour.archived_cycle = fired
+			if(isopenturf(neighbour) && neighbour.archived_cycle < fired && !seen[neighbour])
+				seen[neighbour] = TRUE
 				wanted += neighbour
-	if(!length(wanted))
-		return
-	if(tile_engine_swept_at != fired) // no awake turfs this tick, so the engine's archives are from an older one
-		for(var/turf/open/T as anything in wanted)
-			T.archive()
-		return
+	if(length(wanted))
+		tile_engine_set_archives(wanted, fired, 0)
+
+/// Reads the engine's archives of `turfs` from its last tick (`fired`) into their air, as LINDA's archive() left them then.
+/// `only` 1 is the ones asleep now (atmos-engine-own: not awake in the engine's copy of LINDA's state). A library from before
+/// that hands over every one it archived, which comes to the same, only slower.
+/datum/controller/subsystem/air/proc/tile_engine_set_archives(list/turf/open/turfs, fired, only)
 	var/list/values = list()
 	var/status
 	try
-		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_archives")(wanted, values)
+		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_archives")(turfs, values, only)
 	catch(var/exception/error)
 		status = "[error]"
 	if(status != 1)
 		tile_engine_failed(status)
-		for(var/turf/open/T as anything in wanted)
-			T.archive()
 		return
 	var/at = 1
-	for(var/turf/open/T as anything in wanted)
+	for(var/turf/open/T as anything in turfs)
 		var/temperature = values[at++]
 		if(temperature == -1) //not archived. Only -1 will do: LINDA's air can really go below 0 K, and reading that as
-			T.archive() //"no record" put every turf after it out of step with the list
-			continue
+			continue //"no record" put every turf after it out of step with the list
 		var/datum/gas_mixture/air = T.air
 		var/list/archive = list()
 		for(var/gas in 1 to values[at++])
@@ -591,6 +592,48 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 		air.moles_archive = archive
 		air.temperature_archived = temperature
 		T.temperature_archived = T.temperature
+		T.archived_cycle = fired
+		tile_engine_archives_set++
+
+/// Before a tick: a conducting open turf that went to sleep in the last one keeps the archive it had then, which LINDA's heat
+/// through walls goes on working from while it sleeps. The engine's archives only last until its next tick, so DM takes
+/// these. Not after a tick with heat through walls in it: tile_engine_archives() set them then, and the floors have changed
+/// since (an archive has its floor's temperature too).
+/datum/controller/subsystem/air/proc/tile_engine_keep_archives()
+	var/fired = tile_engine_swept_at
+	if(fired != times_fired - 1 || !length(active_super_conductivity) || superconduct_every <= 1 || !(fired % superconduct_every))
+		return
+	var/owns = tile_engine_owns
+	var/list/turf/open/turfs = list()
+	for(var/turf/open/T in active_super_conductivity)
+		if(!T.blocks_air && T.archived_cycle < fired && (owns || !T.excited))
+			turfs += T
+	if(length(turfs))
+		tile_engine_set_archives(turfs, fired, owns ? 1 : 0)
+
+/// LINDA's process_cell() exposes every turf that has its turn to its air, changed or not, so what listens on it (windows,
+/// grilles, fire alarms, airlocks: atmos_sensitive) starts processing once it's hot enough. tile_engine_write_air() exposes
+/// the turfs the engine changed. An awake turf it left alone, with air DM made hot (a hotspot, heat through walls, a heater),
+/// is exposed here: it wasn't, and a window tile holding 6000 K air (sealed, so nothing ever shares with it) kept its
+/// windows for good, where LINDA's burned through in four ticks and vented the room to space (atmos-bench=heat-check with
+/// atmos-bench-heat=6000; in the bench's plasma fire the same window tiles let LINDA's fire out to space).
+/datum/controller/subsystem/air/proc/tile_engine_expose_turns(list/turf/open/processed, list/turf/open/changed)
+	var/list/turf/open/listened
+	for(var/turf/open/T as anything in processed)
+		if(T.comp_lookup)
+			LAZYADD(listened, T)
+	if(!listened)
+		return
+	var/list/exposed = list()
+	for(var/turf/open/T as anything in changed)
+		if(T.comp_lookup)
+			exposed[T] = TRUE
+	for(var/turf/open/T as anything in listened)
+		if(exposed[T] || !isopenturf(T))
+			continue
+		var/datum/gas_mixture/air = T.air
+		if(air)
+			T.temperature_expose(air, air.temperature)
 
 /// Something went wrong with the library, so atmos goes back to LINDA for the rest of the round
 /datum/controller/subsystem/air/proc/tile_engine_failed(status)
@@ -599,6 +642,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	pipe_engine = "off"
 	if(tile_engine_owns) // LINDA carries on from the engine's awake turfs
 		tile_engine_own_takeback()
+	tile_engine_machines_let_go() // nothing would wake the machines it watched, and their watch events would pile up all round
 	tile_engine_tracking = FALSE
 	tile_engine_quiet = FALSE
 	tile_engine = FALSE
@@ -610,6 +654,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	if(tile_engine_pending) // a resumed fire: the last tick's follow-up carries on (a fresh fire finished it in tile_engine_fire_start())
 		tile_engine_follow_up_rest(TRUE)
 		return
+	tile_engine_keep_archives()
 	if(tile_engine_owns)
 		tile_engine_own_process()
 		return
@@ -709,7 +754,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/owns = tile_engine_owns
 	var/list/turf/open/changed = list()
 	var/list/values = list()
-	var/list/turf/open/processed = owns ? null : list()
+	var/list/turf/open/processed = list() // with atmos-engine-own=on too: the turns are exposed (tile_engine_expose_turns())
 	var/list/tickers = owns ? null : list()
 	var/list/turf/open/woken = owns ? null : list()
 	var/list/turf/open/slept = owns ? null : list()
@@ -726,7 +771,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/status
 	try
 		// values are only needed when DM writes the air, or checks what the engine wrote. With atmos-engine-own=on the engine
-		// keeps who's awake, the tickers and the groups itself, so those lists are null.
+		// keeps who's awake, the tickers and the groups itself, so those lists are null (not the turns, which get exposed).
 		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_results")(owns ? null : active_turfs, changed, (tile_engine_writes && !tile_engine_writes_check) ? null : values, processed, tickers, woken, slept, joins, groups_big, groups_small, windy, wind_to, wind_force, react, redraw, redraw_keys, hot)
 	catch(var/exception/error)
 		status = "[error]"
@@ -749,6 +794,7 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	if(!tile_engine_apply_air(changed, values, fired, "atmos_engine_write", TRUE))
 		return
 
+	tile_engine_expose_turns(processed, changed)
 	tile_engine_apply_parts["air"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
 	part = TICK_USAGE_REAL
 	if(!owns)

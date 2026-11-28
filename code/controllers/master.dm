@@ -351,6 +351,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		SS.queue_prev = null
 		if (SS.state == SS_SLEEPING || SS.state == SS_PAUSING)
 			SS.fire_generation++ // hippie -- its old fire() may still wake: it mustn't touch the state of runs after this
+			SS.stale_fires++ // hippie -- and pause() checks who's asking until it has (subsystem.dm)
 		SS.state = SS_IDLE
 		if (SS.flags & SS_TICKER)
 			tickersubsystems += SS
@@ -618,7 +619,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			queue_node.state = SS_RUNNING
 
 			tick_usage = TICK_USAGE
-			var/state = queue_node.ignite(queue_node_paused)
+			var/state = queue_node.ignite(queue_node_paused, queue_node.fire_generation) // hippie -- the run's generation, for pause() (subsystem.dm current_run())
 			tick_usage = TICK_USAGE - tick_usage
 
 			if (state == SS_RUNNING)
@@ -707,6 +708,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		SS.queued_time = 0
 		if (SS.state == SS_SLEEPING || SS.state == SS_PAUSING)
 			SS.fire_generation++ // hippie -- see Loop()
+			SS.stale_fires++
 		SS.state = SS_IDLE
 	if (queue_head && !istype(queue_head))
 		log_world("MC: SoftReset: Found bad data in subsystem queue, queue_head = '[queue_head]'")

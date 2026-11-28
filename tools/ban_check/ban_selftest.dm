@@ -297,6 +297,8 @@
 	if(world.params["ban-selftest"] == "db")
 		run_ban_selftest_db(out, "[dir]db_", db_port)
 		run_ban_selftest_window_db(out, "[dir]db_", db_port)
+		if(world.params["ban-bounce"]) //run_ban_check.sh with BOUNCE=1: MariaDB really stopped and started under the server
+			run_ban_selftest_bounce(out, db_port)
 
 	var/passed = 0
 	for(var/line in out)

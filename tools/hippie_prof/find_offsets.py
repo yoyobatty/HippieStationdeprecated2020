@@ -1,8 +1,10 @@
 """Find byondcore.dll addresses for a BYOND build from a build whose addresses are known (byond-tracy's table, 516.1666).
 
 Usage: python find_offsets.py <known build's byondcore.dll (516.1666)> <new build's byondcore.dll>
-Prints a row for known_builds[] in hippie_prof.c. Check each function by more than its first bytes: exec_proc in 1688 matched 10
-places on its prologue and was told apart by its unusually large stack frame (sub esp, 0x918; 0x968 in 1666).
+Prints a row for known_builds[] in hippie_prof.c. Check each function by more than its first bytes: exec_proc in 1688 and 1689
+matched 10 places on its prologue and was told apart by its unusually large stack frame (sub esp, 0x918; 0x968 in 1666). When no
+length of prologue matches just once, the candidates are listed with their stack frames, and the one nearest the known build's
+frame is taken if it's the only one within 0x100 of it.
 
 Functions: the known build's first bytes, with call/jump targets and relocated addresses wildcarded, searched for in the new
 build. Globals: every place the known build's code names the global's address (from its relocation table), the same code
@@ -89,13 +91,35 @@ def masked_pattern(pe, rva, length):
     return b''.join(b'.' if w else re.escape(bytes([c])) for c, w in zip(data, wild)), sum(wild)
 
 
+def frame_size(pe, rva):
+    """The stack frame a function sets up in its first 64 bytes (sub esp, imm32), or None"""
+    off = pe.rva2off(rva)
+    m = re.search(rb'\x81\xec(....)', pe.b[off:off + 64], re.DOTALL)
+    return struct.unpack('<I', m.group(1))[0] if m else None
+
+
 def find_func(old, new, rva):
     lo, hi = new.text()
+    many = None
     for length in (64, 48, 32, 24):
         pat, nwild = masked_pattern(old, rva, length)
         hits = [m.start() for m in re.finditer(pat, new.b[lo:hi], re.DOTALL)]
         if len(hits) == 1:
             return new.off2rva(lo + hits[0]), length, nwild
+        if len(hits) > 1 and many is None:
+            many = (hits, length, nwild)
+    if not many:
+        return None, None, None
+    # the prologue matches more than once: tell them apart by the stack frame
+    hits, length, nwild = many
+    want = frame_size(old, rva)
+    cands = [new.off2rva(lo + h) for h in hits]
+    frames = {c: frame_size(new, c) for c in cands}
+    print(f'   {len(cands)} matches on {length} bytes, known frame {want and hex(want)}: ' +
+          ', '.join(f'{c:#x} (frame {frames[c] and hex(frames[c])})' for c in cands))
+    near = [c for c in cands if want is not None and frames[c] is not None and abs(frames[c] - want) <= 0x100]
+    if len(near) == 1:
+        return near[0], length, nwild
     return None, None, None
 
 

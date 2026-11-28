@@ -573,10 +573,12 @@ pub unsafe extern "C" fn atmos_engine_run(argc: u32, argv: *const ByondValue) ->
 	})
 }
 
-/// call_ext("hippie_atmos", "byond:atmos_engine_archives")(turfs, values): what the turfs' archives ended up as this tick,
-/// for heat through walls, which works from them. `values` has, for each turf, -1 if it wasn't archived, or else its
-/// archived temperature, how many gases it had, then a path and moles for each. Returns 1, or a negative number if it
-/// failed.
+/// call_ext("hippie_atmos", "byond:atmos_engine_archives")(turfs, values, only): what the turfs' archives ended up as this
+/// tick, for heat through walls, which works from them. `values` has, for each turf, -1 if it wasn't archived, or else its
+/// archived temperature, how many gases it had, then a path and moles for each. With `only` 1, a turf that's awake in the
+/// engine's copy of LINDA's state counts as not archived: DM keeps the archives of conducting turfs that went to sleep,
+/// which LINDA's heat through walls goes on using until they're archived again, and an awake one will be next tick. A DM
+/// from before passes two arguments. Returns 1, or a negative number if it failed.
 #[no_mangle]
 pub unsafe extern "C" fn atmos_engine_archives(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
@@ -587,10 +589,16 @@ pub unsafe extern "C" fn atmos_engine_archives(argc: u32, argv: *const ByondValu
 		}
 		let mut guard = STATE.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 		let state = guard.as_mut().ok_or("archives before setup")?;
+		let asleep_only = args.get(2).is_some_and(|only| only.kind == TYPE_NUMBER && only.as_number() == 1.0);
 		read_values(api, &args[0], &mut state.turfs)?;
 		state.out.clear();
 		for turf in &state.turfs {
-			match state.tick.archive_of(turf_number(turf)?, &mut state.gases) {
+			let id = turf_number(turf)?;
+			if asleep_only && state.world.awake(id) {
+				state.out.push(ByondValue::num(-1.0));
+				continue;
+			}
+			match state.tick.archive_of(id, &mut state.gases) {
 				None => state.out.push(ByondValue::num(-1.0)),
 				Some(temperature) => {
 					state.out.push(ByondValue::num(temperature as f32));

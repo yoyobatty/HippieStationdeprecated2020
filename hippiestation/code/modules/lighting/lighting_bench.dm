@@ -25,6 +25,14 @@
 	Master.sleep_offline_after_initializations = FALSE
 	world.sleep_offline = FALSE
 	sleep(5 SECONDS) // let anything the first ticks turn on settle
+	// The lobby build (hippiestation/code/controllers/subsystem/lobby_build.dm) makes Lavaland and the ruin levels after startup,
+	// ~10 s, and SSlighting doesn't fire until it's done: lighting as it booted is lighting once that's over. Without waiting,
+	// the bench ran with it half done (and never let it finish), and every light queued since startup still queued.
+	var/build_wait = world.time
+	while(SSmapping.lobby_build_busy && world.time < build_wait + 3 MINUTES)
+		sleep(1 SECONDS)
+	build_wait = world.time - build_wait
+	sleep(2 SECONDS) // SSlighting's first fires after it
 	fdel(LIGHTING_BENCH_DIR)
 
 	var/z = SSmapping.levels_by_trait(ZTRAIT_STATION)[1]
@@ -58,11 +66,25 @@
 
 	// Lighting worked out afresh should match lighting as it booted: nothing should depend on which lights worked theirs
 	// out first. Nor should turning bounce lighting off and back on (the admin verb) leave any tile changed.
+	// Headless, nobody can see anything, so every light update since the lighting subsystem started that could wait for
+	// somebody to see it (/datum/light_source/proc/can_wait_unseen(): a door near a lamp moving, a light being carried) is
+	// still waiting, its old light still on the tiles. "Booted" is the station with those caught up, as a player walking
+	// up to them would see it. As left, it's also snapshotted and compared, to show how much was waiting.
+	var/waiting = SSlighting.unseen_count
+	var/queued = "[length(SSlighting.sources_queue)] light sources, [length(SSlighting.corners_queue)] corners, [length(SSlighting.objects_queue)] lighting objects"
+	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_booted_waiting.txt")
+	lighting_bench_catch_up()
 	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_booted.txt")
+	lines += "waited [round(build_wait / 10, 0.1)] s for the lobby build ([SSmapping.lobby_build_status]); then [waiting] light updates waiting for somebody to see them, and queued: [queued]; caught up, [lighting_bench_count_differences("[LIGHTING_BENCH_DIR]snapshot_booted_waiting.txt", "[LIGHTING_BENCH_DIR]snapshot_booted.txt")] tiles changed"
+	var/list/booted_prints = lighting_bench_light_prints(z)
 	SSlighting.relight_all()
 	lighting_bench_flush()
 	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_relit.txt")
 	lines += "relighting everything: [lighting_bench_compare_snapshots("[LIGHTING_BENCH_DIR]snapshot_booted.txt", "[LIGHTING_BENCH_DIR]snapshot_relit.txt")]"
+	// Which lights give their corners other light, relit: with every tile as it booted, it's corners nothing draws differently
+	// (starlight on space already at full, say), and only the first few are listed
+	var/list/relit_differ = lighting_bench_differing_corners("[LIGHTING_BENCH_DIR]snapshot_booted.txt", "[LIGHTING_BENCH_DIR]snapshot_relit.txt")
+	lines += lighting_bench_lights_changed(booted_prints, lighting_bench_light_prints(z), z, length(relit_differ) ? 12 : 3, relit_differ)
 	// The engine looking around for the lights (lighting-view=native) should light every tile as view() does: everything relit
 	// with view(), then straight after with the engine's own view, nothing in between to change a light
 	if(SSlighting.native && SSlighting.native_view_capable)
@@ -92,6 +114,7 @@
 	lighting_bench_flush()
 	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_restamped.txt")
 	lines += "starting the update stamps over, mid-relight: [lighting_bench_compare_snapshots("[LIGHTING_BENCH_DIR]snapshot_booted.txt", "[LIGHTING_BENCH_DIR]snapshot_restamped.txt")]"
+	lines += lighting_bench_queued_then_doors(z, doors)
 	// A light source destroyed while it sits in the lighting queue, or the null a hard deleted one leaves there, is
 	// dropped from it: SSlighting's fire() used to go round on the one forever, and crash on the other every time it fired
 	var/obj/effect/dummy/lighting_obj/doomed = new(spots[1], LIGHT_COLOR_WHITE, 3, 1)
@@ -121,11 +144,7 @@
 		var/ms = lighting_bench_time(CALLBACK(GLOBAL_PROC, GLOBAL_PROC_REF(lighting_bench_doors), doors)) / (2 * max(1, length(doors)))
 		lines += "airlock opening or closing: [round(ms, 0.001)] ms each"
 
-		var/corners = 0
-		for(var/datum/lighting_corner/C)
-			if(!QDELETED(C))
-				corners++
-		lines += "[corners] lighting corners in the world"
+		lines += lighting_bench_corner_count()
 		lines += lighting_bench_check()
 		lines += lighting_bench_falloff_check(spots.Copy(1, min(length(spots), 100) + 1))
 		lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_[mode].txt")
@@ -377,11 +396,7 @@
 		lighting_bench_flush()
 		lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_tail_[tail_length].txt")
 		lines += lighting_bench_workload_timings("tail [tail_length]", z, spots, doors)
-		var/corners = 0
-		for(var/datum/lighting_corner/C)
-			if(!QDELETED(C))
-				corners++
-		lines += "[corners] lighting corners in the world"
+		lines += lighting_bench_corner_count()
 		lines += lighting_bench_check()
 		lines += lighting_bench_falloff_check(spots.Copy(1, min(length(spots), 100) + 1))
 	QDEL_LIST(lamps)
@@ -732,6 +747,142 @@
 	Master.current_ticklimit = old_limit
 	lighting_bench_flush()
 
+/// Light source -> list(what it gives each corner, as text, the same whichever order it got there in; how it stands; whether
+/// vis_changed; corner "x|y" -> its strength and kind), for every light source on the z-level, to see which ones light
+/// differently from one time to the next (lighting_bench_lights_changed()). Corners are numbered as the engine numbers them:
+/// "x|y" is the corner at x + 0.5, y + 0.5, the northeast corner of turf x,y.
+/proc/lighting_bench_light_prints(z)
+	. = list()
+	var/list/values = list()
+	for(var/datum/light_source/L)
+		if(QDELETED(L) || L.source_turf?.z != z)
+			continue
+		var/list/entries = list()
+		var/list/corners = list()
+		if(SSlighting.native)
+			if(!L.native_id)
+				continue
+			values.Cut()
+			call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_light")(L.native_id, values)
+			for(var/i = 1, i <= length(values), i += 4)
+				entries += "[values[i]]|[values[i + 1]]|[values[i + 2]]|[values[i + 3]]"
+				corners["[values[i]]|[values[i + 1]]"] = "[values[i + 2]][values[i + 3] ? " bounce" : ""]"
+		else
+			for(var/datum/lighting_corner/C as anything in L.effect_str)
+				entries += "[C.x - 0.5]|[C.y - 0.5]|[L.effect_str[C]]|0"
+				corners["[C.x - 0.5]|[C.y - 0.5]"] = "[L.effect_str[C]]"
+			for(var/datum/lighting_corner/C as anything in L.bounce_str)
+				entries += "[C.x - 0.5]|[C.y - 0.5]|[L.bounce_str[C]]|1"
+				corners["[C.x - 0.5]|[C.y - 0.5]"] = "[L.bounce_str[C]] bounce"
+		var/atom/source = L.source_atom
+		var/atom/top = L.top_atom
+		.[L] = list(jointext(sortList(entries), " "), "[source?.type] at [L.source_turf.x],[L.source_turf.y] in [top?.type], [length(entries)] corners; needs_update [L.needs_update], vis_changed [L.vis_changed], range [L.light_range] (atom [source?.light_range]), power [L.light_power] (atom [source?.light_power])", L.vis_changed, corners)
+
+/**
+ * Every light queued to look again with nothing about it changed (a set_light() to what it already had, as machines do all
+ * the time), then airlocks opened before it gets to: what each light sees has changed (vis_update()) while it was queued.
+ * The airlocks' light should come through them as if everything were relit. Closed again and relit after.
+ */
+/proc/lighting_bench_queued_then_doors(z, list/obj/machinery/door/airlock/doors)
+	for(var/datum/light_source/L)
+		if(!QDELETED(L) && L.source_turf?.z == z)
+			L.update()
+	for(var/obj/machinery/door/airlock/door as anything in doors)
+		door.set_opacity(FALSE)
+	lighting_bench_flush()
+	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_queued_doors.txt")
+	var/list/prints = lighting_bench_light_prints(z)
+	SSlighting.relight_all()
+	lighting_bench_flush()
+	lighting_bench_snapshot(z, "[LIGHTING_BENCH_DIR]snapshot_queued_doors_relit.txt")
+	var/different = lighting_bench_count_differences("[LIGHTING_BENCH_DIR]snapshot_queued_doors.txt", "[LIGHTING_BENCH_DIR]snapshot_queued_doors_relit.txt")
+	. = list("lights queued to look again, then [length(doors)] airlocks opened before they did: [different ? "[different] TILES DIFFER from everything relit" : "every tile as relit"]")
+	if(different)
+		. += lighting_bench_lights_changed(prints, lighting_bench_light_prints(z), z)
+	for(var/obj/machinery/door/airlock/door as anything in doors)
+		door.set_opacity(TRUE)
+	SSlighting.relight_all()
+	lighting_bench_flush()
+
+/// The four turfs around a corner "x|y" (see lighting_bench_light_prints()), as they stand now: D dynamically lit, S has light
+/// sources of its own, O opaque, - none of those, X off the map
+/proc/lighting_bench_corner_turfs(key, z)
+	var/list/xy = splittext(key, "|")
+	var/cx = text2num(xy[1])
+	var/cy = text2num(xy[2])
+	var/list/out = list()
+	for(var/list/offset in list(list(0, 0), list(1, 0), list(0, 1), list(1, 1)))
+		var/turf/T = locate(cx + offset[1], cy + offset[2], z)
+		if(!T)
+			out += "X"
+			continue
+		var/state = "[IS_DYNAMIC_LIGHTING(T) ? "D" : ""][length(T.light_sources) ? "S" : ""][IS_OPAQUE_TURF(T) ? "O" : ""]"
+		out += state || "-"
+	return "[cx],[cy] (turfs SW [out[1]] SE [out[2]] NW [out[3]] NE [out[4]])"
+
+/// Which light sources light the corners differently in two sets of lighting_bench_light_prints(), and how they stood in the first
+/// `hot` (lighting_bench_differing_corners()), if given: the corners of the tiles that look different, whose lights are listed first
+/proc/lighting_bench_lights_changed(list/before, list/after, z, listed = 12, list/hot)
+	var/list/changed = list()
+	var/list/changed_hot = list()
+	var/vis_changed = 0
+	for(var/datum/light_source/L as anything in before)
+		var/list/now = after[L]
+		if(!now || now[1] != before[L][1])
+			if(before[L][3])
+				vis_changed++
+			var/list/was_corners = before[L][4]
+			var/list/now_corners = now ? now[4] : list()
+			var/touches = FALSE
+			for(var/key in hot)
+				if(was_corners[key] != now_corners[key])
+					touches = TRUE
+					break
+			if(touches)
+				changed_hot += L
+			else
+				changed += L
+	var/added = 0
+	for(var/datum/light_source/L as anything in after)
+		if(!before[L])
+			added++
+	. = list("  [length(changed) + length(changed_hot)] of [length(before)] lights give their corners different light after it, [vis_changed] of them with vis_changed set before, [length(changed_hot)] on the corners of tiles that look different[added ? ", and [added] lights weren't there before" : ""]")
+	changed = changed_hot + changed
+	for(var/i in 1 to min(length(changed), listed))
+		var/datum/light_source/L = changed[i]
+		var/list/now = after[L]
+		. += "    [before[L][2]]; now [now ? now[2] : "gone"]"
+		if(!now)
+			continue
+		var/list/was_corners = before[L][4]
+		var/list/now_corners = now[4]
+		var/shown = 0
+		for(var/key in was_corners)
+			if(was_corners[key] != now_corners[key] && shown < 4)
+				shown++
+				. += "      [lighting_bench_corner_turfs(key, z)]: [was_corners[key]], now [now_corners[key] || "unlit"]"
+		for(var/key in now_corners)
+			if(isnull(was_corners[key]) && shown < 6)
+				shown++
+				. += "      [lighting_bench_corner_turfs(key, z)]: unlit, now [now_corners[key]]"
+
+/// "N lighting corners in the world": the DM code's corners. Not the stand-in /atom/movable/lighting_object/proc/update() reads
+/// a missing corner as (/datum/lighting_corner/dummy, a static there), which is on no turf and is there with the engine on too.
+/proc/lighting_bench_corner_count()
+	var/corners = 0
+	for(var/datum/lighting_corner/C)
+		if(!QDELETED(C) && !istype(C, /datum/lighting_corner/dummy))
+			corners++
+	return "[corners] lighting corners in the world[SSlighting.native ? " (the engine keeps them, so there should be none)" : ""]"
+
+/// Brings every light source that's waiting for somebody to see it (SSlighting.unseen_cells) up to date, then flushes
+/proc/lighting_bench_catch_up()
+	var/was_deferring = SSlighting.defer_unseen
+	SSlighting.defer_unseen = FALSE
+	SSlighting.update_eyes() // with nothing deferred, it queues every waiting light up
+	SSlighting.defer_unseen = was_deferring
+	lighting_bench_flush()
+
 /proc/lighting_bench_flush()
 	var/old_limit = Master.current_ticklimit
 	Master.current_ticklimit = INFINITY // init_tick_checks mode only stops for CHECK_TICK, which this turns off
@@ -778,7 +929,7 @@
 	var/checked_corners = 0
 	var/bounced_corners = 0
 	for(var/datum/lighting_corner/C)
-		if(QDELETED(C))
+		if(QDELETED(C) || istype(C, /datum/lighting_corner/dummy))
 			continue
 		checked_corners++
 		var/list/sums = expected[C] || list(0, 0, 0, 0, 0, 0)
@@ -924,6 +1075,24 @@
 	for(var/i in 1 to length(a))
 		if(a[i] != b[i])
 			.++
+
+/// The corners ("x|y", as lighting_bench_light_prints() numbers them) of every tile two snapshots have differently lit
+/proc/lighting_bench_differing_corners(path_a, path_b)
+	. = list()
+	var/list/a = splittext(file2text(path_a), "\n")
+	var/list/b = splittext(file2text(path_b), "\n")
+	if(length(a) != length(b))
+		return
+	for(var/i in 1 to length(a))
+		if(a[i] == b[i])
+			continue
+		var/list/words = splittext(a[i], " ")
+		var/x = text2num(words[1])
+		var/y = text2num(words[2])
+		.["[x]|[y]"] = TRUE
+		.["[x]|[y - 1]"] = TRUE
+		.["[x - 1]|[y - 1]"] = TRUE
+		.["[x - 1]|[y]"] = TRUE
 
 /proc/lighting_bench_compare_snapshots(path_a, path_b)
 	var/list/a = splittext(file2text(path_a), "\n")

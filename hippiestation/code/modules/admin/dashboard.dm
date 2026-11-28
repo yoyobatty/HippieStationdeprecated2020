@@ -8,7 +8,8 @@
 // Config: DASHBOARD_PORT (0, the default, is off), DASHBOARD_BIND_ALL (every address; without it, the default, this machine only),
 // DASHBOARD_LOCAL_ONLY (this machine only, even with DASHBOARD_BIND_ALL), DASHBOARD_URL (the address to put in the links, if not
 // http://<the server's address>:<port>: an https proxy in front of it, since plain HTTP sends the link and its cookie in the clear).
-// World param dashboard-port=<port> turns it on for a test run.
+// World param dashboard-port=<port> turns it on for a test run; dashboard-lib=<file> loads the library from another file (a build
+// being tried, tools/review_smoke).
 // SSdashboard only builds what a page is showing while one is open (dashboard_clients()). Included after the bot AI (its states)
 // and the admin alerts (raise()).
 
@@ -27,8 +28,13 @@
 /datum/config_entry/string/dashboard_url	// the dashboard's address for the links, if not http://<server address>:<port>
 	protection = CONFIG_ENTRY_LOCKED
 
-#define DASHBOARD_LIB (world.system_type == UNIX ? "./libhippie_dashboard.so" : "hippie_dashboard")
-#define DASHBOARD_LIB_FILE (world.system_type == UNIX ? "./libhippie_dashboard.so" : "hippie_dashboard.dll")
+/// The library as call_ext() is given it, and its file, the world param dashboard-lib's if given. Protected: call_ext() loads it
+GLOBAL_VAR_INIT(dashboard_lib, world.params["dashboard-lib"] || (world.system_type == UNIX ? "./libhippie_dashboard.so" : "hippie_dashboard"))
+GLOBAL_PROTECT(dashboard_lib)
+GLOBAL_VAR_INIT(dashboard_lib_file, world.params["dashboard-lib"] || (world.system_type == UNIX ? "./libhippie_dashboard.so" : "hippie_dashboard.dll"))
+GLOBAL_PROTECT(dashboard_lib_file)
+#define DASHBOARD_LIB (GLOB.dashboard_lib)
+#define DASHBOARD_LIB_FILE (GLOB.dashboard_lib_file)
 /// How long a link is good for
 #define DASHBOARD_LINK_HOURS 12
 

@@ -4,7 +4,7 @@
 // over each: a calm station, a big gas release, a plasma fire, and hull breaches to space. The same spots get picked
 // every run, so runs compare.
 //
-// Run it:   tools/atmos_bench/run_atmos_bench.sh [profile | series | shadow | trace | machine-times | idle-check | blocker-check | machines]
+// Run it:   tools/atmos_bench/run_atmos_bench.sh [profile | series | shadow | trace | failover | machine-times | idle-check | blocker-check | heat-check | fire-check | machines]
 // or boot:  DreamDaemon hippiestation.dmb -params "atmos-bench=1" ("atmos-bench=profile" to also profile)
 // Results:  data/atmos_bench/results.txt, and with profiling data/atmos_bench/profile.json
 
@@ -15,6 +15,10 @@ GLOBAL_VAR_INIT(atmos_bench_recording, FALSE)
 GLOBAL_VAR_INIT(atmos_bench_series, FALSE)
 /// While set, LINDA runs turfs and the engine has to predict what comes of every tick ("atmos-bench=shadow")
 GLOBAL_VAR(atmos_bench_shadow)
+/// heat-check with -params "atmos-bench-ledger=1": stage -> list(change in the air's heat, in the turfs'), in J, near the spot
+GLOBAL_VAR(atmos_bench_ledger)
+GLOBAL_VAR(atmos_bench_ledger_turfs)
+GLOBAL_VAR(atmos_bench_ledger_last)
 /// How many more ticks to log every burning tile for ("atmos-bench=trace"), and the log
 GLOBAL_VAR_INIT(atmos_bench_trace_left, 0)
 GLOBAL_LIST_EMPTY(atmos_bench_trace)
@@ -46,6 +50,8 @@ GLOBAL_VAR(atmos_bench_updaters)
 // Every stage of SSair is timed while the bench records. Each one can return early to resume next tick, so these add
 // up every piece of it.
 /datum/controller/subsystem/air/fire(resumed = FALSE)
+	if(GLOB.atmos_bench_ledger)
+		atmos_bench_ledger_mark("outside SSair")
 	if(!GLOB.atmos_bench_recording)
 		return ..()
 	var/start = TICK_USAGE_REAL
@@ -159,6 +165,8 @@ GLOBAL_VAR(atmos_bench_updaters)
 		var/start = TICK_USAGE_REAL
 		. = ..()
 		atmos_bench_add("active turfs", start)
+	if(GLOB.atmos_bench_ledger)
+		atmos_bench_ledger_mark("active turfs")
 	if(GLOB.atmos_bench_shadow && !length(currentrun))
 		atmos_bench_shadow_check()
 
@@ -177,6 +185,8 @@ GLOBAL_VAR(atmos_bench_updaters)
 	/// Processed turf -> its air before the tick, as total moles, temperature and the whole mix
 	var/list/before = list()
 	var/ticks = 0
+	/// SSair.times_fired the engine last predicted
+	var/ticks_at = 0
 	var/tiles_checked = 0
 	var/air_wrong = 0
 	var/changed_wrong = 0
@@ -184,6 +194,23 @@ GLOBAL_VAR(atmos_bench_updaters)
 	var/sleep_wrong = 0
 	var/order_wrong = 0
 	var/list/examples = list()
+	/// Heat through walls: what was in SSair.active_super_conductivity when the engine predicted the tick, and turfs the engine
+	/// said were hot enough to start conducting that LINDA didn't start (extra) or LINDA started and the engine didn't (missed)
+	var/list/conducting_before = list()
+	var/hot_checked = 0
+	var/hot_missed = 0
+	var/hot_extra = 0
+	/// The archives heat through walls works from (atmos_bench_shadow_archives()): checked, the engine's this tick's archive
+	/// differing from LINDA's, missing where LINDA archived this tick, there where LINDA didn't
+	var/archives_checked = 0
+	var/archive_wrong = 0
+	var/archive_missing = 0
+	var/archive_extra = 0
+	/// Conducting open turfs LINDA hadn't archived this tick: LINDA's heat through walls works from their old archive, where
+	/// tile_engine_archives() archives them afresh. How many runs found one with the two more than 1 K apart, and the total
+	/// of LINDA's old archive less the air now over those
+	var/archive_old = 0
+	var/archive_old_gap = 0
 
 /// Runs the engine on the air as it is, without using what it says, and keeps that to check LINDA against
 /datum/controller/subsystem/air/proc/atmos_bench_shadow_predict()
@@ -202,6 +229,9 @@ GLOBAL_VAR(atmos_bench_updaters)
 	shadow.hot = list()
 	shadow.new_active = list()
 	shadow.before = list()
+	shadow.conducting_before = list()
+	for(var/turf/T as anything in active_super_conductivity)
+		shadow.conducting_before[T] = TRUE
 	if(!length(need))
 		return
 	while(status == 2)
@@ -209,14 +239,15 @@ GLOBAL_VAR(atmos_bench_updaters)
 		var/list/adjacent = list()
 		tile_engine_pack(need, tiles, adjacent)
 		var/list/wanted = list()
-		status = call_ext("hippie_atmos", "byond:atmos_engine_run")(need, tiles, adjacent, tile_engine_planetary_data, awake, wanted)
+		status = call_ext(GLOB.tile_engine_lib, "byond:atmos_engine_run")(need, tiles, adjacent, tile_engine_planetary_data, awake, wanted)
 		need = wanted
 		awake = 0
 	if(status != 1)
 		CRASH("shadow run failed: [status]")
-	status = call_ext("hippie_atmos", "byond:atmos_engine_results")(shadow.new_active, shadow.changed, shadow.values, shadow.processed, shadow.tickers, shadow.woken, shadow.slept, shadow.joins, list(), list(), list(), list(), list(), shadow.react, list(), list(), shadow.hot)
+	status = call_ext(GLOB.tile_engine_lib, "byond:atmos_engine_results")(shadow.new_active, shadow.changed, shadow.values, shadow.processed, shadow.tickers, shadow.woken, shadow.slept, shadow.joins, list(), list(), list(), list(), list(), shadow.react, list(), list(), shadow.hot)
 	if(status != 1)
 		CRASH("shadow results failed: [status]")
+	shadow.ticks_at = times_fired
 	for(var/turf/open/T as anything in shadow.processed)
 		var/datum/gas_mixture/air = T.air
 		shadow.before[T] = list(air.temperature, air.moles.Copy())
@@ -272,6 +303,21 @@ GLOBAL_VAR(atmos_bench_updaters)
 				for(var/turf/open/N as anything in T.atmos_adjacent_turfs)
 					near += "[N.x],[N.y]([N.air?.temperature] K, [N.active_hotspot ? "burning" : "-"])"
 				shadow.examples += "tick [times_fired], turn [index] of [length(shadow.processed)], ([T.x],[T.y]) [T.type]: worst [worst_gas] by [worst]; was [before[1]] K, engine [expected_temperature] K, LINDA [air.temperature] K; engine moles [json_encode(expected_moles)], LINDA [json_encode(air.moles)]; near: [jointext(near, " ")]"
+	// Hot enough to start heat through walls: LINDA's process_cell() starts it after the turf's reaction, the engine says so in hot
+	var/list/hot = list()
+	for(var/turf/open/T as anything in shadow.hot)
+		hot[T] = TRUE
+	var/list/conducting_now = list()
+	for(var/turf/T as anything in active_super_conductivity)
+		conducting_now[T] = TRUE
+	for(var/turf/open/T as anything in shadow.processed)
+		if(!T.air || !T.thermal_conductivity)
+			continue
+		shadow.hot_checked++
+		if(hot[T] && !conducting_now[T])
+			shadow.hot_extra++
+		else if(!hot[T] && conducting_now[T] && !shadow.conducting_before[T] && !reacted[T]) // DM's react() starts its own
+			shadow.hot_missed++
 	for(var/turf/open/T as anything in shadow.slept)
 		if(T.excited)
 			shadow.sleep_wrong++
@@ -288,7 +334,62 @@ GLOBAL_VAR(atmos_bench_updaters)
 				shadow.order_wrong++
 				break
 
+/// Heat through walls works from turfs' archives. With the engine on, tile_engine_archives() takes them from what the engine
+/// archived this tick and archives every other turf afresh. Here, before LINDA's heat through walls, the engine's archives
+/// from its prediction of this tick are checked against the archives LINDA has.
+/datum/controller/subsystem/air/proc/atmos_bench_shadow_archives()
+	var/datum/atmos_bench_shadow/shadow = GLOB.atmos_bench_shadow
+	if(!length(shadow.processed) || shadow.ticks_at != times_fired)
+		return // the engine didn't predict this tick
+	var/fired = times_fired
+	var/list/wanted = list()
+	var/list/conducting = list()
+	for(var/turf/T as anything in active_super_conductivity)
+		if(isopenturf(T))
+			wanted[T] = TRUE
+			conducting[T] = TRUE
+		for(var/direction in GLOB.cardinals)
+			var/turf/neighbour = get_step(T, direction)
+			if(isopenturf(neighbour))
+				wanted[neighbour] = TRUE
+	if(!length(wanted))
+		return
+	var/list/turf/open/turfs = list()
+	for(var/turf/open/T as anything in wanted)
+		turfs += T
+	var/list/values = list()
+	var/status = call_ext(GLOB.tile_engine_lib, "byond:atmos_engine_archives")(turfs, values)
+	if(status != 1)
+		CRASH("shadow archives failed: [status]")
+	var/at = 1
+	var/old_here = 0
+	for(var/turf/open/T as anything in turfs)
+		var/temperature = values[at++]
+		if(temperature != -1)
+			at += values[at] * 2 + 1
+		var/datum/gas_mixture/air = T.air
+		if(!air || istype(air, /datum/gas_mixture/immutable))
+			continue
+		shadow.archives_checked++
+		var/linda_this_tick = T.archived_cycle >= fired
+		if(temperature == -1)
+			if(linda_this_tick)
+				shadow.archive_missing++
+			else if(conducting[T] && !T.blocks_air && abs(air.temperature_archived - air.temperature) > 1)
+				old_here++
+				shadow.archive_old_gap += air.temperature_archived - air.temperature
+		else if(!linda_this_tick)
+			shadow.archive_extra++
+		else if(abs(temperature - air.temperature_archived) > max(0.01, 1e-5 * temperature))
+			shadow.archive_wrong++
+	shadow.archive_old += old_here
+
 /datum/controller/subsystem/air/process_hotspots(delta_time, resumed = FALSE)
+	if(GLOB.atmos_bench_ledger)
+		atmos_bench_ledger_mark("pipes and machines")
+		. = ..()
+		atmos_bench_ledger_mark("hotspots")
+		return
 	if(!GLOB.atmos_bench_recording)
 		return ..()
 	var/start = TICK_USAGE_REAL
@@ -296,6 +397,10 @@ GLOBAL_VAR(atmos_bench_updaters)
 	atmos_bench_add("hotspots", start)
 
 /datum/controller/subsystem/air/process_excited_groups(resumed = FALSE)
+	if(GLOB.atmos_bench_ledger)
+		. = ..()
+		atmos_bench_ledger_mark("excited groups")
+		return
 	if(!GLOB.atmos_bench_recording)
 		return ..()
 	var/start = TICK_USAGE_REAL
@@ -310,6 +415,13 @@ GLOBAL_VAR(atmos_bench_updaters)
 	atmos_bench_add("wind pushes", start)
 
 /datum/controller/subsystem/air/process_super_conductivity(resumed = FALSE)
+	if(GLOB.atmos_bench_shadow && !resumed)
+		atmos_bench_shadow_archives()
+	if(GLOB.atmos_bench_ledger)
+		atmos_bench_ledger_mark("wind")
+		. = ..()
+		atmos_bench_ledger_mark("heat through walls")
+		return
 	if(!GLOB.atmos_bench_recording)
 		return ..()
 	var/start = TICK_USAGE_REAL
@@ -416,12 +528,30 @@ GLOBAL_VAR(atmos_bench_updaters)
 	if(option == "profile")
 		world.Profile(PROFILE_CLEAR)
 		world.Profile(PROFILE_START)
-	if(option == "series" || option == "shadow")
+	// atmos-bench-shadow=1 shadows any other option (heat-check, say) the same way
+	var/shadowed = option == "shadow" || world.params["atmos-bench-shadow"]
+	if(option == "series" || shadowed)
 		GLOB.atmos_bench_series = TRUE
-	if(option == "shadow")
-		// The library was set up at boot; from here LINDA does the real work and the engine only predicts it
+	if(shadowed)
+		// The library was set up at boot; from here LINDA does the real work and the engine only predicts it. LINDA takes the
+		// awake turfs and groups back from the engine first, as when the engine fails (with atmos-engine-own on it has them all,
+		// and LINDA would start with nothing awake), and the machines the engine watched go back to DM.
+		if(SSair.tile_engine_pending)
+			SSair.tile_engine_follow_up_rest(FALSE)
+		if(SSair.tile_engine_owns)
+			SSair.tile_engine_own_takeback()
+		SSair.tile_engine_machines_let_go()
+		SSair.tile_engine_tracking = FALSE
 		SSair.tile_engine = FALSE
+		// Every turf sends its air: LINDA's own sharing doesn't mark a turf touched, so the air the engine kept would be its
+		// own last guess, not what LINDA made of it, and one wrong tile would stay wrong
+		SSair.tile_engine_air = "off"
 		GLOB.atmos_bench_shadow = new /datum/atmos_bench_shadow
+	if(option == "heat-check" || option == "fire-check")
+		lines += atmos_bench_heat_check(fire_spot, option == "fire-check")
+		atmos_bench_finish(lines)
+		return
+
 	if(option == "machine-times")
 		GLOB.atmos_bench_machine_ms = list()
 		GLOB.atmos_bench_machine_calls = list()
@@ -507,6 +637,7 @@ GLOBAL_VAR(atmos_bench_updaters)
 	var/list/wind = list()
 	var/start_time = world.time
 	var/start_real = REALTIMEOFDAY
+	var/start_ticks = SSair.times_fired
 	var/pack_ms = SSair.tile_engine_pack_ms
 	var/native_ms = SSair.tile_engine_native_ms
 	var/apply_ms = SSair.tile_engine_apply_ms
@@ -515,6 +646,7 @@ GLOBAL_VAR(atmos_bench_updaters)
 	var/total_changed = SSair.tile_engine_total_changed
 	var/total_turns = SSair.tile_engine_total_turns
 	var/air_sent = SSair.tile_engine_air_sent_count
+	var/archives_set = SSair.tile_engine_archives_set
 	var/air_kept = SSair.tile_engine_air_kept_count
 	var/list/series = list()
 	GLOB.atmos_bench_recording = TRUE
@@ -528,22 +660,26 @@ GLOBAL_VAR(atmos_bench_updaters)
 		sleep(1 SECONDS)
 	GLOB.atmos_bench_recording = FALSE
 	var/fires = GLOB.atmos_bench_stage_calls["all of SSair"] || 0
-	. = list("", "[name] - [length / 10] s of game time in [round((REALTIMEOFDAY - start_real) / 10, 0.1)] s real time, SSair fired [fires] times")
+	// fire() calls count the ones that carried on a paused tick; times_fired only counts whole atmos ticks, and a slow engine
+	// gets fewer of them in the same game time (so a fire has had less time to burn)
+	. = list("", "[name] - [length / 10] s of game time in [round((REALTIMEOFDAY - start_real) / 10, 0.1)] s real time, SSair fired [fires] times, [SSair.times_fired - start_ticks] whole atmos ticks")
 	. += series
 	. += "  active turfs: average [atmos_bench_mean(active)], most [max(active)]; excited groups: average [atmos_bench_mean(groups)], most [max(groups)]; hotspots most [max(hotspots)]; wind tiles most [max(wind)]"
 	var/list/stages = list("all of SSair", "active turfs", "excited groups", "hotspots", "wind pushes", "atmos machinery", "pipe networks", "heat through walls", "atoms", "pipe rebuilds")
 	for(var/stage in stages)
 		var/ms = GLOB.atmos_bench_stage_ms[stage] || 0
 		. += "  [stage]: [round(ms, 0.1)] ms total, [fires ? round(ms / fires, 0.01) : 0] ms per SSair fire"
-	if(GLOB.atmos_bench_shadow)
-		var/datum/atmos_bench_shadow/shadow = GLOB.atmos_bench_shadow
-		. += "  shadow, so far: [shadow.ticks] ticks, [shadow.tiles_checked] tiles checked, air wrong on [shadow.air_wrong], ticker wrong on [shadow.ticker_wrong], sleep or wake wrong on [shadow.sleep_wrong], active order wrong on [shadow.order_wrong] ticks"
-		. += shadow.examples
-		shadow.examples = list()
+	. += atmos_bench_shadow_lines()
+	if(!SSair.tile_engine && SSair.tile_engine_version) // the engine was on and went off (failover, shadow): nothing's left to it
+		var/watched = 0
+		for(var/obj/machinery/M as anything in SSair.atmos_machinery)
+			if(M?.atmos_engine_watched)
+				watched++
+		. += "  the tile engine is off: [watched] idle machines still watched by it, [length(SSair.tile_engine_machine_events)] values of watch events waiting for it"
 	if(SSair.tile_engine && fires)
 		. += "  tile engine, ms per SSair fire: packing [round((SSair.tile_engine_pack_ms - pack_ms) / fires, 0.01)], the engine itself [round((SSair.tile_engine_native_ms - native_ms) / fires, 0.01)], following up [round((SSair.tile_engine_apply_ms - apply_ms) / fires, 0.01)]"
 		. += "  tile engine, per SSair fire: [round((SSair.tile_engine_total_packed - total_packed) / fires, 0.1)] turfs packed, [round((SSair.tile_engine_total_turns - total_turns) / fires, 0.1)] had a turn, [round((SSair.tile_engine_total_changed - total_changed) / fires, 0.1)] changed, [round((SSair.tile_engine_total_rounds - total_rounds) / fires, 0.1)] rounds"
-		. += "  tile engine keeping air ([SSair.tile_engine_air]), per SSair fire: [round((SSair.tile_engine_air_sent_count - air_sent) / fires, 0.1)] turfs sent their air, [round((SSair.tile_engine_air_kept_count - air_kept) / fires, 0.1)] the engine had"
+		. += "  tile engine keeping air ([SSair.tile_engine_air]), per SSair fire: [round((SSair.tile_engine_air_sent_count - air_sent) / fires, 0.1)] turfs sent their air, [round((SSair.tile_engine_air_kept_count - air_kept) / fires, 0.1)] the engine had; [round((SSair.tile_engine_archives_set - archives_set) / fires, 0.1)] archives taken for heat through walls"
 		if(SSair.tile_engine_own != "off")
 			var/list/own = SSair.tile_engine_own_checked
 			. += "  tile engine keeping LINDA's state ([SSair.tile_engine_own]): [SSair.tile_engine_groups_broken] group breakdowns and [SSair.tile_engine_groups_dismantled] dismantled in all[SSair.tile_engine_owns ? ", groups' step [round(SSair.tile_engine_groups_ms, 0.1)] ms in all" : ""][length(own) >= 8 ? "; checked [own[1]] ticks: [own[2]] with a different active list, [own[3]] tickers, [own[4]] burning and [own[5]] drawn different, [own[6]] ticks with different groups, [own[7]] group breakdowns checked and [own[8]] different[length(own) >= 9 ? " ([own[9]] not exactly the same)" : ""]" : ""]"
@@ -964,6 +1100,87 @@ GLOBAL_VAR(atmos_bench_updaters)
 	if(!length(reported))
 		. += "  no turf lost its air"
 
+/// Heat through floors without a fire ("atmos-bench=heat-check"): the air on the fire scene's 5 by 5 patch heated to 2000 K
+/// with nothing in it to burn, then where the heat is every 8 atmos ticks (two runs of heat through walls) for 200 ticks.
+/// With `fire` ("atmos-bench=fire-check") it's the fire scene's plasma and oxygen lit instead, on a calm station.
+/// Nothing in either is left to luck and it's counted in atmos ticks, not seconds (LINDA's slower ticks would give it fewer),
+/// so the tile engine and LINDA (ENGINE=linda) should come out the same, tick for tick, until the station's own goings-on
+/// (machines, bots) get in.
+/proc/atmos_bench_heat_check(turf/open/floor/spot, fire = FALSE)
+	var/tiles = 0
+	var/heat = text2num(world.params["atmos-bench-heat"]) || 2000 // -params "atmos-bench-heat=6000" for hotter air
+	// From the start of a tick, so both engines' first look at the hot air is the same tick
+	var/fired = SSair.times_fired
+	UNTIL(SSair.times_fired > fired && SSair.state != SS_RUNNING && SSair.state != SS_PAUSED && SSair.state != SS_PAUSING)
+	var/start = SSair.times_fired
+	for(var/turf/open/floor/F in range(2, spot))
+		var/datum/gas_mixture/air = F.return_air()
+		if(fire)
+			air.assert_gases(/datum/gas/plasma, /datum/gas/oxygen)
+			air.moles[/datum/gas/plasma] += 60
+			air.moles[/datum/gas/oxygen] += 40
+		else
+			air.temperature = heat
+		SSair.add_to_active(F)
+		tiles++
+	if(fire)
+		spot.hotspot_expose(1000, CELL_VOLUME)
+	if(world.params["atmos-bench-ledger"])
+		GLOB.atmos_bench_ledger_turfs = block(locate(spot.x - 12, spot.y - 12, spot.z), locate(spot.x + 12, spot.y + 12, spot.z))
+		GLOB.atmos_bench_ledger = list()
+		GLOB.atmos_bench_ledger_last = null
+		atmos_bench_ledger_mark("start")
+	. = list("", fire ? "Fire check: plasma and oxygen on [tiles] tiles around ([spot.x],[spot.y]), lit at atmos tick [start]" : "Heat check: the air on [tiles] tiles around ([spot.x],[spot.y]) heated to [heat] K at atmos tick [start], nothing to burn")
+	for(var/ticks in 0 to 200 step (fire ? 4 : 8))
+		UNTIL(SSair.times_fired >= start + ticks && SSair.state != SS_RUNNING && SSair.state != SS_PAUSED && SSair.state != SS_PAUSING)
+		. += atmos_bench_series_line(label = "tick [SSair.times_fired - start]") + "; the spot's air [round(spot.air.temperature)] K, its floor [round(spot.temperature)] K"
+		if(world.params["atmos-bench-dump"] && (ticks in list(0, 4, 8)))
+			. += atmos_bench_dump_around(spot, 3)
+		if(GLOB.atmos_bench_ledger && (ticks in list(8, 32, 200)))
+			var/list/parts = list()
+			for(var/stage in GLOB.atmos_bench_ledger)
+				var/list/row = GLOB.atmos_bench_ledger[stage]
+				parts += "[stage] air [round(row[1] / 1e6, 0.1)] turfs [round(row[2] / 1e6, 0.1)]"
+			. += "      heat ledger within 12 tiles so far, MJ: [jointext(parts, "; ")]"
+	. += atmos_bench_shadow_lines()
+	. += atmos_bench_outcome()
+
+/// Every turf within `radius` of `spot`: its kind, air, floor temperature and which way it shares air ("atmos-bench-dump=1")
+/proc/atmos_bench_dump_around(turf/spot, radius)
+	. = list()
+	for(var/turf/T as anything in block(locate(spot.x - radius, spot.y - radius, spot.z), locate(spot.x + radius, spot.y + radius, spot.z)))
+		var/text = "      ([T.x],[T.y]) [T.type], [T.temperature] K"
+		if(isopenturf(T))
+			var/turf/open/O = T
+			var/datum/gas_mixture/air = O.air
+			var/list/near = list()
+			for(var/turf/N as anything in O.atmos_adjacent_turfs)
+				near += "[N.x],[N.y][isspaceturf(N) ? " space" : ""]"
+			text += "; air [air ? "[air.temperature] K, [json_encode(air.moles)], archived [air.temperature_archived] K [json_encode(air.moles_archive)]" : "none"]; shares with [jointext(near, " ")]; excited [O.excited], group [!!O.excited_group]"
+		. += text
+
+/// The heat ledger: what changed in the air's and the turfs' heat (C T, from 0 K) near the spot since the last mark goes to `stage`
+/proc/atmos_bench_ledger_mark(stage)
+	var/air_energy = 0
+	var/turf_energy = 0
+	for(var/turf/T as anything in GLOB.atmos_bench_ledger_turfs)
+		turf_energy += T.heat_capacity * T.temperature
+		if(isopenturf(T))
+			var/turf/open/O = T
+			var/datum/gas_mixture/air = O.air
+			if(air && !istype(air, /datum/gas_mixture/immutable))
+				air_energy += air.heat_capacity() * air.temperature
+	var/list/last = GLOB.atmos_bench_ledger_last
+	if(last)
+		var/list/ledger = GLOB.atmos_bench_ledger
+		var/list/row = ledger[stage]
+		if(!row)
+			row = list(0, 0)
+			ledger[stage] = row
+		row[1] += air_energy - last[1]
+		row[2] += turf_energy - last[2]
+	GLOB.atmos_bench_ledger_last = list(air_energy, turf_energy)
+
 /// Plasma on the station's open turfs outside the lab
 /proc/atmos_bench_plasma_outside(z, list/lab)
 	. = 0
@@ -1133,8 +1350,8 @@ GLOBAL_VAR(atmos_bench_updaters)
 		parts += "[kinds[kind]] [kind]"
 	return "[length(net.members)] pipes, [length(net.other_airs)] machine airs ([jointext(parts, ", ")]), [round(net.air.return_pressure(), 0.1)] kPa"
 
-/// Where a fire's heat is right now ("atmos-bench=series" prints this every 5 seconds of a scene)
-/proc/atmos_bench_series_line(seconds)
+/// Where a fire's heat is right now ("atmos-bench=series" prints this every 5 seconds of a scene). `label` instead of the seconds.
+/proc/atmos_bench_series_line(seconds, label)
 	var/z = SSmapping.levels_by_trait(ZTRAIT_STATION)[1]
 	var/air_heat = 0
 	var/solid_heat = 0
@@ -1161,7 +1378,7 @@ GLOBAL_VAR(atmos_bench_updaters)
 			hottest = max(hottest, air.temperature)
 			if(air.temperature > T0C + 100)
 				hot++
-	return "    [seconds] s: [length(SSair.hotspots)] burning, [SSair.tile_engine_awake_count()] awake, [SSair.tile_engine_groups_count()] groups, [length(SSair.active_super_conductivity)] conducting, plasma [round(plasma)] mol; air heat [round(air_heat / 1e6, 0.1)] MJ, hottest [round(hottest)] K, [hot] over 100 C; turf heat [round(solid_heat / 1e6, 0.1)] MJ, hottest [round(hottest_solid)] K; [low] under 20 kPa"
+	return "    [label || "[seconds] s"]: [length(SSair.hotspots)] burning, [SSair.tile_engine_awake_count()] awake, [SSair.tile_engine_groups_count()] groups, [length(SSair.active_super_conductivity)] conducting, plasma [round(plasma)] mol; air heat [round(air_heat / 1e6, 0.1)] MJ, hottest [round(hottest)] K, [hot] over 100 C; turf heat [round(solid_heat / 1e6, 0.1)] MJ, hottest [round(hottest_solid)] K; [low] under 20 kPa"
 
 /// What the station's air looks like now, to compare how the engines behave: totals over every open station turf
 /proc/atmos_bench_outcome()
@@ -1206,6 +1423,17 @@ GLOBAL_VAR(atmos_bench_updaters)
 		if(air && !istype(air, /datum/gas_mixture/immutable) && air.temperature > T20C)
 			air_heat += air.heat_capacity() * (air.temperature - T20C)
 	return "  air now, over [open] open station turfs: [round(total)] mol in all; N2O [round(n2o)] mol, on [n2o_tiles] turfs with a mole or more; plasma [round(plasma)] mol; [low_pressure] turfs under 20 kPa; [hot] turfs over 100 C; heat over 20 C: [round(air_heat / 1e6, 0.1)] MJ in the air, [round(solid_heat / 1e6, 0.1)] MJ in turfs"
+
+/// The shadow's counts so far and its examples since the last call (none without "atmos-bench=shadow")
+/proc/atmos_bench_shadow_lines()
+	. = list()
+	var/datum/atmos_bench_shadow/shadow = GLOB.atmos_bench_shadow
+	if(!shadow)
+		return
+	. += "  shadow, so far: [shadow.ticks] ticks, [shadow.tiles_checked] tiles checked, air wrong on [shadow.air_wrong], ticker wrong on [shadow.ticker_wrong], sleep or wake wrong on [shadow.sleep_wrong], active order wrong on [shadow.order_wrong] ticks"
+	. += "  shadow heat through walls, so far: [shadow.hot_checked] turns checked for starting it, the engine's hot list missed [shadow.hot_missed] and had [shadow.hot_extra] extra; [shadow.archives_checked] archives checked, [shadow.archive_wrong] wrong, [shadow.archive_missing] missing, [shadow.archive_extra] extra; [shadow.archive_old] times a conducting turf LINDA hadn't archived this tick worked from an old archive, [shadow.archive_old ? round(shadow.archive_old_gap / shadow.archive_old, 0.1) : 0] K above its air on average"
+	. += shadow.examples
+	shadow.examples = list()
 
 /proc/atmos_bench_mean(list/values)
 	if(!length(values))

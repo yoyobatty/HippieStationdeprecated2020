@@ -8,7 +8,9 @@
 //	          other code took before the MC's turn, admin actions in that time.
 //	Asleep    a subsystem whose fire() slept and hasn't come back. The MC skips it until it does, and the Failsafe can't see it
 //	          (the MC itself carries on). Warned at 10 s, started afresh at 60 s (the user's ruling); if the old fire() wakes
-//	          later it finishes, but leaves the state alone (fire_generation, subsystem.dm).
+//	          later it finishes, but leaves the state alone (fire_generation, subsystem.dm): it stops at its first MC_TICK_CHECK,
+//	          and that pause() doesn't touch the new run's state (current_run()). One with no MC_TICK_CHECK left runs to its end
+//	          beside the new run, which nothing in DM can stop: the log says when it did, and the MC tab shows it until then.
 //	Offline   a subsystem that stopped the MC three times is off for 5 minutes, then gets one more chance; a fourth time keeps
 //	          it off until an admin turns it on (master.dm Recover(), the user's ruling). Its alert has a link to turn it on.
 //	Timers    SStimer 5 s or more behind world.time while the game runs at full speed: every timer late, which looks to players like
@@ -158,13 +160,18 @@ GLOBAL_REAL_VAR(mc_watchdog_emptied_real) = -INFINITY
 		parts += "Behind [backlog_count] (worst pass [round(backlog_worst / 10)] s)"
 	var/list/asleep = list()
 	var/list/offline = list()
+	var/list/stale = list()
 	for(var/datum/controller/subsystem/SS as anything in Master?.subsystems)
 		if(SS.asleep_warned)
 			asleep += SS.name
 		if(SS.watchdog_offline)
 			offline += SS.name
+		if(SS.stale_fires)
+			stale += SS.name
 	if(asleep.len)
 		parts += "Asleep: [jointext(asleep, ", ")]"
+	if(stale.len) // a fire() started afresh whose old one hasn't returned: it may still wake and run on beside the new one
+		parts += "Old fire() out: [jointext(stale, ", ")]"
 	if(offline.len)
 		parts += "Offline: [jointext(offline, ", ")]"
 	return jointext(parts, " | ")
@@ -202,12 +209,14 @@ GLOBAL_REAL_VAR(mc_watchdog_emptied_real) = -INFINITY
 			log_world("MC watchdog: [SS.name]'s fire() has been asleep [round(asleep / 10)] s.")
 			mc_watchdog_alert("[SS.name]'s fire() slept and hasn't come back for [round(asleep / 10)] s: it doesn't run until it does. Started afresh at 60 s.", SS.watchdog_link("wake", "START IT NOW"))
 
-/// Start a subsystem whose fire() is asleep afresh. Its old fire() may still wake: it finishes, but leaves the state alone.
+/// Start a subsystem whose fire() is asleep afresh. Its old fire() may still wake: it finishes, but leaves the state alone, and
+/// its pause() leaves the new run's alone (stale_fires, subsystem.dm pause()).
 /proc/mc_watchdog_wake(datum/controller/subsystem/SS)
 	if(SS.state != SS_SLEEPING && SS.state != SS_PAUSING)
 		return FALSE
 	log_world("MC watchdog: starting [SS.name] afresh, its fire() asleep since [SS.asleep_since].")
 	SS.fire_generation++
+	SS.stale_fires++
 	SS.state = SS_IDLE
 	SS.paused_ticks = 0
 	SS.paused_tick_usage = 0

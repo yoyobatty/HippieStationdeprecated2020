@@ -16,7 +16,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/__DEFINES/tgs.dm (TGS DMAPI 7.4.0, the upstream file as released; was 5.2.7)
 ## code/__HELPERS/\_logging.dm
 ## code/__HELPERS/AStar.dm
-## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick; get_mobs_in_radio_ranges() doesn't ask a radio with nobody but radios in reach; a remembered list skips mobs deleted since)
+## code/__HELPERS/game.dm (get_hearers_in_view(): radios found once, a hearer added once, each tile and range remembered for the tick; get_mobs_in_radio_ranges() doesn't ask a radio with nobody but radios in reach; a remembered list skips mobs deleted since; the memo is a global let go of by a timer once its tick is over, clear_hearers_memo())
 ## code/__HELPERS/icon_smoothing.dm (SMOOTH_GROUP_POOL_WATER, MAX_S_TURF 41: pool water edges, pool_water_look.dm)
 ## code/__HELPERS/icons.dm
 ## code/__HELPERS/mobs.dm (do_after(), do_mob(), do_after_mob() refuse a deleted mob)
@@ -31,8 +31,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/configuration/entries/dbconfig.dm
 ## code/controllers/configuration/entries/general.dm (default client view is 19x15, with 15x15 for the square preference)
 ## code/controllers/failsafe.dm
-## code/controllers/master.dm (starts the lobby build once startup is done, and lets it set its own tick limit while it runs: build_ticklimit, lobby_build.dm)
-## code/controllers/subsystem.dm
+## code/controllers/master.dm (starts the lobby build once startup is done, and lets it set its own tick limit while it runs: build_ticklimit, lobby_build.dm; RunQueue() hands ignite() the run's fire_generation, and counts the fire()s it gives up on (stale_fires))
+## code/controllers/subsystem.dm (ignite() takes the run's generation; pause() from a fire() the MC gave up on leaves the new run's state alone, current_run())
 ## code/controllers/subsystem/adjacent_air.dm (out of the .dme: its queue is SSair's first stage now, as on tg later)
 ## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second; setup_template_machinery() runs atmosinit() before the pipelines; fire() starts with tile_engine_fire_start(): a world that grew restarts the engine, and a paused follow-up carries on)
 ## code/controllers/subsystem/assets.dm
@@ -204,7 +204,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/atmospherics/machinery/components/binary_devices/valve.dm (user, not usr: null when a bot does it)
 ## code/modules/atmospherics/machinery/components/components_base.dm (update_parents() marks pipe air for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/trinary_devices/mixer.dm (pipe air marked for the tile engine, pipe_engine.dm)
-## code/modules/atmospherics/machinery/components/unary_devices/cryo.dm (pipe air marked for the tile engine after the cell uses oxygen or swaps heat, pipe_engine.dm)
+## code/modules/atmospherics/machinery/components/unary_devices/cryo.dm (pipe air marked for the tile engine after the cell uses oxygen or swaps heat, pipe_engine.dm; process_occupant() uses its 2 / efficiency moles of oxygen instead of leaving that much)
 ## code/modules/atmospherics/machinery/components/unary_devices/thermomachine.dm (pipe air marked for the tile engine, pipe_engine.dm)
 ## code/modules/atmospherics/machinery/components/unary_devices/vent_pump.dm
 ## code/modules/atmospherics/machinery/components/unary_devices/vent_scrubber.dm (idle when there's nothing to do; auto_use_power() looks the area up once)
@@ -247,7 +247,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/library/random_books.dm
 ## code/modules/lighting/lighting_object.dm (next to its turf, update_starlight() only when the space isn't lit yet; lighting v2: an opaque turf is drawn as one face in its brightest corner's colour, draw())
 ## code/modules/lighting/lighting_corner.dm (the tone curve in update_objects(): light past the knee eases toward full instead of being cut off at 1, see ~hippie_defines/lighting_tone.dm)
-## code/modules/lighting/lighting_source.dm (lighting v2: falloff_at_coord() takes light_v2_falloff() for lamps, and v2 sheets have keys of their own, see lighting_v2_lamps.dm; a failed native remove or relight fails over to DM)
+## code/modules/lighting/lighting_source.dm (lighting v2: falloff_at_coord() takes light_v2_falloff() for lamps, and v2 sheets have keys of their own, see lighting_v2_lamps.dm; a failed native remove or relight fails over to DM; update_corners(): a queued check with what the light sees changed looks again, so a door opening by it lets its light through)
 ## code/modules/lighting/lighting_turf.dm (native lighting: lighting_build_overlay() hands the corners to the engine, and a failed recalc fails over to DM, lighting_engine.dm)
 ## code/modules/mapping/map_template.dm (tile engine neighbour cache, tile_engine.dm; a ruin on a level the lobby build is making loads as at startup)
 ## code/modules/mapping/reader.dm (plain turf-and-area tiles made in _load_impl(); parsing by hippie_map.dll, map_engine.dm)

@@ -221,7 +221,7 @@
 			if(reagent_transfer == 0) // Magically transfer reagents. Because cryo magic.
 				beaker.reagents.trans_to(occupant, 1, efficiency * 0.25) // Transfer reagents.
 				beaker.reagents.reaction(occupant, VAPOR)
-				air1.moles[/datum/gas/oxygen] -= max(0,air1.moles[/datum/gas/oxygen] - 2 / efficiency) //Let's use gas for this
+				air1.moles[/datum/gas/oxygen] = max(0,air1.moles[/datum/gas/oxygen] - 2 / efficiency) //Let's use gas for this // hippie -- was -=, which left 2 / efficiency moles instead of using that much
 				air1.garbage_collect()
 				PIPE_AIR_TOUCH(air1) // hippie -- the pipe engine keeps this air: send it again or the oxygen comes back (pipe_engine.dm)
 			if(++reagent_transfer >= 10 * efficiency) // Throttle reagent transfer (higher efficiency will transfer the same amount but consume less from the beaker).

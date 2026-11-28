@@ -4,7 +4,8 @@
 // First choice: hippie_prof.dll (tools/hippie_prof), our own. A hook on byondcore's exec_proc keeps a shadow stack of proc ids
 // and a thread of its own samples it every millisecond: +3 ns a proc call (516.1688, 117 -> 120 ns), on all round, every proc
 // counted; and it keeps the last ~65 s of samples, so a freeze is put down to the proc that held the server. It knows the BYOND
-// builds whose insides it has the addresses for (516.1666, 516.1688) and refuses any other.
+// builds whose insides it has the addresses for (516.1666, 516.1688, 516.1689) and refuses any other.
+// -params "prof-lib=<path to a .dll>" loads another build of it (one being tried out while running servers have hippie_prof.dll open).
 //
 // Otherwise BYOND's own, world.Profile, which adds ~255 ns to every proc call while it's on (a call 110 -> 365 ns; loops
 // without calls the same), all inside byondcore. Over a round that was +20-45% on every subsystem (Bot Shifts side by side,
@@ -13,7 +14,9 @@
 // within 0.17 points a proc of the full one's. PROFILE 30 S on a lag alert (mc_watchdog.dm) turns it fully on for 30 s.
 // BYOND_PROFILER in config.txt uses BYOND's whatever the DLL can do.
 
-#define HIPPIE_PROF_DLL "hippie_prof.dll"
+/// The DLL: hippie_prof.dll, or the build named by -params "prof-lib=..." (as atmos-lib and lighting-lib do for theirs)
+GLOBAL_VAR_INIT(hippie_prof_lib, world.params["prof-lib"] || "hippie_prof.dll")
+#define HIPPIE_PROF_DLL (GLOB.hippie_prof_lib)
 
 /// Calls one of hippie_prof.dll's procs; "error: ..." when there's no DLL
 /proc/hippie_prof(proc_name, arg)

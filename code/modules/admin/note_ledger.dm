@@ -28,11 +28,12 @@
 	var/lasteditor_key
 	var/edits
 	var/deleted = FALSE
+	var/maybe_sent = FALSE // hippie -- its INSERT got no answer (the connection dropped under it): it may be in the database already, so db_flush() looks for it before sending it again
 
 GENERAL_PROTECT_DATUM(/datum/note_record)
 
 /datum/note_record/proc/fields()
-	var/static/list/names = list("id", "kind", "targetckey", "target_key", "adminckey", "admin_key", "text", "timestamp", "timestamp_rt", "server", "round_id", "secret", "expire_rt", "severity", "lasteditor", "lasteditor_key", "edits", "deleted")
+	var/static/list/names = list("id", "kind", "targetckey", "target_key", "adminckey", "admin_key", "text", "timestamp", "timestamp_rt", "server", "round_id", "secret", "expire_rt", "severity", "lasteditor", "lasteditor_key", "edits", "deleted", "maybe_sent") // hippie -- maybe_sent
 	return names
 
 /datum/note_record/proc/to_list()
@@ -84,7 +85,27 @@ GENERAL_PROTECT_DATUM(/datum/note_record)
 	. = warn ? query_note_insert.warn_execute(async) : query_note_insert.Execute(async)
 	if(. && query_note_insert.last_insert_id) // hippie -- its new id, for db_flush()'s moved_ids
 		. = num2text(query_note_insert.last_insert_id, 12)
+	if(!. && query_note_insert.unanswered) // hippie -- no answer: it may have gone in (maybe_sent)
+		maybe_sent = TRUE
 	qdel(query_note_insert)
+
+// hippie start -- after an INSERT that got no answer: the id it went in with after all, "none" if it didn't, null if the database
+// couldn't be asked, "refused" if it said no. The same note by the same admin, made at the same time by the database's clock (ten
+// minutes either way: world.realtime is coarse), is taken for it.
+/datum/note_record/proc/db_find_sent()
+	var/datum/DBQuery/query_note_sent = SSdbcore.NewQuery("SELECT id FROM [format_table_name("messages")] WHERE type = :kind AND targetckey = :targetckey AND adminckey = :adminckey AND text = :text AND timestamp BETWEEN NOW() - INTERVAL :oldest SECOND AND NOW() - INTERVAL :newest SECOND ORDER BY id DESC LIMIT 1", list(
+		"kind" = "[kind]",
+		"targetckey" = "[targetckey]",
+		"adminckey" = "[adminckey]",
+		"text" = "[text]",
+		"oldest" = max(0, round((world.realtime - timestamp_rt) / 10)) + 600,
+		"newest" = max(0, round((world.realtime - timestamp_rt) / 10)) - 600)) //signed: an unsigned age - 600 would overflow
+	if(query_note_sent.Execute())
+		. = query_note_sent.NextRow() ? query_note_sent.item[1] : "none"
+	else
+		. = query_note_sent.unanswered ? null : "refused"
+	qdel(query_note_sent)
+// hippie end
 
 //One note as every reader gets it
 /proc/note_row(id, kind, target_ckey, target_key, admin_key, text, timestamp, server, round_id, secret, severity, expires, age_days, editor_key, edits, local)
@@ -192,9 +213,10 @@ SUBSYSTEM_DEF(notes)
 	R.expire_rt = expire_rt
 	R.severity = severity
 	if(use_db())
-		if(!R.db_insert(timestamp, warn = TRUE)) //an old note brought over keeps its date
+		if(R.db_insert(timestamp, warn = TRUE)) //an old note brought over keeps its date
+			return "database"
+		if(!R.maybe_sent) // hippie -- refused. With no answer it's kept here, as when the database is down, and db_flush() checks first
 			return
-		return "database"
 	R.id = "L[next_local_id++]"
 	records[R.id] = R
 	save()
@@ -362,9 +384,21 @@ SUBSYSTEM_DEF(notes)
 		var/datum/note_record/R = records[id]
 		if(!R || refused[id])
 			continue
-		var/new_id = R.db_insert()
+		var/new_id
+		if(R.maybe_sent) //its INSERT got no answer, so it may be in already: looked for before it's sent again
+			new_id = R.db_find_sent()
+			if(!new_id)
+				break
+			if(new_id == "refused") //the check itself was refused: kept here, and looked for again at the next check
+				log_sql("Notes: the database refused the check for [R.kind] [R.id], whose INSERT got no answer; keeping it on this server")
+				continue
+			if(new_id == "none")
+				new_id = null
+			R.maybe_sent = FALSE
 		if(!new_id)
-			if(!SSdbcore.IsConnected())
+			new_id = R.db_insert()
+		if(!new_id)
+			if(R.maybe_sent || !SSdbcore.IsConnected()) //no answer (db_insert() set maybe_sent): tried again at the next check, not refused
 				break
 			refused[id] = TRUE
 			log_sql("Notes: the database refused [R.kind] [R.id] for [R.targetckey], keeping it on this server")

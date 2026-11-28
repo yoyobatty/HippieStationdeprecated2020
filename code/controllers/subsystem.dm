@@ -40,6 +40,8 @@
 	/// Bumped when the MC gives up on a fire() that slept and never came back: that fire() may still wake, and mustn't touch the
 	/// state of the runs after it
 	var/fire_generation = 0
+	/// How many of those given-up fire()s haven't returned yet. While any is out, pause() checks which run is asking (current_run())
+	var/stale_fires = 0
 	/// Taken offline for stopping the MC: the world.time it gets its last chance, or -1 for "until an admin turns it back on"
 	var/watchdog_offline = 0
 	/// When the watchdog first saw its fire() asleep (world.time), which fire() that was (times_fired), whether admins were told
@@ -62,10 +64,11 @@
 	return
 
 //This is used so the mc knows when the subsystem sleeps. do not override.
-/datum/controller/subsystem/proc/ignite(resumed = FALSE)
+// hippie -- `generation` is the run's fire_generation, an argument rather than a local so that pause() can read it off this frame
+// (current_run()): RunQueue passes it
+/datum/controller/subsystem/proc/ignite(resumed = FALSE, generation = fire_generation)
 	set waitfor = FALSE
 	. = SS_SLEEPING
-	var/generation = fire_generation
 	var/started_real = world.timeofday // raw: REALTIMEOFDAY's midnight check costs a global and sometimes a proc call, every fire
 	var/started_time = world.time
 	fire(resumed)
@@ -76,6 +79,10 @@
 	if (held * 100 > MC_LONG_FIRE_MS && world.time - started_time <= world.tick_lag * 2) // a long sleep through lag isn't holding it
 		Master.last_long_fire = list(name, held * 100, world.time)
 	if (generation != fire_generation) // hippie -- woke after the MC gave up on it and started it afresh: the state is the new run's
+		stale_fires = max(0, stale_fires - 1)
+		// It ran on beside the new run from where it woke to its end, or to its first MC_TICK_CHECK: nothing in DM can stop a
+		// proc from outside, so it's told here
+		log_world("MC: [name]'s fire() that the MC had given up on woke and returned, [round((world.time - started_time) / 10, 0.1)] s after it started. The state was left to the run after it.")
 		return
 	. = state
 	if (state == SS_SLEEPING)
@@ -186,7 +193,28 @@
 		if(SS_RUNNING)
 			state = SS_PAUSED
 		if(SS_SLEEPING)
+			// hippie -- only the run the MC counts. A fire() it gave up on (fire_generation) that wakes while the run after it is
+			// asleep would turn that run's SS_SLEEPING into SS_PAUSING, and the MC would resume it once it ended. It still gets 1,
+			// so it stops at this MC_TICK_CHECK. (SS_RUNNING needs no check: the state is SS_RUNNING only while the MC is in
+			// ignite(), and a woken proc never runs then.)
+			if(stale_fires && !current_run())
+				return
 			state = SS_PAUSING
+
+/// hippie -- whether the fire() calling pause() is the run the MC counts now, not one it gave up on: up the callers to its
+/// ignite(), whose generation argument says (BYOND 515+ callee frames keep it across a sleep: tools/mc_check/callee_probe.dm;
+/// ~0.3 us for a short walk). TRUE when it can't tell (no ignite() in 64 frames: fire() called by hand), as before. Only asked
+/// while a given-up fire() is out and the state is SS_SLEEPING, so MC_TICK_CHECK and the usual pause() cost nothing more.
+/datum/controller/subsystem/proc/current_run()
+	var/callee/frame = caller
+	for(var/i in 1 to 64)
+		if(!frame)
+			return TRUE
+		if(frame.proc == /datum/controller/subsystem/proc/ignite && frame.src == src)
+			var/list/frame_args = frame.args
+			return length(frame_args) < 2 || isnull(frame_args[2]) || frame_args[2] == fire_generation
+		frame = frame.caller
+	return TRUE
 
 
 //used to initialize the subsystem AFTER the map has loaded

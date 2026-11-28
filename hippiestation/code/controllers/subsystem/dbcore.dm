@@ -117,16 +117,19 @@ SUBSYSTEM_DEF(dbcore)
 	log_sql("Connect() failed ([failed_connections] in a row, next try in [wait / 10] s) | [last_error]")
 	return FALSE
 
-/// rust_g's options for a pool: timeout in seconds (0 is no limit)
+/// rust_g's options for a pool. timeout: the most seconds a query keeps its caller waiting (0 is no limit). rust_g gets half of it:
+/// a read or write that times out is followed by one more read, as long again, as rust_g drops the broken connection (rust_g 7.1,
+/// measured 2026-11-28: read_timeout 5 answered SLEEP(20) after 10 s, 2.5 after 5 s). It takes fractions of a second.
 /datum/controller/subsystem/dbcore/proc/pool_options(timeout, min_threads, max_threads)
+	var/io_timeout = timeout > 0 ? timeout / 2 : null
 	return list(
 		"host" = CONFIG_GET(string/address),
 		"port" = CONFIG_GET(number/port),
 		"user" = CONFIG_GET(string/feedback_login),
 		"pass" = CONFIG_GET(string/feedback_password),
 		"db_name" = CONFIG_GET(string/feedback_database),
-		"read_timeout" = timeout || null,
-		"write_timeout" = timeout || null,
+		"read_timeout" = io_timeout,
+		"write_timeout" = io_timeout,
 		"min_threads" = min_threads,
 		"max_threads" = max_threads,
 	)
@@ -329,6 +332,9 @@ Returns TRUE if every query went in.
 	var/in_progress
 	/// The pool handle the last run went to, so a lost connection only throws that pool away (Execute())
 	var/ran_on
+	/// The last run got no answer: the database couldn't be reached, the connection dropped under it, or it timed out, as against
+	/// the database saying no. A write may have gone in all the same: callers keep what it was for and check before sending it again.
+	var/unanswered = FALSE
 
 /datum/DBQuery/New(sql_query, list/arguments)
 	SSdbcore.active_queries[src] = TRUE
@@ -366,28 +372,37 @@ Returns TRUE if every query went in.
 	if(in_progress)
 		CRASH("Attempted to start a new query while waiting on the old one")
 	Close()
+	unanswered = FALSE
 	if(!SSdbcore.Connect())
 		last_error = "No connection! ([SSdbcore.ErrorMsg()])"
+		unanswered = TRUE
 		return FALSE
 
 	var/start_time = REALTIMEOFDAY
 	. = run_query(async)
 	if(!. && is_connection_error(last_error))
-		//the database went away (restarted or killed): a new pool, and a read is run again on it. A write isn't, since it may
-		//already have gone in before the connection dropped. Only the pool this query ran on is thrown away, and only if it's still
-		//the one in use: other queries that hit the same loss while this one waited may have made a new one already.
+		//the database went away (restarted or killed): a new pool, and the query is run again on it when that's safe: a read, or
+		//anything that was never sent ("offline": its pool was thrown away by another query's loss before rust_g could use it).
+		//A write that was sent isn't, since it may already have gone in before the connection dropped: unanswered tells the
+		//caller. Only the pool this query ran on is thrown away, and only if it's still the one in use: other queries that hit the
+		//same loss while this one waited may have made a new one already.
 		log_sql("Lost the database connection: [last_error]")
+		var/never_sent = last_error == "offline"
 		if(ran_on && ran_on == SSdbcore.connection)
 			SSdbcore.Disconnect()
 		else if(ran_on && ran_on == SSdbcore.blocking_connection)
 			rustg_sql_disconnect_pool(ran_on)
 			SSdbcore.blocking_connection = null
+		unanswered = TRUE
 		if(SSdbcore.Connect())
 			log_sql("Connection reestablished")
-			if(findtext(trim(sql), "SELECT", 1, 7))
+			if(never_sent || findtext(trim(sql), "SELECT", 1, 7))
 				. = run_query(async)
+				unanswered = !. && !isnull(error_kind(last_error))
 		else
 			log_sql("Couldn't reestablish the database connection.")
+	else if(!.)
+		unanswered = error_kind(last_error) == "slow" //timed out: a write may still go in
 	var/took = REALTIMEOFDAY - start_time
 	SSdbcore.queries_run++
 	if(!.)
@@ -401,15 +416,35 @@ Returns TRUE if every query went in.
 		if(!async)
 			log_query_debug("Slow blocking query ([took / 10] s): [sql]")
 
-/// Driver and network errors, as against the database refusing the SQL ("MySqlError { ERROR 1064 ... }"). A read or write that ran
-/// out of time (an IoError of kind TimedOut or WouldBlock, or a pool that waited too long for a free connection) is a slow query or
-/// a busy pool, not a lost database: the pool drops a broken connection itself, and a new pool would only kill the queries in flight.
+/// Driver and network errors, as against the database refusing the SQL ("MySqlError { ERROR 1064 ... }"). rust_g gives a socket's
+/// error as "IoError { ... }" or "CodecError { IO error: `... (os error N)' }". A read or write that ran out of time on a connection
+/// that's up (os error 10060 or 10035 on Windows, 11 on Linux, or a pool that waited too long for a free connection) is a slow
+/// query or a busy pool, not a lost database: the pool drops a broken connection itself, and a new pool would only kill the
+/// queries in flight. tools/ban_check's bounce test runs this on each kind (run_ban_selftest_errors()).
 /datum/DBQuery/proc/is_connection_error(error)
+	return error_kind(error) == "lost"
+
+/// "lost" (a lost connection, or none to be had), "slow" (timed out on a connection that's up), or null (the database's answer,
+/// or nothing to do with the connection)
+/datum/DBQuery/proc/error_kind(error)
 	if(!error || findtext(error, "MySqlError") || findtext(error, "named parameter"))
-		return FALSE
-	if((findtext(error, "timed out") || findtext(error, "TimedOut") || findtext(error, "WouldBlock")) && !findtext(error, "Could not connect") && !findtext(error, "ConnectionRefused"))
-		return FALSE
-	return findtext(error, "IoError") || findtext(error, "Could not connect") || findtext(error, "ConnectionClosed") || findtext(error, "gone away") || findtext(error, "Lost connection") || findtext(error, "offline")
+		return
+	//couldn't connect at all: refused, or timed out connecting (10060 here is a connect, not a read)
+	if(findtext(error, "Could not connect") || findtext(error, "ConnectionRefused"))
+		return "lost"
+	//dropped under a query: reset (10054, Linux 104), aborted (10053, 103), refused (10061, 111), the server closing it, a broken
+	//pipe (32), or TCP giving up on a peer that's gone (Linux 110: its read timeout is 11)
+	var/static/list/lost = list("os error 10054)", "os error 10053)", "os error 10061)", "os error 104)", "os error 103)", "os error 111)", "os error 32)", "os error 110)",
+		"server disconnected", "broken pipe", "ConnectionReset", "ConnectionAborted", "ConnectionClosed", "UnexpectedEof", "gone away", "Lost connection")
+	for(var/sign in lost)
+		if(findtext(error, sign))
+			return "lost"
+	var/static/list/slow = list("os error 10060)", "os error 10035)", "os error 11)", "timed out", "TimedOut", "WouldBlock", "temporarily unavailable")
+	for(var/sign in slow)
+		if(findtext(error, sign))
+			return "slow"
+	if(findtext(error, "IoError") || findtext(error, "IO error") || error == "offline")
+		return "lost"
 
 /datum/DBQuery/proc/run_query(async)
 	var/connection = async ? SSdbcore.connection : SSdbcore.blocking_pool()
