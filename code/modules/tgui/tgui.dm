@@ -228,6 +228,7 @@
 		"observer" = isobserver(user),
 		"window" = window_id,
 		"noclose" = no_close, // hippie
+		"centre" = !initialized, // hippie -- the page centres a UI's window on the map the first time it's shown, not when it's shown again (tgui-next index.js)
 		// NOTE: Intentional \ref usage; tgui datums can't/shouldn't
 		// be tagged, so this is an effective unwrap
 		"ref" = "\ref[src]"

@@ -1,5 +1,7 @@
 # Pictures of the game window for nano_hud_check.dm: PrintWindow, so it doesn't need to be on top. Each name that turns up in
 # data/keycheck_shot becomes data/previews/<name>.png; data/keycheck_shots_done ends it. Used by run.sh.
+# Names: popup_* is a popup alone, screen_* the whole screen, desk_* the game window with its popups where they sit on it.
+# data/keycheck_rects asks where the map, the game window and a popup really are (data/keycheck_rects_out).
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
 using System;
@@ -60,6 +62,16 @@ public class WindowShot {
 		}, IntPtr.Zero);
 		return list.ToString();
 	}
+	// Every visible popup of this DreamSeeker, the one on top first
+	public static IntPtr[] Popups(int pid, IntPtr main) {
+		var list = new System.Collections.Generic.List<IntPtr>();
+		EnumWindows(delegate(IntPtr h, IntPtr p) {
+			uint owner; GetWindowThreadProcessId(h, out owner);
+			if (owner == pid && h != main && IsWindowVisible(h)) list.Add(h);
+			return true;
+		}, IntPtr.Zero);
+		return list.ToArray();
+	}
 	// The map is the biggest "Static" child (posted mouse messages only register on that one).
 	public static IntPtr FindMap(IntPtr main) {
 		IntPtr best = IntPtr.Zero; int area = 0;
@@ -116,9 +128,59 @@ while ((Get-Date) -lt $deadline -and -not (Test-Path "$data\keycheck_shots_done"
 			Say "hover: page at $x,$y"
 		}
 	}
+	if (Test-Path "$data\keycheck_rects") { # where the windows really are, from Windows, not BYOND: the map's own window, the game
+		# window and the popup of that "WxH" (or the biggest), as "name left top right bottom" lines in data/keycheck_rects_out
+		$want = ([IO.File]::ReadAllText("$data\keycheck_rects")).Trim()
+		Remove-Item "$data\keycheck_rects"
+		$out = New-Object System.Text.StringBuilder
+		$rr = New-Object WindowShot+RECT
+		[WindowShot]::GetWindowRect([WindowShot]::FindMap($h), [ref]$rr) | Out-Null
+		[void]$out.AppendLine("map $($rr.l) $($rr.t) $($rr.r) $($rr.b)")
+		[WindowShot]::GetWindowRect($h, [ref]$rr) | Out-Null
+		[void]$out.AppendLine("main $($rr.l) $($rr.t) $($rr.r) $($rr.b)")
+		$popup = [WindowShot]::FindPopup($p.Id, $h, $want)
+		if ($popup -eq [IntPtr]::Zero -and $want -ne "") { $popup = [WindowShot]::FindPopup($p.Id, $h, "") } # a title bar makes it taller
+		if ($popup -eq [IntPtr]::Zero) { $popup = [WindowShot]::FindPopup($p.Id, $h, "*") }
+		if ($popup -eq [IntPtr]::Zero) { [void]$out.AppendLine("popup none") } else {
+			[WindowShot]::GetWindowRect($popup, [ref]$rr) | Out-Null
+			[void]$out.AppendLine("popup $($rr.l) $($rr.t) $($rr.r) $($rr.b)")
+		}
+		[IO.File]::WriteAllText("$data\keycheck_rects_out.tmp", $out.ToString())
+		Move-Item -Force "$data\keycheck_rects_out.tmp" "$data\keycheck_rects_out"
+	}
 	if (Test-Path "$data\keycheck_shot") {
 		Start-Sleep -Milliseconds 100
 		$name = ([IO.File]::ReadAllText("$data\keycheck_shot")).Trim()
+		if ($name -like "desk_*") { # the game window with its popups where they are on the screen, each taken with PrintWindow, so
+			# whatever else is on the desktop doesn't get in the picture
+			$r = New-Object WindowShot+RECT
+			[WindowShot]::GetWindowRect($h, [ref]$r) | Out-Null
+			$shot = New-Object Drawing.Bitmap ($r.r - $r.l), ($r.b - $r.t)
+			$g = [Drawing.Graphics]::FromImage($shot)
+			$layers = New-Object System.Collections.ArrayList
+			[void]$layers.Add($h)
+			$tops = [WindowShot]::Popups($p.Id, $h)
+			for ($i = $tops.Length - 1; $i -ge 0; $i--) { [void]$layers.Add($tops[$i]) } # top first: drawn last
+			foreach ($layer in $layers) {
+				$lr = New-Object WindowShot+RECT
+				[WindowShot]::GetWindowRect($layer, [ref]$lr) | Out-Null
+				if ($lr.r -le $lr.l -or $lr.b -le $lr.t) { continue }
+				$part = New-Object Drawing.Bitmap ($lr.r - $lr.l), ($lr.b - $lr.t)
+				$pg = [Drawing.Graphics]::FromImage($part)
+				$dc = $pg.GetHdc()
+				[WindowShot]::PrintWindow($layer, $dc, 2) | Out-Null
+				$pg.ReleaseHdc($dc)
+				$pg.Dispose()
+				$g.DrawImage($part, $lr.l - $r.l, $lr.t - $r.t)
+				$part.Dispose()
+			}
+			$g.Dispose()
+			$shot.Save("$data\previews\$name.png", [Drawing.Imaging.ImageFormat]::Png)
+			$shot.Dispose()
+			Say "picture $name ($($r.r - $r.l) x $($r.b - $r.t), $($layers.Count - 1) popups)"
+			Remove-Item "$data\keycheck_shot"
+			continue
+		}
 		if ([WindowShot]::IsIconic($h)) { # a minimized window is a 160 x 28 picture of nothing
 			[WindowShot]::ShowWindow($h, 4) | Out-Null # shown, not given the keyboard
 			Start-Sleep -Milliseconds 1500

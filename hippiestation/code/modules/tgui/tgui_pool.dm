@@ -5,7 +5,7 @@
 //
 // Now each client keeps a hidden window with the page already loaded (winclone() makes a window that stays hidden; a browse() popup
 // can't be made hidden). open() hands a UI to it in one message (hippieMount in tgui-next/packages/tgui/index.js: config, data and
-// any style sheets the object adds to the head), the page draws it, centres the window on the game window and shows it. close() hides
+// any style sheets the object adds to the head), the page draws it, centres the window on the map pane and shows it. close() hides
 // the window and keeps it for the next UI. A UI that opens while no window is ready, or with its own browser control, opens the old
 // way. The page of a UI with no tgui-next route is taken over by old tgui for good, so that window is thrown away when it closes.
 // A window is only used again once its page says it's ready: shutting a window with its title bar's X (no fancy frills) leaves its

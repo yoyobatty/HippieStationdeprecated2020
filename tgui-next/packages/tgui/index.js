@@ -41,6 +41,12 @@ const renderLayout = () => {
     if (initialRender) {
       logger.log('initial render', state);
 
+      // hippie -- a window of its own (not pooled) is already shown where
+      // BYOND put it: moved to the middle of the map once its page is here
+      if (!window.__pool__ && state.config.centre) {
+        centreOnMap(state.config.window);
+      }
+
       // ----- Old TGUI chain-loader: begin -----
       const route = getRoute(state);
       // Route was not found, load old TGUI
@@ -68,7 +74,7 @@ const renderLayout = () => {
         if (window.__pool__) {
           holder.setAttribute('data-ref', state.config.ref);
           callByond('', { tgui_pool: window.__pool__, spent: 1 });
-          showPooledWindow(state.config.window);
+          showPooledWindow(state.config.window, state.config.centre);
         }
         // Load old TGUI by injecting new scripts
         loadCSS('v4shim.css');
@@ -149,22 +155,46 @@ const parseStateJson = json => {
  */
 const injectedHead = {};
 
-// Centred on the game window, as a new popup would be, then shown
-const showPooledWindow = async win => {
+/**
+ * hippie -- a new window opens centred on the map pane (the game view), not
+ * on the whole game window, whose right side is the stat panel. The map
+ * fills mapwindow, the split's left pane, so its top left is where
+ * mainwindow's inside starts: outer-pos (where the window is now, maximized
+ * too; pos is where it goes back to when it's restored) plus inner-pos (its
+ * title bar and borders). The window is kept on the game window's monitor
+ * (screen-pos and screen-size: that monitor less its taskbar).
+ * Only a UI's first showing is centred (config.centre, from the server): a
+ * UI shown again (reinitialize) stays where the player put it.
+ */
+const centreOnMap = async win => {
   try {
-    const [pos, size, own] = await Promise.all([
-      winget('mainwindow', 'pos'),
-      winget('mainwindow', 'size'),
-      winget(win, 'size'),
+    const [outer, inner, map, screenPos, screenSize, own] = await Promise.all([
+      winget('mainwindow', 'outer-pos'),
+      winget('mainwindow', 'inner-pos'),
+      winget('mapwindow.map', 'size'),
+      winget('mainwindow', 'screen-pos'),
+      winget('mainwindow', 'screen-size'),
+      winget(win, 'outer-size'),
     ]);
-    const x = Math.round(pos.x + (size.x - own.x) / 2);
-    const y = Math.round(pos.y + (size.y - own.y) / 2);
+    const left = outer.x + inner.x;
+    const top = outer.y + inner.y;
+    let x = Math.round(left + (map.x - own.x) / 2);
+    let y = Math.round(top + (map.y - own.y) / 2);
+    x = Math.max(Math.min(x, screenPos.x + screenSize.x - own.x), screenPos.x);
+    y = Math.max(Math.min(y, screenPos.y + screenSize.y - own.y), screenPos.y);
     callByond('winset', {
-      [`${win}.pos`]: `${Math.max(x, 0)},${Math.max(y, 0)}`,
+      [`${win}.pos`]: `${x},${y}`,
     });
   }
   catch (err) {
     logger.log('could not centre the window', err);
+  }
+};
+
+// Centred on the map (a UI's first showing), then shown
+const showPooledWindow = async (win, centre) => {
+  if (centre) {
+    await centreOnMap(win);
   }
   callByond('winset', {
     [`${win}.is-visible`]: true,
@@ -195,7 +225,7 @@ window.hippieMount = json => {
   store.dispatch({ type: 'hippieMount', payload: state });
   window.__hippieMounts__ = (window.__hippieMounts__ || 0) + 1;
   if (!handedOverToOldTgui) {
-    showPooledWindow(state.config.window);
+    showPooledWindow(state.config.window, state.config.centre);
   }
   // The server reopens the UI the old way if this never comes
   callByond('', { tgui_pool: window.__pool__, mounted: 1 });

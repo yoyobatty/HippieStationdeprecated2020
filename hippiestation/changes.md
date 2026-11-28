@@ -342,6 +342,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/surgery/organs/vocal_cords.dm
 ## code/modules/surgery/tools.dm ("the the": BYOND adds the article itself, testkit sweep)
 ## code/modules/tgs/ (TGS DMAPI 7.4.0, the upstream files as released; was 5.2.7)
+## code/modules/tgui/tgui.dm (no_close: a window with no close button; ui_close() told who closed it; get_json() says when a window is shown for the first time, so the page centres it on the map: tgui-next index.js)
 ## code/modules/unit_tests/reagent_recipe_collisions.dm
 ## code/modules/vending/_vending.dm ("the the": BYOND adds the article itself, testkit sweep)
 ## code/modules/zombie/organs.dm (the infection coming out of a zombie being deleted doesn't turn it back)
