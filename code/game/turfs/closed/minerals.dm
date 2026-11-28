@@ -31,11 +31,26 @@
 	icon = smooth_icon
 	. = ..()
 	if (mineralType && mineralAmt && spread && spreadChance)
-		for(var/dir in GLOB.cardinals)
-			if(prob(spreadChance))
-				var/turf/T = get_step(src, dir)
-				if(istype(T, /turf/closed/mineral/random))
-					Spread(T)
+		// hippie start -- a seam spreads a turf at a time from one list, not each new ore turf from inside the ChangeTurf()
+		// that made it: that went 9 procs deeper for every turf in a seam's chain (14 deep, 132 calls, in six lobby builds),
+		// and one ~20 deep runs into BYOND's recursion limit (200 calls), which ends the procs it was called from too: the
+		// lobby build's InitializeAtoms() part way through Lavaland (lobby_build.dm, 2026-11-28)
+		var/static/list/turf/closed/mineral/seam
+		if(seam) // made by a seam spreading: it goes on from us once it's done with the turfs before
+			seam += src
+			return
+		seam = list(src)
+		for(var/i = 1; i <= length(seam); i++)
+			var/turf/closed/mineral/M = seam[i]
+			if(!istype(M)) // changed into something else since it joined (nothing in the seam does that, but the list mustn't stick)
+				continue
+			for(var/dir in GLOB.cardinals)
+				if(prob(M.spreadChance))
+					var/turf/T = get_step(M, dir)
+					if(istype(T, /turf/closed/mineral/random))
+						M.Spread(T)
+		seam = null
+		// hippie end
 
 /turf/closed/mineral/get_smooth_underlay_icon(mutable_appearance/underlay_appearance, turf/asking_turf, adjacency_dir)
 	if(turf_type)

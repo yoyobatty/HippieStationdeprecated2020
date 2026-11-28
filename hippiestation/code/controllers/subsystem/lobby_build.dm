@@ -338,9 +338,21 @@ GLOBAL_REAL_VAR(lobby_build_loading) = FALSE
 	return TRUE
 
 /// Everything gathered initialized, in startup's order: BYOND's world loop gives mobs, objs, areas, then turfs
+/// BYOND's recursion limit (200 calls) ends more than the proc it's hit in. Hit in an atom's Initialize() here (most likely a long ore
+/// seam on Lavaland: minerals.dm), it ends InitializeAtoms() too, part way, and nothing after that atom initializes: the rest of
+/// Lavaland and every space ruin level had no air, LINDA runtimed on them every tick and the tile engine failed (under ff05cc42's
+/// try/catch the whole build stopped there instead, 2026-11-28). That leaves SSatoms at INITIALIZATION_INNEW_MAPLOAD, so
+/// InitializeAtoms() goes again and carries on after what's initialized; a few times at most, for an atom that recurses every time.
 /datum/controller/subsystem/mapping/proc/lobby_build_atoms(datum/lobby_build_work/W)
 	W.stage = REALTIMEOFDAY
-	SSatoms.InitializeAtoms(W.mobs + W.objs + W.held_areas + W.turfs)
+	var/list/atoms = W.mobs + W.objs + W.held_areas + W.turfs
+	SSatoms.InitializeAtoms(atoms)
+	for(var/again in 1 to 3)
+		if(SSatoms.initialized != INITIALIZATION_INNEW_MAPLOAD)
+			break
+		log_world("Lobby build: InitializeAtoms() was cut short (BYOND's recursion limit? see the runtime log), carrying on after what it got to")
+		SSatoms.initialized = INITIALIZATION_INNEW_REGULAR
+		SSatoms.InitializeAtoms(atoms)
 	W.stage = lobby_build_stage("atoms", W.stage)
 	return TRUE
 
