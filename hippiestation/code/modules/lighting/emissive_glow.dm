@@ -123,12 +123,27 @@ GLOBAL_LIST_EMPTY(emissive_glow_states)
 		return null
 	var/list/glows = GLOB.emissive_glow_states[icon]
 	if(!glows)
-		glows = list()
-		for(var/each in icon_states(icon))
-			if(length(each) > 5 && copytext(each, -5) == "_glow")
-				glows[copytext(each, 1, -5)] = each
+		glows = emissive_glow_masks(icon)
 		GLOB.emissive_glow_states[icon] = glows
 	return glows[state]
+
+/**
+  * A sheet's masks, {state: "<state>_glow"}. The game's own sheets are looked up in the list the icon build made from their state
+  * names (emissive_glow_sheets.dm). icon_states() has the server decode the whole sheet's PNG, 1-36 ms the first time (head.dmi
+  * 20-26, suit.dmi 18-22, uniform.dmi 14-36 ms), so the first crew member's worn sheets, none of which have masks, made a 79 ms
+  * round-start tick, and ~70 sheets took 280-390 ms over a boot and the first minutes of a round (1 ms with the list). Icons made
+  * in play, and files from anywhere else, are still looked through.
+  */
+/proc/emissive_glow_masks(icon)
+	if(isfile(icon))
+		var/path = lowertext("[icon]")
+		for(var/root in GLOB.emissive_glow_sheet_roots)
+			if(findtext(path, root) == 1)
+				return GLOB.emissive_glow_sheets[path] || list()
+	. = list()
+	for(var/each in icon_states(icon))
+		if(length(each) > 5 && copytext(each, -5) == "_glow")
+			.[copytext(each, 1, -5)] = each
 
 /// The glow pair for a state's mask, or null when its sheet has none
 /proc/emissive_glow_list(icon, state, dir = SOUTH, alpha = 255)

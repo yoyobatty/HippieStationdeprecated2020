@@ -216,6 +216,8 @@ def build(out_dir=None, quiet=False):
             f.write('\n')
         with open(rel(glow.DM_COLOURS), 'w', encoding='utf-8', newline='\n') as f:
             f.write(glow.render_colours(new_manifest))
+        with open(rel(glow.DM_SHEETS), 'w', encoding='utf-8', newline='\n') as f:
+            f.write(glow.render_sheets(glow.glow_sheets()))
     if not quiet:
         for tg, r in reports.items():
             if r.get('problem'):
@@ -267,6 +269,9 @@ def check():
     dm_colours = rel(glow.DM_COLOURS)
     if not os.path.exists(dm_colours) or open(dm_colours, encoding='utf-8').read() != glow.render_colours(manifest):
         errors.append(f'{glow.DM_COLOURS}: not what the last merge made, run icon_merge.py build')
+    dm_sheets = rel(glow.DM_SHEETS)
+    if not os.path.exists(dm_sheets) or open(dm_sheets, encoding='utf-8').read() != glow.render_sheets(glow.glow_sheets()):
+        errors.append(f'{glow.DM_SHEETS}: not the glow masks the sheets have now, run icon_merge.py build')
     for line in errors:
         print(line)
     print(f'icon_merge: {len(manifest)} merged sheets, {len(errors)} problems')
