@@ -74,7 +74,14 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	if(!GLOB.use_preloader && path == type && !(flags & CHANGETURF_FORCEOP) && (baseturfs == new_baseturfs)) // Don't no-op if the map loader requires it to be reconstructed
 		return src
 	if(flags & CHANGETURF_SKIP)
-		return new path(src)
+		// hippie start -- the blocks of what's on it stay too (explosions_block.dm)
+		var/skip_block_static = explosion_block_static
+		var/list/skip_block_dynamic = explosion_block_dynamic
+		var/turf/skipped = new path(src)
+		skipped.explosion_block_static = skip_block_static
+		skipped.explosion_block_dynamic = skip_block_dynamic
+		return skipped
+		// hippie end
 
 	var/old_opacity = opacity
 	var/old_dynamic_lighting = dynamic_lighting
@@ -85,6 +92,8 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	var/old_lighting_corner_NW = lighting_corner_NW
 	var/list/old_idle_atmos_machines = idle_atmos_machines // hippie -- idle atmos machines still wait on this place (idle_machines.dm)
 	var/old_seal_dir = seal_dir // hippie -- a shut door here keeps the side its tile shares air with (door_seals.dm)
+	var/old_block_static = explosion_block_static // hippie -- what's on it stays, and so does what it blocks a blast with (explosions_block.dm)
+	var/list/old_block_dynamic = explosion_block_dynamic // hippie
 
 	var/old_exl = explosion_level
 	var/old_exi = explosion_id
@@ -116,6 +125,8 @@ GLOBAL_LIST_INIT(blacklisted_automated_baseturfs, typecacheof(list(
 	W.explosion_level = old_exl
 	W.idle_atmos_machines = old_idle_atmos_machines
 	W.seal_dir = old_seal_dir // hippie
+	W.explosion_block_static = old_block_static // hippie
+	W.explosion_block_dynamic = old_block_dynamic // hippie
 	for(var/obj/machinery/M as anything in old_idle_atmos_machines)
 		M.atmos_idle_turf = W
 

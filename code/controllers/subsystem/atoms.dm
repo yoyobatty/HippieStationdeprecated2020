@@ -106,6 +106,10 @@ SUBSYSTEM_DEF(atoms)
 	else if(!(A.flags_1 & INITIALIZED_1))
 		BadInitializeCalls[the_type] |= BAD_INIT_DIDNT_INIT
 
+	if(!qdeleted && isobj(A) && A.explosion_block && !QDELING(A)) // hippie -- counted on its turf for blasts, now its block is set (explosions_block.dm)
+		var/obj/blocker = A
+		blocker.explosion_block_refresh()
+
 	return qdeleted || QDELING(A)
 
 /datum/controller/subsystem/atoms/proc/map_loader_begin()

@@ -10,3 +10,7 @@
 #define BLAST_AIR_FADE 20
 /// The most dense air can strengthen a blast: the cube root of about 2.2 atmospheres
 #define BLAST_AIR_MAX 1.3
+
+/// Each turf keeps what blocks a blast on it (hippiestation/code/controllers/subsystem/explosions_block.dm). For tools that build
+/// with and without it (tools/explosion_preview/block_bench.dm).
+#define EXPLOSION_BLOCK_CACHE

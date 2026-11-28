@@ -53,7 +53,7 @@ GLOBAL_VAR_INIT(explosion_shape_differed, 0)
 		if(extra)
 			explosion_shape_compare(extra, in_dm, epicenter, size)
 		extra = extra || in_dm
-	. = list()
+	. = GLOB.explosion_block_cache ? alist() : list() // an alist: a list keyed by 10,000 turfs took 13 ms to build, an alist 2 (explosions_block.dm)
 	for(var/turf/T as anything in blocks)
 		.[T] = extra[(T.y - y0) * size + (T.x - x0) + 1]
 
