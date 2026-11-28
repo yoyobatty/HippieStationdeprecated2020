@@ -64,6 +64,17 @@
 		qdel(world)
 		return
 
+	if(option == "draw") // what drawing a lighting object costs, alone
+		lighting_bench_catch_up()
+		lines += ""
+		lines += "== what drawing a lighting object costs =="
+		lines += lighting_bench_draw_costs(z)
+		text2file(jointext(lines, "\n"), "[LIGHTING_BENCH_DIR]results.txt")
+		log_world("LIGHTING BENCH: done")
+		Master.Shutdown()
+		qdel(world)
+		return
+
 	// Lighting worked out afresh should match lighting as it booted: nothing should depend on which lights worked theirs
 	// out first. Nor should turning bounce lighting off and back on (the admin verb) leave any tile changed.
 	// Headless, nobody can see anything, so every light update since the lighting subsystem started that could wait for
@@ -219,6 +230,18 @@
 		lines += ""
 		lines += "== the engine shadowing the DM code =="
 		lines += SSlighting.native_shadow_check(z)
+
+	// What the lighting objects had on them at each snapshot, against what draw() makes of their corners then
+	lines += ""
+	lines += "== what the lighting objects drew (snapshot_<name>_drawn.txt) =="
+	lines += "as booted, relit, bounce toggled and restamped: [lighting_bench_count_differences("[LIGHTING_BENCH_DIR]snapshot_booted_drawn.txt", "[LIGHTING_BENCH_DIR]snapshot_relit_drawn.txt")], [lighting_bench_count_differences("[LIGHTING_BENCH_DIR]snapshot_booted_drawn.txt", "[LIGHTING_BENCH_DIR]snapshot_toggled_drawn.txt")] and [lighting_bench_count_differences("[LIGHTING_BENCH_DIR]snapshot_booted_drawn.txt", "[LIGHTING_BENCH_DIR]snapshot_restamped_drawn.txt")] tiles drawn other than as booted"
+	var/list/stale = list()
+	var/stale_total = 0
+	for(var/path in GLOB.lighting_bench_stale)
+		stale += "[replacetext(replacetext(path, "[LIGHTING_BENCH_DIR]snapshot_", ""), ".txt", "")] [GLOB.lighting_bench_stale[path]]"
+		if(!findtext(path, "booted_waiting")) // taken with lights still queued, before catching up
+			stale_total += GLOB.lighting_bench_stale[path]
+	lines += "lighting objects drawn other than draw() makes of their corners: [stale_total ? "[stale_total] STALE" : "none"] ([jointext(stale, ", ")])"
 
 	text2file(jointext(lines, "\n"), "[LIGHTING_BENCH_DIR]results.txt")
 	log_world("LIGHTING BENCH: done")
@@ -1058,6 +1081,233 @@
 				padded += C ? "[C.cache_r] [C.cache_g] [C.cache_b]" : "0 0 0"
 			out += "[prefix] [jointext(padded, " ")]"
 	text2file(jointext(out, "\n"), path)
+	GLOB.lighting_bench_stale[path] = lighting_bench_drawn(z, replacetext(path, ".txt", "_drawn.txt"))
+
+/// lighting_bench_snapshot()'s paths -> how many lighting objects were drawn other than draw() makes of their corners then
+GLOBAL_LIST_EMPTY(lighting_bench_stale)
+
+/**
+ * Writes what every lighting object on the z-level has on it, as a client gets it: one line per object, "x y luminosity
+ * icon_state colour" (- for none), so two runs can be compared by what's drawn and not only by the corners. Returns how many
+ * have something other than tg's draw() (lighting_object.dm) would put on them from their corners now - drawn late, skipped
+ * or wrong - and logs the first few. Not with light textures, which draw elsewhere.
+ */
+/proc/lighting_bench_drawn(z, path)
+	var/list/out = list()
+	var/list/values = list()
+	. = 0
+	for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		var/atom/movable/lighting_object/O = T.lighting_object
+		if(!O)
+			continue
+		var/drawn = lighting_bench_drawn_state(O.luminosity, O.icon_state, O.color)
+		out += "[T.x] [T.y] [drawn]"
+		if(SSlighting.sprites)
+			continue
+		values.Cut()
+		if(SSlighting.native)
+			call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_object")(T, values)
+		else
+			for(var/datum/lighting_corner/C as anything in list(T.lighting_corner_SW, T.lighting_corner_SE, T.lighting_corner_NW, T.lighting_corner_NE))
+				values += C ? list(C.cache_r, C.cache_g, C.cache_b) : list(0, 0, 0)
+			values += max(T.lighting_corner_SW?.largest_color_luminosity, T.lighting_corner_SE?.largest_color_luminosity, T.lighting_corner_NW?.largest_color_luminosity, T.lighting_corner_NE?.largest_color_luminosity, 0)
+		var/expected = lighting_bench_expected_draw(T, values)
+		if(expected != drawn)
+			.++
+			if(. <= 5)
+				log_world("LIGHTING BENCH: [T.x],[T.y],[T.z] drawn [drawn], its corners say [expected] ([path])")
+	text2file(jointext(out, "\n"), path)
+
+/proc/lighting_bench_drawn_state(luminosity, icon_state, colour)
+	return "[luminosity] [isnull(icon_state) ? "-" : icon_state] [islist(colour) ? jointext(colour, ",") : (isnull(colour) ? "-" : colour)]"
+
+/// What tg's draw() puts on a turf's lighting object from these 13 numbers (lighting_object()'s, or update()'s), as
+/// lighting_bench_drawn_state() writes it: a copy of its sums, v2's one face for walls and all, to check what's drawn without drawing
+/proc/lighting_bench_expected_draw(turf/T, list/v)
+	var/static/obj/effect/abstract/scratch // a colour matrix read back as BYOND keeps it
+	if(!scratch)
+		scratch = new
+	var/rr = v[1]
+	var/rg = v[2]
+	var/rb = v[3]
+	var/gr = v[4]
+	var/gg = v[5]
+	var/gb = v[6]
+	var/br = v[7]
+	var/bg = v[8]
+	var/bb = v[9]
+	var/ar = v[10]
+	var/ag = v[11]
+	var/ab = v[12]
+	if(GLOB.lighting_v2 && T.has_opaque_atom)
+		var/list/face = list(rr, rg, rb)
+		var/brightest = rr + rg + rb
+		if(gr + gg + gb > brightest)
+			brightest = gr + gg + gb
+			face = list(gr, gg, gb)
+		if(br + bg + bb > brightest)
+			brightest = br + bg + bb
+			face = list(br, bg, bb)
+		if(ar + ag + ab > brightest)
+			face = list(ar, ag, ab)
+		rr = face[1]
+		gr = face[1]
+		br = face[1]
+		ar = face[1]
+		rg = face[2]
+		gg = face[2]
+		bg = face[2]
+		ag = face[2]
+		rb = face[3]
+		gb = face[3]
+		bb = face[3]
+		ab = face[3]
+	var/lit = v[13] > 1e-6
+	if((rr & gr & br & ar) && (rg + gg + bg + ag + rb + gb + bb + ab == 8))
+		return lighting_bench_drawn_state(lit, "transparent", null)
+	if(!lit)
+		return lighting_bench_drawn_state(lit, "dark", null)
+	scratch.color = list(rr, rg, rb, 0, gr, gg, gb, 0, br, bg, bb, 0, ar, ag, ab, 0, 0, 0, 0, 1)
+	return lighting_bench_drawn_state(lit, null, scratch.color)
+
+/**
+ * What drawing a lighting object costs ("lighting-bench=draw"), part by part, on up to 4000 of the station's lighting objects
+ * drawn as a gradient (lit, not fully): draw() again with what it has, draw() with something else and back, and the writes and
+ * calls it's made of on their own. Microseconds an object, the quickest of 9 rounds (and the median). Leaves them drawn as they were.
+ */
+/proc/lighting_bench_draw_costs(z)
+	if(!SSlighting.native)
+		return list("draw costs: only with the engine on")
+	var/list/objects = list()
+	var/list/now = list()
+	var/list/other = list()
+	var/list/values = list()
+	var/walls = 0
+	for(var/turf/T as anything in block(locate(1, 1, z), locate(world.maxx, world.maxy, z)))
+		var/atom/movable/lighting_object/O = T.lighting_object
+		if(!O || !isnull(O.icon_state) || length(objects) >= 4000)
+			continue
+		values.Cut()
+		call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_object")(T, values)
+		if(length(values) != 13)
+			continue
+		var/list/dimmer = values.Copy()
+		for(var/i in 1 to 12)
+			dimmer[i] = round(values[i] * 0.75, LIGHTING_ROUND_VALUE)
+		objects += O
+		now += list(values.Copy())
+		other += list(dimmer)
+		if(T.has_opaque_atom)
+			walls++
+	var/list/appearances = list()
+	// The colour matrices one after another, as the engine hands them to native_draw() (lighting_flush()'s `drawn`)
+	var/list/matrices = list()
+	for(var/i in 1 to length(objects))
+		var/atom/movable/lighting_object/O = objects[i]
+		O.draw(arglist(other[i]))
+		var/dim = O.appearance
+		O.draw(arglist(now[i]))
+		appearances += list(list(O.appearance, dim))
+		for(var/list/v in list(other[i], now[i]))
+			matrices += list(v[1], v[2], v[3], 0, v[4], v[5], v[6], 0, v[7], v[8], v[9], 0, v[10], v[11], v[12], 0, 0, 0, 0, 1)
+	appearances += list(matrices) // the pass gets it last
+	. = list("[length(objects)] lit lighting objects drawn as a gradient, [walls] of them walls (one face, with v2 [GLOB.lighting_v2 ? "on" : "off"])")
+	var/list/tests = list(
+		"same" = "draw() again with what it has",
+		"change" = "draw() with something else, and back",
+		"matrix" = "  the colour matrix alone (list() made and set), something else and back",
+		"drawn" = "  the colour matrix Copy()'d out of the engine's list and set, something else and back (native_draw() with native_drawn)",
+		"list" = "  making the list() alone",
+		"color_same" = "  the same colour matrix made and set again (once, where the list() test makes two)",
+		"icon_state" = "  icon_state set to what it is (null)",
+		"luminosity" = "  luminosity set to what it is (1)",
+		"appearance" = "  appearance set to one kept from before, something else and back",
+		"call" = "  a call with 13 numbers to a proc that does nothing",
+		"copy" = "  native_draw()'s Copy() of the 13 numbers and arglist() into that call",
+	)
+	// Round after round of every test, so a busy machine slows them all alike; the quickest round is the least disturbed
+	var/list/timings = list()
+	for(var/round in 1 to 9)
+		for(var/test in tests)
+			LAZYADD(timings[test], lighting_bench_draw_pass(test, objects, now, other, appearances))
+			CHECK_TICK
+	for(var/test in tests)
+		var/list/these = sortList(timings[test], GLOBAL_PROC_REF(cmp_numeric_asc))
+		. += "[tests[test]]: [round(these[1], 0.01)] us (median [round(these[5], 0.01)])"
+	for(var/i in 1 to length(objects))
+		var/atom/movable/lighting_object/O = objects[i]
+		O.draw(arglist(now[i]))
+
+/atom/movable/lighting_object/proc/lighting_bench_nothing(rr, rg, rb, gr, gg, gb, br, bg, bb, ar, ag, ab, max)
+	return
+
+/// One pass of a lighting_bench_draw_costs() test over the objects: microseconds an object (an object's draw and back counts once)
+/proc/lighting_bench_draw_pass(test, list/objects, list/now, list/other, list/appearances)
+	var/n = length(objects)
+	var/start = TICK_USAGE_REAL
+	switch(test)
+		if("same")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				O.draw(arglist(now[i]))
+		if("change")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				O.draw(arglist(other[i]))
+				O.draw(arglist(now[i]))
+		if("matrix")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				var/list/v = other[i]
+				O.color = list(v[1], v[2], v[3], 0, v[4], v[5], v[6], 0, v[7], v[8], v[9], 0, v[10], v[11], v[12], 0, 0, 0, 0, 1)
+				v = now[i]
+				O.color = list(v[1], v[2], v[3], 0, v[4], v[5], v[6], 0, v[7], v[8], v[9], 0, v[10], v[11], v[12], 0, 0, 0, 0, 1)
+		if("drawn")
+			var/list/matrices = appearances[length(appearances)]
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				var/at = (i - 1) * 40 + 1
+				O.color = matrices.Copy(at, at + 20)
+				O.color = matrices.Copy(at + 20, at + 40)
+		if("list")
+			var/list/made
+			for(var/i in 1 to n)
+				var/list/v = other[i]
+				made = list(v[1], v[2], v[3], 0, v[4], v[5], v[6], 0, v[7], v[8], v[9], 0, v[10], v[11], v[12], 0, 0, 0, 0, 1)
+				v = now[i]
+				made = list(v[1], v[2], v[3], 0, v[4], v[5], v[6], 0, v[7], v[8], v[9], 0, v[10], v[11], v[12], 0, 0, 0, 0, 1)
+			if(n && length(made) != 20)
+				return -1
+		if("color_same")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				var/list/v = now[i]
+				O.color = list(v[1], v[2], v[3], 0, v[4], v[5], v[6], 0, v[7], v[8], v[9], 0, v[10], v[11], v[12], 0, 0, 0, 0, 1)
+		if("icon_state")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				O.icon_state = null
+		if("luminosity")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				O.luminosity = 1
+		if("appearance")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				var/list/kept = appearances[i]
+				O.appearance = kept[2]
+				O.appearance = kept[1]
+		if("call")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				var/list/v = now[i]
+				O.lighting_bench_nothing(v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13])
+		if("copy")
+			for(var/i in 1 to n)
+				var/atom/movable/lighting_object/O = objects[i]
+				var/list/v = now[i]
+				O.lighting_bench_nothing(arglist(v.Copy(1, 14)))
+	return TICK_DELTA_TO_MS(TICK_USAGE_REAL - start) * 1000 / max(n, 1)
 
 #undef LIGHTING_BENCH_DIR
 #undef LIGHTING_BENCH_REPEATS

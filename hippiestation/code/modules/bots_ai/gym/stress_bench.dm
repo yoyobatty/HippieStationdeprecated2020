@@ -703,6 +703,9 @@ GLOBAL_DATUM(stress_bench, /datum/stress_bench)
 	out += "Lighting engine: [SSlighting.native_status]"
 	if(SSlighting.native_shadow) // lighting-engine=shadow: the engine followed the DM code through the whole round
 		out += SSlighting.native_shadow_check(z)
+	if(SSlighting.native && !SSlighting.sprites) // what's on each lighting object, against what draw() makes of its corners (lighting_bench.dm)
+		lighting_bench_flush()
+		out += "Lighting objects drawn other than draw() makes of their corners: [lighting_bench_drawn(z, "[dir]lighting_drawn.txt")]"
 	var/list/json_phases = list()
 	for(var/datum/stress_phase/P as anything in phases)
 		json_phases += list(P.to_list())
