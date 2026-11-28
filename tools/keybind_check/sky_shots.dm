@@ -199,7 +199,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	SSsun.can_fire = TRUE
 	sky_shoot_giant("sky_polish_giant")
 
-/// Shows only the client's layers of one kind: "all", "stars", "clouds" (the theme's nebulae) or "band" (the galaxy's band)
+/// Shows only the client's layers of one kind: "all", "stars", "clouds" (the theme's nebulae), "band" (the galaxy's band) or
+/// "other" (the bodies, far things, asteroids, dust, fly-bys)
 /proc/sky_seams_show(client/C, part)
 	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
 		var/kind = "other"
@@ -251,11 +252,51 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	H.hud_used.update_parallax_pref(H)
 	sleep(3 SECONDS)
 	kc_log("seams live: sky_turn_angle [sky_turn_angle()], turn line [json_encode(SSparallax.turn_line)]")
-	sky_shot("sky_seams_live_all")
-	sky_seams_show(C, "clouds")
-	sleep(5)
-	sky_shot("sky_seams_live_clouds")
+	for(var/part in list("all", "stars", "clouds", "band", "other"))
+		sky_seams_show(C, part)
+		sleep(5)
+		kc_log("seams live [part]: sky_turn_angle [sky_turn_angle()]; [sky_layer_text(C)]")
+		sky_shot("sky_seams_live_[part]")
+	// Does BYOND filter a sprite smoothly only when its own transform scales it? A hair of scale on every piece of art and layer
+	for(var/name in SSparallax.sky_art)
+		var/obj/screen/sky_art/A = SSparallax.sky_art[name]
+		var/matrix/M = matrix(A.transform)
+		M.Scale(1.002)
+		A.transform = M
+	for(var/obj/screen/parallax_layer/L as anything in C.parallax_layers)
+		var/matrix/M = matrix(L.transform)
+		M.Scale(1.002)
+		L.transform = M
+	for(var/part in list("all", "band", "other"))
+		sky_seams_show(C, part)
+		sleep(5)
+		sky_shot("sky_seams_live_scaled_[part]")
 	sky_seams_show(C, "all")
+
+/// Sharpness pictures for tools/sky_gen/v2/sky_sharpness.py: the Gilded Band from open space, each kind of layer alone, held at
+/// 20, 20.35 and 20.7 degrees (shimmer is what changes between them besides the turn). data/sky_shots_tag names the set.
+/proc/sky_shoot_sharpness(mob/living/carbon/human/H)
+	var/client/C = H.client
+	var/tag = fexists("data/sky_shots_tag") ? trim(file2text("data/sky_shots_tag")) : "now"
+	var/turf/clear_space = locate(110, 60, SSmapping.station_start)
+	SSsun.can_fire = FALSE
+	SSparallax.flyby_art()
+	SSparallax.next_flyby = world.time + 1 HOURS
+	SSparallax.next_sky_event = world.time + 1 HOURS
+	rand_seed(5)
+	SSparallax.set_theme(new /datum/sky_theme/gold)
+	if(isspaceturf(clear_space))
+		H.forceMove(clear_space)
+	for(var/part in list("all", "stars", "clouds", "band", "other"))
+		for(var/step in 0 to 2)
+			var/angle = 20 + step * 0.35
+			sky_port_hold_angle(H, angle)
+			sky_seams_show(C, part)
+			sleep(5)
+			kc_log("sharpness [tag] [part] [angle]: sky_turn_angle [sky_turn_angle()]")
+			sky_shot("sky_sharp_[tag]_[part]_[step]")
+	sky_seams_show(C, "all")
+	SSsun.can_fire = TRUE
 
 /proc/sky_shots_run(client/C)
 	fdel("data/keycheck_shot")
@@ -297,7 +338,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 			themes += path
 			if(which != "all")
 				break
-	else if(which != "before" && which != "deep" && which != "port" && which != "polish" && which != "seams")
+	else if(which != "before" && which != "deep" && which != "port" && which != "polish" && which != "seams" && which != "sharpness")
 		var/theme_type = text2path("/datum/sky_theme/[which]")
 		if(theme_type)
 			themes += theme_type
@@ -456,6 +497,8 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 		sky_shoot_polish(H)
 	if(which == "seams")
 		sky_shoot_seams(H)
+	if(which == "sharpness")
+		sky_shoot_sharpness(H)
 
 	text2file("done", "data/keycheck_shots_done")
 	sleep(5)

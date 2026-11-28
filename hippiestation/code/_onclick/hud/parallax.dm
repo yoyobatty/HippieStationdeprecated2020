@@ -684,6 +684,17 @@
 	flight_speed = 0.45
 	streak = 2.5
 	layer = 4
+	/// Its stars' state in sky.dmi, drawn by shared art (SSparallax.star_art()). The layer's own icon_state is cleared for it, so
+	/// update_o() tiles nothing of its own.
+	var/art_state
+
+/obj/screen/parallax_layer/stars/Initialize(mapload, view)
+	art_state = icon_state
+	icon_state = null
+	return ..()
+
+/obj/screen/parallax_layer/stars/set_quality(quality)
+	vis_contents = carry(list(SSparallax.star_art(art_state, layer)))
 
 /obj/screen/parallax_layer/stars/deep
 	icon_state = "stars_deep"
@@ -711,10 +722,10 @@
 	detail = PARALLAX_MED
 
 /obj/screen/parallax_layer/stars/near/set_quality(quality)
-	var/list/groups = list()
+	var/list/art = list(SSparallax.star_art(art_state, layer))
 	for(var/group in 1 to SKY_TWINKLE_GROUPS)
-		groups += SSparallax.twinkle_art(group, quality >= GRAPHICS_QUALITY_MEDIUM)
-	vis_contents = carry(groups)
+		art += SSparallax.twinkle_art(group, quality >= GRAPHICS_QUALITY_MEDIUM)
+	vis_contents = carry(art)
 
 // ---- Nebulae: greyscale clouds from sky_nebula.dmi in the theme's colours, drawn at double size
 
@@ -763,6 +774,19 @@
 
 /obj/screen/parallax_layer/body/update_o(view)
 	view_sized = view || world.view //one of it: nothing to tile
+
+/// Its sprite in sky_bodies.dmi, drawn by shared art (SSparallax.body_art()). What icon_state the layer was given (a theme's world
+/// or galaxy) moves here when it goes on screen, and the layer itself draws nothing.
+/obj/screen/parallax_layer/body/var/art_state
+
+/obj/screen/parallax_layer/body/proc/body_art_list()
+	if(icon_state)
+		art_state = icon_state
+		icon_state = null
+	return art_state ? list(SSparallax.body_art(art_state, layer)) : list()
+
+/obj/screen/parallax_layer/body/set_quality(quality)
+	vis_contents = carry(body_art_list())
 
 /obj/screen/parallax_layer/body/place_x(eye_x)
 	var/list/shift = SSparallax.body_places[place]

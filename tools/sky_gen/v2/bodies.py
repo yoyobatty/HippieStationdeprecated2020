@@ -7,6 +7,8 @@
 build_bodies() gives {state: PIL RGBA 480x480}, the same shape sky_gen.ported_bodies() gives, plus 'sun' (an opaque additive
 image like sky_gen's, white: the game tints it), an extra 'world_gas', and galaxy/galaxy2/galaxy3/galaxy4 (glow with alpha by
 brightness, replacing tg's icons/effects/parallax.dmi art: the galaxy layer has to point at sky_bodies.dmi to use them).
+build_bodies(scale=2) gives the same set at 960x960: the same picture in twice the pixel density, softened by SOFT_PX so nothing
+is one pixel wide (tools/sky_gen/v2/bodies2x_check.py compares it with scale 1).
 
 How a planet is made. Every surface is 3D noise read on the sphere itself (no map, so no seams and no pinched poles). Light is
 worked in linear values from one sun direction (composed under LIGHT, baked turned so the sun is east: build_bodies(light_angle)),
@@ -257,6 +259,31 @@ def gauss_blur(img, sigma):
     return out[pad:-pad, pad:-pad]
 
 
+# Above scale 1 (the 2x sheet), every layer gets a gaussian of this many output pixels: in game one 2x pixel lands on about
+# 1.4 screen pixels and the sky turns, and smooth sampling at that ratio makes anything one pixel wide (a speck, a thin crack,
+# a hard step at a limb) flicker as it turns. A 2x2 speck comes out a soft dot (sigma about 0.75 px) with its light kept;
+# detail of 2 px and up is barely touched. Scale 1 is never softened (it stays as it was).
+SOFT_PX = 0.5
+
+
+def soften(pre, sigma):
+    """A gaussian blur of a premultiplied (h, w, c) array (light, or colour times alpha with alpha last): outside is clear."""
+    return np.clip(gauss_blur(pre, sigma), 0, None) if sigma > 0 else pre
+
+
+def soften_image(image, sigma):
+    """soften() on a straight-alpha RGBA PIL image, premultiplied in linear light, back to straight sRGB alpha 8 bit."""
+    if sigma <= 0:
+        return image
+    arr = np.asarray(image.convert('RGBA'), dtype=float) / 255
+    a = arr[..., 3:4]
+    pre = soften(np.concatenate([lin(arr[..., :3] * 255) * a, a], axis=-1), sigma)
+    a2 = np.clip(pre[..., 3:4], 0, 1)
+    rgb = srgb(np.clip(pre[..., :3] / np.maximum(a2, 1e-6), 0, 1))
+    out = np.concatenate([np.where(a2 > 0, rgb, 0), a2], axis=-1)
+    return Image.fromarray(np.clip(np.floor(out * 255 + 0.5), 0, 255).astype(np.uint8), 'RGBA')
+
+
 def rot(ax, ay, az):
     """Rotation matrix: about x, then y, then z (degrees)."""
     ax, ay, az = np.radians([ax, ay, az])
@@ -279,12 +306,21 @@ class Surface:
 
 
 def render(R, surface_fn, *, ss=3, light=LIGHT, frame=None, bump=1.0, atmosphere=None, exposure=1.0,
-           bloom=None, ambient=(0.0006, 0.0007, 0.0010), pad=1.22, night_glow=None, night_emission=0.3, limb=0.0, terminator=(-0.02, 0.10)):
+           bloom=None, ambient=(0.0006, 0.0007, 0.0010), pad=1.22, night_glow=None, night_emission=0.3, limb=0.0, terminator=(-0.02, 0.10),
+           scale=1):
     """Draws a body of radius R pixels lit from `light`. Returns a straight-alpha RGBA PIL image (size about 2*R*pad).
 
     atmosphere: dict(colour=linear rgb, scale_height (radii), top (radii above surface), density, extinction=rgb,
                      twilight=linear rgb, sunset=0..1)
+    scale: output pixels per scale-1 pixel. R and the bloom sigmas are in scale-1 pixels; the image is about scale times as
+    big each way, the same body in finer pixels (ss samples per output pixel still). Above 1, the samples are also softened
+    by SOFT_PX output pixels before they're averaged down, so no limb, crack or crater rim is a single pixel wide.
     """
+    soft = 0.0
+    if scale != 1:
+        R = R * scale
+        bloom = [(sigma * scale, amount) for sigma, amount in bloom] if bloom else bloom
+        soft = SOFT_PX
     frame = np.eye(3) if frame is None else frame
     # turn the whole scene on screen so the light comes from BAKE_ANGLE: the body's frame turns with it
     turn = np.radians(AUTHOR_ANGLE - BAKE_ANGLE)
@@ -414,6 +450,8 @@ def render(R, surface_fn, *, ss=3, light=LIGHT, frame=None, bump=1.0, atmosphere
     straight = np.where(inside[..., None], light_out, light_out / np.maximum(alpha[..., None], 1e-6))
     # downsample in linear, premultiplied
     pre = np.concatenate([straight * alpha[..., None], alpha[..., None]], axis=-1)
+    if soft:
+        pre = soften(pre, soft * ss)
     n = size // ss
     pre = pre.reshape(n, ss, n, ss, 4).mean(axis=(1, 3))
     a_out = pre[..., 3:4]
@@ -502,12 +540,12 @@ LAVA_AIR = dict(colour=lin((255, 170, 120)) * 1.0, twilight=lin((255, 110, 60)),
                 extinction=(0.8, 1.0, 1.25), sunset=0.7, brightness=1.0, veil=0.12)
 
 
-def planet_lava(R=128):
+def planet_lava(R=128, scale=1):
     # side-lit (sun nearly square to the line of sight): about half the disc is night, so the lava reads as lava at game
     # scale, not a brown ball with a glowing rim
     return render(R, lava_surface, ss=2, frame=rot(20, 160, 8), bump=1.6, atmosphere=LAVA_AIR, exposure=1.6, light=light_at(0.0),
                   bloom=[(1.2, 0.6), (4, 0.3), (10, 0.06)], night_glow=lin((255, 80, 30)) * 0.1, night_emission=0.14,
-                  ambient=(0.0005, 0.0006, 0.0009), limb=0.2)
+                  ambient=(0.0005, 0.0006, 0.0009), limb=0.2, scale=scale)
 
 
 # ---------------------------------------------------------------- the other worlds
@@ -737,37 +775,34 @@ def light_at(z):
     return np.array([xy[0], xy[1], z])
 
 
+# make(R, s): R the radius in scale-1 pixels, s the output pixels per scale-1 pixel (render's scale)
 WORLDS = {
-    'world_ice': lambda R: render(R, ice_surface, frame=rot(30, 40, 10), bump=1.0, atmosphere=ICE_AIR, exposure=1.05),
-    'world_jungle': lambda R: render(R, jungle_surface, frame=rot(18, 200, -12), bump=1.0, atmosphere=EARTH_AIR, exposure=1.25),
-    'world_rock': lambda R: render(R, rock_surface, frame=rot(10, 70, 0), bump=2.0, atmosphere=None, exposure=1.35, light=light_at(0.22)),
-    'world_redrock': lambda R: render(R, redrock_surface, frame=rot(-25, 120, 6), bump=1.1, atmosphere=MARS_AIR, exposure=1.2),
-    'world_ocean': lambda R: render(R, ocean_surface, frame=rot(-15, 30, 14), bump=1.0, atmosphere=EARTH_AIR, exposure=1.25),
-    'world_gas': lambda R: render(int(R * 1.35), gas_surface, frame=rot(0, 0, -12), bump=0, atmosphere=GAS_AIR, exposure=1.2, limb=0.35, terminator=(-0.10, 0.32)),
+    'world_ice': lambda R, s=1: render(R, ice_surface, frame=rot(30, 40, 10), bump=1.0, atmosphere=ICE_AIR, exposure=1.05, scale=s),
+    'world_jungle': lambda R, s=1: render(R, jungle_surface, frame=rot(18, 200, -12), bump=1.0, atmosphere=EARTH_AIR, exposure=1.25, scale=s),
+    'world_rock': lambda R, s=1: render(R, rock_surface, frame=rot(10, 70, 0), bump=2.0, atmosphere=None, exposure=1.35, light=light_at(0.22), scale=s),
+    'world_redrock': lambda R, s=1: render(R, redrock_surface, frame=rot(-25, 120, 6), bump=1.1, atmosphere=MARS_AIR, exposure=1.2, scale=s),
+    'world_ocean': lambda R, s=1: render(R, ocean_surface, frame=rot(-15, 30, 14), bump=1.0, atmosphere=EARTH_AIR, exposure=1.25, scale=s),
+    'world_gas': lambda R, s=1: render(int(R * 1.35), gas_surface, frame=rot(0, 0, -12), bump=0, atmosphere=GAS_AIR, exposure=1.2, limb=0.35, terminator=(-0.10, 0.32), scale=s),
 }
 
 
-def build_worlds_only(state, R=WORLD_R):
+def build_worlds_only(state, R=WORLD_R, scale=1):
     """One world, for looking at while tuning."""
-    return WORLDS[state](R)
+    return WORLDS[state](R, scale)
 
 
-def build_worlds(R=WORLD_R):
-    return {state: make(R) for state, make in WORLDS.items()}
+def build_worlds(R=WORLD_R, scale=1):
+    return {state: make(R, scale) for state, make in WORLDS.items()}
 
 
 # ---------------------------------------------------------------- galaxies
 
-def galaxy(seed, radius, incl, pa, arms=2, pitch=14, bar=0.0, bulge=0.12, arm_strength=1.0, dust=1.0, arm_dust=1.0, knots=60,
-           n=TILE, ss=2, exposure=1.0):
-    """A galaxy seen from far off: a warm bulge, a disc with logarithmic spiral arms (blue-white, knotted with pink star-forming
-    regions), dust lanes on the arms' inner edges, an optional bar. incl/pa in degrees; radius in pixels.
-    Returns (h, w, 3) linear light; the alpha comes from the light itself, as for the haze round a planet."""
-    rng = np.random.default_rng(seed)
-    size = n * ss
+def _galaxy_disc(seed, rpx, incl, pa, arms, pitch, bar, arm_strength, size):
+    """galaxy()'s disc on a size x size grid of samples, rpx samples to its radius: the grid, the disc's own coordinates, its
+    large noise and its arms (disc * armed are the knots' odds)."""
     yy, xx = np.mgrid[0:size, 0:size].astype(float) + 0.5
-    x = (xx - size / 2) / (radius * ss)
-    y = -(yy - size / 2) / (radius * ss)
+    x = (xx - size / 2) / rpx
+    y = -(yy - size / 2) / rpx
     c, s_ = np.cos(np.radians(pa)), np.sin(np.radians(pa))
     xr, yr = x * c + y * s_, -x * s_ + y * c                 # along the major axis, across it
     ci = np.cos(np.radians(incl))
@@ -776,40 +811,68 @@ def galaxy(seed, radius, incl, pa, arms=2, pitch=14, bar=0.0, bulge=0.12, arm_st
     th = np.arctan2(v, u)
     pts = np.stack([u.ravel(), v.ravel(), np.zeros(u.size)])
     noise = fbm(pts * 1.0, seed, 2.5, 5).reshape(u.shape)
-    fine = fbm(pts, seed + 1, 22.0, 3).reshape(u.shape)
     tight = 1 / np.tan(np.radians(pitch))
     phase = th - np.log(r + 0.04) * tight + noise * 0.9
     patchy = smoothstep(-0.3, 0.6, fbm(pts, seed + 2, 5.0, 4).reshape(u.shape))
     arm = (0.5 + 0.5 * np.cos(arms * phase)) ** 2.4 * (0.45 + 0.75 * patchy)
     spurs = (0.5 + 0.5 * np.cos(2 * arms * phase + noise * 2.5)) ** 4 * 0.35 * patchy   # feathers between the main arms
     arm = np.clip(arm + spurs, 0, 1.2)
-    lane = (0.5 + 0.5 * np.cos(arms * phase - 0.55)) ** 12 * (0.5 + 0.5 * patchy)       # dust just inside each arm
     disc = np.exp(-r / 0.26) * smoothstep(1.15, 0.7, r)
     arm_zone = smoothstep(0.08 + bar * 0.9, 0.28 + bar * 0.9, r)   # arms start where the bulge or bar ends
+    armed = arm * arm_zone * arm_strength
+    return dict(yy=yy, xx=xx, xr=xr, yr=yr, ci=ci, u=u, v=v, r=r, pts=pts, noise=noise, phase=phase, patchy=patchy,
+                disc=disc, arm_zone=arm_zone, armed=armed)
+
+
+def galaxy(seed, radius, incl, pa, arms=2, pitch=14, bar=0.0, bulge=0.12, arm_strength=1.0, dust=1.0, arm_dust=1.0, knots=60,
+           n=TILE, ss=2, exposure=1.0, scale=1):
+    """A galaxy seen from far off: a warm bulge, a disc with logarithmic spiral arms (blue-white, knotted with pink star-forming
+    regions), dust lanes on the arms' inner edges, an optional bar. incl/pa in degrees; radius in pixels.
+    Returns (h, w, 3) linear light; the alpha comes from the light itself, as for the haze round a planet.
+
+    scale: output pixels per scale-1 pixel (radius and n stay in scale-1 pixels; the result is n * scale square). Where scale
+    divides ss (2x with the default ss 2) the samples are the scale-1 ones, ss / scale to an output pixel: the same knots, and
+    the 2x image averaged down by 2 is the scale-1 one. Otherwise the knots are still picked on the scale-1 grid, so they land
+    in the same places. Above 1 the light is softened by SOFT_PX output pixels (knots stay soft dots, nothing is one pixel)."""
+    rng = np.random.default_rng(seed)
+    sub = ss // scale if ss % scale == 0 else ss             # samples per output pixel
+    k = sub * scale                                          # samples per scale-1 pixel
+    size = n * k
+    g = _galaxy_disc(seed, radius * k, incl, pa, arms, pitch, bar, arm_strength, size)
+    yy, xx, xr, yr, ci, u, v = g['yy'], g['xx'], g['xr'], g['yr'], g['ci'], g['u'], g['v']
+    r, pts, noise, phase, patchy = g['r'], g['pts'], g['noise'], g['phase'], g['patchy']
+    disc, arm_zone, armed = g['disc'], g['arm_zone'], g['armed']
+    fine = fbm(pts, seed + 1, 22.0, 3).reshape(u.shape)
+    lane = (0.5 + 0.5 * np.cos(arms * phase - 0.55)) ** 12 * (0.5 + 0.5 * patchy)       # dust just inside each arm
     # bulge: a round-ish spheroid on screen, a hot little nucleus
     rb = np.hypot(xr, yr / (0.75 + 0.25 * ci))
     bul = np.exp(-(rb / bulge) ** 0.8 * 2.2) + 2.5 * np.exp(-(rb / (bulge * 0.12)) ** 2)
     warm = np.array([1.0, 0.80, 0.56])
     cool = np.array([0.70, 0.80, 1.0])
     light = bul[..., None] * warm * 1.1
-    armed = arm * arm_zone * arm_strength
     grain = 0.75 + 0.5 * np.clip(0.5 + 0.5 * fine, 0, 1)    # resolved star clouds: the arms are grainy, not smooth
     light += (disc * (0.35 + 1.6 * armed * grain))[..., None] * mix(warm * 0.9, cool, np.clip(armed * 1.4, 0, 1))
     if bar:
         bar_l = np.exp(-(np.abs(u) / bar) ** 2.5 - (v / (bar * 0.28)) ** 2)
         light += (bar_l * 0.55)[..., None] * warm
-    # star-forming knots strung along the arms
-    flat = (disc * armed).ravel()
+    # star-forming knots strung along the arms, picked on the scale-1 grid of samples (m: this grid's samples per its sample)
+    if k == ss:
+        odds, disc0, m = disc * armed, disc, 1
+    else:
+        g0 = _galaxy_disc(seed, radius * ss, incl, pa, arms, pitch, bar, arm_strength, n * ss)
+        odds, disc0, m = g0['disc'] * g0['armed'], g0['disc'], k / ss
+    flat = odds.ravel()
     if knots and flat.sum() > 0:
         pick = rng.choice(flat.size, size=knots, p=flat / flat.sum())
-        ky, kx = np.unravel_index(pick, u.shape)
+        ky, kx = np.unravel_index(pick, odds.shape)
         for py, px in zip(ky, kx):
-            sz = rng.uniform(0.6, 1.6) * ss
-            y0, y1 = max(0, py - 6 * ss), min(size, py + 6 * ss)
-            x0, x1 = max(0, px - 6 * ss), min(size, px + 6 * ss)
-            g = np.exp(-((yy[y0:y1, x0:x1] - py - 0.5) ** 2 + (xx[y0:y1, x0:x1] - px - 0.5) ** 2) / (2 * sz * sz))
+            sz = rng.uniform(0.6, 1.6) * ss * m
+            cy, cx, half = (py + 0.5) * m, (px + 0.5) * m, 6 * ss * m
+            y0, y1 = max(0, int(np.floor(cy - half))), min(size, int(np.floor(cy + half)))
+            x0, x1 = max(0, int(np.floor(cx - half))), min(size, int(np.floor(cx + half)))
+            g = np.exp(-((yy[y0:y1, x0:x1] - cy) ** 2 + (xx[y0:y1, x0:x1] - cx) ** 2) / (2 * sz * sz))
             tint = np.array([1.0, 0.55, 0.75]) if rng.uniform() < 0.6 else np.array([0.75, 0.85, 1.0])
-            light[y0:y1, x0:x1] += g[..., None] * tint * rng.uniform(0.2, 0.6) * disc[py, px] ** 0.3
+            light[y0:y1, x0:x1] += g[..., None] * tint * rng.uniform(0.2, 0.6) * disc0[py, px] ** 0.3
     # dust: lanes inside the arms, and across the near side of a tilted disc a lane along the major axis
     tau = dust * arm_dust * (lane * arm_zone * disc * 2.2 + np.clip(0.5 + 0.5 * noise, 0, 1) * disc * 0.4)
     if incl > 70:
@@ -817,8 +880,10 @@ def galaxy(seed, radius, incl, pa, arms=2, pitch=14, bar=0.0, bulge=0.12, arm_st
         tau += dust * 3.0 * np.exp(-((yr + 0.02) / thick) ** 2) * smoothstep(1.0, 0.5, np.abs(xr)) * (0.6 + 0.4 * (0.5 + 0.5 * noise))
     light *= np.exp(-tau)[..., None] * np.array([1.0, 0.95, 0.85]) ** (tau[..., None] * 0.5)  # dust reddens what it dims
     light = rolloff(light * exposure, knee=0.45)
-    light *= smoothstep(n * ss / 2, n * ss / 2 - 30 * ss, np.hypot(xx - size / 2, yy - size / 2))[..., None]
-    return light.reshape(n, ss, n, ss, 3).mean(axis=(1, 3))
+    light *= smoothstep(size / 2, size / 2 - 30 * k, np.hypot(xx - size / 2, yy - size / 2))[..., None]
+    if scale != 1:
+        light = soften(light, SOFT_PX * sub)
+    return light.reshape(n * scale, sub, n * scale, sub, 3).mean(axis=(1, 3))
 
 
 def glow_image(light, seed):
@@ -835,24 +900,26 @@ def glow_image(light, seed):
     return Image.fromarray(np.concatenate([rgb8, a8], axis=-1).astype(np.uint8), 'RGBA')
 
 
-def build_galaxies():
-    """The far galaxy a theme can show (state names as the old tg ones, so themes keep working)."""
+def build_galaxies(scale=1):
+    """The far galaxy a theme can show (state names as the old tg ones, so themes keep working). scale: see galaxy()."""
     return {
-        'galaxy': glow_image(galaxy(301, 150, 28, 20, arms=2, pitch=15, bulge=0.10, exposure=0.8), 301),
-        'galaxy2': glow_image(galaxy(302, 140, 50, -35, arms=2, pitch=18, bar=0.32, bulge=0.08, exposure=0.85), 302),
-        'galaxy3': glow_image(galaxy(303, 175, 66, 32, arms=2, pitch=16, bulge=0.11, arm_dust=0.7, exposure=0.85), 303),
-        'galaxy4': glow_image(galaxy(304, 185, 88, -14, arms=3, pitch=16, bulge=0.17, dust=1.4, arm_dust=0.15, arm_strength=0.3, knots=20, exposure=1.0), 304),
+        'galaxy': glow_image(galaxy(301, 150, 28, 20, arms=2, pitch=15, bulge=0.10, exposure=0.8, scale=scale), 301),
+        'galaxy2': glow_image(galaxy(302, 140, 50, -35, arms=2, pitch=18, bar=0.32, bulge=0.08, exposure=0.85, scale=scale), 302),
+        'galaxy3': glow_image(galaxy(303, 175, 66, 32, arms=2, pitch=16, bulge=0.11, arm_dust=0.7, exposure=0.85, scale=scale), 303),
+        'galaxy4': glow_image(galaxy(304, 185, 88, -14, arms=3, pitch=16, bulge=0.17, dust=1.4, arm_dust=0.15, arm_strength=0.3, knots=20, exposure=1.0, scale=scale), 304),
     }
 
 
 # ---------------------------------------------------------------- the sun
 
-def sun_glare_v2(n=TILE):
+def sun_glare_v2(n=TILE, scale=1):
     """A nearby star seen without a lens burning: a tiny hot core, a halo that falls off as a power law, thin faint rays.
-    The core alone reaches full white, and only within a few pixels: tinted by the game it reads as a point, not a cream disc."""
-    yy, xx = np.mgrid[0:n, 0:n].astype(float)
-    dx = xx - n / 2 + 0.5
-    dy = yy - n / 2 + 0.5
+    The core alone reaches full white, and only within a few pixels: tinted by the game it reads as a point, not a cream disc.
+    scale: output pixels per scale-1 pixel (n and every size below stay in scale-1 pixels; the result is n * scale square)."""
+    N = n * scale
+    yy, xx = np.mgrid[0:N, 0:N].astype(float)
+    dx = (xx - N / 2 + 0.5) / scale
+    dy = (yy - N / 2 + 0.5) / scale
     r = np.hypot(dx, dy)
     core = 2.5 * np.exp(-(r / 2.6) ** 2)
     halo = 0.75 / (1 + (r / 5.0) ** 2) ** 1.1 + 0.24 / (1 + (r / 30.0) ** 2) + 0.05 * np.exp(-r / 120.0)
@@ -868,24 +935,27 @@ def sun_glare_v2(n=TILE):
 
 # ---------------------------------------------------------------- the set
 
-def build_bodies(light_angle=0.0):
+def build_bodies(light_angle=0.0, scale=1):
     """light_angle: where the sun is, degrees counter-clockwise from screen east (y up). 0 bakes every body lit from the east;
-    the game then turns each one to its sun: transform = matrix().Turn(-sun_angle) (BYOND turns clockwise)."""
+    the game then turns each one to its sun: transform = matrix().Turn(-sun_angle) (BYOND turns clockwise).
+    scale: pixels per scale-1 pixel. 2 gives every state at 960x960, the same picture in twice the pixel density (the same
+    bodies, sizes, places, light and random features; the game draws it at half scale). 1 is the 480 px sheet as it always was."""
     global BAKE_ANGLE
     old_angle, BAKE_ANGLE = BAKE_ANGLE, float(light_angle)
     try:
-        return _build_bodies()
+        return _build_bodies(scale)
     finally:
         BAKE_ANGLE = old_angle
 
 
-def _build_bodies():
-    """{state: PIL RGBA 480x480}: planet_lava, world_ice/jungle/rock/redrock/ocean (+ world_gas), galaxy/galaxy2-4, sun."""
-    out = {'planet_lava': sg.centred(planet_lava())}
-    for state, image in build_worlds().items():
-        out[state] = sg.centred(image)
-    out.update(build_galaxies())
-    out['sun'] = sg.additive_image(sun_glare_v2(), 31)
+def _build_bodies(scale=1):
+    """{state: PIL RGBA (480 * scale) square}: planet_lava, world_ice/jungle/rock/redrock/ocean (+ world_gas), galaxy/galaxy2-4, sun."""
+    n = TILE * scale
+    out = {'planet_lava': sg.centred(planet_lava(scale=scale), n)}
+    for state, image in build_worlds(scale=scale).items():
+        out[state] = sg.centred(image, n)
+    out.update(build_galaxies(scale))
+    out['sun'] = sg.additive_image(sun_glare_v2(scale=scale), 31)
     return out
 
 

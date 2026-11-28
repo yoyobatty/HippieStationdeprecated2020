@@ -32,26 +32,89 @@
 	cut_overlays()
 	add_overlay(tiles)
 
-/// tile() for a sprite kept as four quarters, "<base>_XY" with X and Y 0 or 1 from the bottom left (tools/sky_gen/v2/build_v2.py
-/// quarters()): every repeat's quarters, put together by transforms. The object's own sprite is the bottom left quarter. A
-/// sprite bigger than the view in a screen object's vis_contents makes BYOND grow the map to fit it, and the view then fills
-/// only part of the pane (the 960 px band left it in the bottom left quarter for anyone with the sky on); transforms don't.
-/obj/screen/sky_art/proc/tile_quarters(base, reach = 2)
+/// tile() for art kept as grid x grid pieces, "<base>_XY" with X and Y from 0 at the bottom left (tools/sky_gen/v2/build_v2.py
+/// pieces()), sprite_size art pixels across in all, drawn art_scale times as big (0.5 for art made at twice the game's pixels,
+/// build_v2.py --scale 2). reach: repeats each way round the middle one
+/// (0 for a single thing). The whole picture's middle sits on the object's own middle, as a single sprite's would.
+/// A sprite bigger than the view in a screen object's vis_contents makes BYOND grow the map to fit it, and the view then fills
+/// only part of the pane (the 960 px band left it in the bottom left quarter for anyone with the sky on); pieces put together by
+/// transforms don't.
+/obj/screen/sky_art/proc/tile_pieces(base, grid, art_scale = 1, reach = 2)
 	icon_state = "[base]_00"
-	transform = matrix(scale, 0, 0, 0, scale, 0)
-	var/half = sprite_size / 2
+	var/piece = sprite_size / grid
 	var/list/tiles = list()
 	for(var/x in -reach to reach)
 		for(var/y in -reach to reach)
-			for(var/qx in 0 to 1)
-				for(var/qy in 0 to 1)
+			for(var/qx in 0 to grid - 1)
+				for(var/qy in 0 to grid - 1)
 					if(x == 0 && y == 0 && qx == 0 && qy == 0)
 						continue
 					var/mutable_appearance/copy = mutable_appearance(icon, "[base]_[qx][qy]")
-					copy.transform = matrix(1, 0, x * sprite_size + qx * half, 0, 1, y * sprite_size + qy * half)
+					copy.transform = matrix(1, 0, x * sprite_size + qx * piece, 0, 1, y * sprite_size + qy * piece)
 					tiles += copy
 	cut_overlays()
 	add_overlay(tiles)
+	// Scaled about the bottom left piece's middle, which is the object's: the picture's middle is (sprite_size - piece) / 2 art
+	// pixels up and right of it
+	var/shift = (piece - sprite_size) / 2 * art_scale
+	transform = matrix(art_scale, 0, shift, 0, art_scale, shift)
+
+/// Whether a sheet holds a sprite as pieces ("<base>_00" and on, build_v2.py pieces()) rather than whole
+/proc/sky_has_pieces(icon/sheet, base)
+	return sky_sheet_has(sheet, "[base]_00")
+
+/// Whether a sheet has a state (icon_states() once a sheet, remembered)
+/proc/sky_sheet_has(icon/sheet, state)
+	var/static/list/states_of = list()
+	var/list/states = states_of["[sheet]"]
+	if(!states)
+		states = list()
+		for(var/each in icon_states(sheet))
+			states[each] = TRUE
+		states_of["[sheet]"] = states
+	return states[state] ? TRUE : FALSE
+
+/// Shared art for a star layer: the whole 480 px tile, or 2x pieces ("<state>_XY", 960 art px a 480 px repeat) if sky.dmi was
+/// built with build_v2.py --scale 2. The game's sheets are 1x: DreamSeeker renders the map at the game's pixels and stretches
+/// it, so finer art never showed (tools/sky_gen/v2/sky_sharpness.py, 2026-11-27). No colour of its own: it takes the layer's
+/// (the theme's star tint).
+/datum/controller/subsystem/parallax/proc/star_art(state, star_layer)
+	var/name = "stars [state]"
+	var/obj/screen/sky_art/A = sky_art[name]
+	if(A)
+		return A
+	A = new
+	A.icon = 'hippiestation/icons/effects/sky.dmi'
+	A.appearance_flags = NO_CLIENT_COLOR // the layer's tint, and its turn and streaks
+	A.layer = star_layer
+	if(sky_has_pieces(A.icon, state))
+		A.sprite_size = PARALLAX_TILE * 2
+		A.tile_pieces(state, 2, 0.5)
+	else
+		A.icon_state = state
+		A.tile()
+	sky_art[name] = A
+	return A
+
+/// Shared art for a body (sky_bodies.dmi: the planet, a world, the sun, a galaxy): the whole sprite, or four 2x pieces drawn at
+/// half size from a --scale 2 sheet (see star_art()). It takes the layer's blend, tint and turn (face_sun()).
+/datum/controller/subsystem/parallax/proc/body_art(state, body_layer)
+	var/name = "body [state]"
+	var/obj/screen/sky_art/A = sky_art[name]
+	if(A)
+		return A
+	A = new
+	A.icon = 'hippiestation/icons/effects/sky_bodies.dmi'
+	A.blend_mode = BLEND_DEFAULT // the layer's: the planet and worlds are laid over the sky, the sun added to it
+	A.appearance_flags = NO_CLIENT_COLOR
+	A.layer = body_layer
+	if(sky_has_pieces(A.icon, state))
+		A.sprite_size = PARALLAX_TILE * 2
+		A.tile_pieces(state, 2, 0.5, 0)
+	else
+		A.icon_state = state
+	sky_art[name] = A
+	return A
 
 /// Fades between full and faint and back every 2 * half, for good.
 /obj/screen/sky_art/proc/twinkle(half)
@@ -384,16 +447,21 @@
 	A.alpha = cloud[3]
 	A.layer = 3 + index * 0.01
 	A.scale = SKY_NEBULA_SCALE
-	if(cloud[1] == "band") //the band is drawn full size in its own sheet (960 px, the nebula repeat), so its grain stars stay sharp
+	// Each repeat is PARALLAX_TILE * SKY_NEBULA_SCALE (960) game px. tile_pieces() puts the picture's middle on the layer's (the
+	// band's line mid-screen) by a transform, not pixel_x/pixel_y: those don't turn with the sky, so the band slid against the
+	// bodies as the sky turned. One repeat each way covers the view turned and in a shuttle's flight.
+	if(cloud[1] == "band")
 		A.icon = 'hippiestation/icons/effects/sky_band.dmi'
-		A.scale = 1
+		if(sky_sheet_has(A.icon, "band_33")) // made at twice the game's pixels: 1920 art px in 4x4 pieces, drawn at half size
+			A.sprite_size = PARALLAX_TILE * SKY_NEBULA_SCALE * 2
+			A.tile_pieces("band", 4, 0.5, 1)
+		else // the 960 px band as four quarters, drawn full size
+			A.sprite_size = PARALLAX_TILE * SKY_NEBULA_SCALE
+			A.tile_pieces("band", 2, 1)
+	else if(sky_has_pieces(A.icon, cloud[1])) // a cloud made at the game's pixels: 960 art px in four pieces, drawn full size
 		A.sprite_size = PARALLAX_TILE * SKY_NEBULA_SCALE
-		A.tile_quarters("band") // kept as four 480 px quarters, so the sky never reaches past the view (tile_quarters())
-		// a sprite twice the layer's size sits with its corner on the layer's: this puts its middle (the band's line) mid-screen,
-		// as a 480 px cloud drawn at twice size is. A transform, not pixel_x/pixel_y: those don't turn with the sky, so the band
-		// slid against the bodies as the sky turned
-		A.transform = matrix(1, 0, -PARALLAX_TILE / 2, 0, 1, -PARALLAX_TILE / 2)
-	else
+		A.tile_pieces(cloud[1], 2, 1, 1)
+	else // an older 480 px cloud drawn at twice size
 		A.tile()
 	sky_art[name] = A
 	return A
@@ -405,10 +473,14 @@
 	if(A)
 		return A
 	A = new
-	A.icon_state = "twinkle[group]"
 	A.color = theme.star_tint
 	A.layer = 7.1
-	A.tile()
+	if(sky_has_pieces(A.icon, "twinkle[group]")) // on the near stars, made at twice the game's pixels like them (star_art())
+		A.sprite_size = PARALLAX_TILE * 2
+		A.tile_pieces("twinkle[group]", 2, 0.5)
+	else
+		A.icon_state = "twinkle[group]"
+		A.tile()
 	if(moving)
 		A.twinkle(9 + group * 4) //each group at its own pace, so they never all fade together
 	else
@@ -1207,7 +1279,7 @@
 /// A client's Lavaland, as it goes on screen: carries the ion storm's aurora and an ash storm while they're up (sky_weather.dm
 /// planet_art), so they're there for late arrivals too
 /obj/screen/parallax_layer/body/planet/set_quality(quality)
-	vis_contents = carry(SSparallax.planet_art.Copy())
+	vis_contents = carry(body_art_list() + SSparallax.planet_art)
 
 /datum/controller/subsystem/parallax/fire(resumed = 0)
 	if(!resumed && flyby)

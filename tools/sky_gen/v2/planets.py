@@ -12,6 +12,8 @@ The six worlds (WORLD_LOOKS): crisp terminators, near-zero ambient, airglow on t
 lumpy one for redrock), banded rings with a gap for the gas giant. Baked lit from the east (face_sun(0)).
 planet_plasma and planet_chasm are Paradise's Lavaland themes: rebuilt only in a sheet that already has them.
 --preview draws the sheet's states before (as they were in the sheet) above after. Seeded: a rebuild gives the same pixels.
+In code: repaint_states(states, scale=1) does the same to a {state: PIL RGBA} dict (bodies.build_bodies(scale=...)'s);
+scale 2 draws the 960 px sheet, the same picture in twice the pixel density (tools/sky_gen/v2/bodies2x_check.py checks it).
 """
 import argparse
 import os
@@ -92,22 +94,47 @@ def chasm_surface(p):
     return s
 
 
-def planet_lava(R=128):
+# scale (here and below): output pixels per scale-1 pixel. Radii, offsets and sizes are written in scale-1 pixels and multiplied
+# out; random draws are the scale-1 ones, so the same rocks land in the same places. Above 1 every layer is softened by
+# b.SOFT_PX output pixels so nothing is one pixel wide (see bodies.py).
+
+def planet_lava(R=128, scale=1):
     return b.render(R, b.lava_surface, ss=2, frame=b.rot(20, 160, 8), bump=1.6, atmosphere=b.LAVA_AIR, exposure=1.6,
                     light=b.light_at(BACKLIT_Z), bloom=[(1.2, 0.6), (4, 0.3), (10, 0.06)], night_glow=b.lin((255, 80, 30)) * 0.1,
-                    night_emission=0.14, ambient=(0.0001, 0.0001, 0.00015), limb=0.2, terminator=(-0.01, 0.05))
+                    night_emission=0.14, ambient=(0.0001, 0.0001, 0.00015), limb=0.2, terminator=(-0.01, 0.05), scale=scale)
 
 
-def planet_plasma(R=128):
+def planet_plasma(R=128, scale=1):
     return b.render(R, plasma_surface, ss=2, frame=b.rot(-30, 60, 12), bump=1.6, atmosphere=PLASMA_AIR, exposure=1.6,
                     light=b.light_at(BACKLIT_Z), bloom=[(1.2, 0.6), (4, 0.3), (10, 0.06)], night_glow=b.lin((230, 70, 255)) * 0.1,
-                    night_emission=0.14, ambient=(0.0001, 0.0001, 0.00015), limb=0.2, terminator=(-0.01, 0.05))
+                    night_emission=0.14, ambient=(0.0001, 0.0001, 0.00015), limb=0.2, terminator=(-0.01, 0.05), scale=scale)
 
 
-def planet_chasm(R=128):
+def planet_chasm(R=128, scale=1):
     # no glow of its own: its moon's light and the airglow show the dark face a little
     return b.render(R, chasm_surface, ss=2, frame=b.rot(15, 250, -6), bump=1.8, atmosphere=CHASM_AIR, exposure=1.5,
-                    light=b.light_at(BACKLIT_Z), night_emission=0.0, ambient=(0.0012, 0.0012, 0.0015), limb=0.2, terminator=(-0.01, 0.05))
+                    light=b.light_at(BACKLIT_Z), night_emission=0.0, ambient=(0.0012, 0.0012, 0.0015), limb=0.2, terminator=(-0.01, 0.05),
+                    scale=scale)
+
+
+def disc_width(R, pad=1.22):
+    """The width of b.render(R)'s image at scale 1 (2 * ceil(R * pad))."""
+    return 2 * int(np.ceil(R * pad))
+
+
+def place(x, w1, w, scale):
+    """Where a sprite w pixels wide goes at `scale` so it lands where the scale-1 code put one w1 wide, at int(x - w1 / 2) (x in
+    scale-1 pixels): the scale-1 truncation kept, then centred on the same spot."""
+    return scale * int(x - w1 / 2) + (scale * w1 - w) // 2
+
+
+def soft_split(d, at, scale):
+    """The share of the airglow drawn behind the planet: d > at at scale 1 (a hard edge, as it always was); above 1 eased over
+    about 1.5 output pixels, so the edge where the glow passes behind the planet's haze isn't a one-pixel step."""
+    if scale == 1:
+        return d > at
+    half = 0.75 / scale  # d is in scale-1 pixels
+    return b.smoothstep(at - half, at + half, d)
 
 
 # Airglow colours per planet: list(limb line, soft halo, the thin band above the limb), 0-255
@@ -120,12 +147,14 @@ AIRGLOW = {
 PLANETSHINE = {'planet_lava': (1.0, 0.42, 0.14), 'planet_plasma': (0.8, 0.3, 1.0), 'planet_chasm': (0.35, 0.38, 0.45)}
 
 
-def airglow(n, R, colours, light_deg, scale=1.0, strength=0.55, night=0.06, band_strength=0.15):
+def airglow(n, R, colours, light_deg, scale=1.0, strength=0.55, night=0.06, band_strength=0.15, res=1):
     """Premultiplied RGB and alpha arrays (n x n) for a planet's airglow: a thin bright line at the limb, a soft halo past
-    it, and a thin separate band a few pixels up, as airglow looks from orbit. Strongest on the side toward the light."""
+    it, and a thin separate band a few pixels up, as airglow looks from orbit. Strongest on the side toward the light.
+    n and R are in output pixels; res is output pixels per scale-1 pixel (scale is the widths' own scale, as before). The
+    widths, and the distance past the limb it returns, are in scale-1 pixels."""
     yy, xx = np.mgrid[0:n, 0:n].astype(float) + 0.5
     dx, dy = xx - n / 2, n / 2 - yy
-    d = np.hypot(dx, dy) - R
+    d = (np.hypot(dx, dy) - R) / res
     ang = np.arctan2(dy, dx)
     toward = (np.cos(ang - np.radians(light_deg)) + 1) / 2
     side = (night + (1 - night) * toward ** 2.4) * strength
@@ -141,7 +170,7 @@ def airglow(n, R, colours, light_deg, scale=1.0, strength=0.55, night=0.06, band
 
 
 def add_light(canvas, rgb, alpha, where):
-    """Adds premultiplied light onto an RGBA image where `where` is true."""
+    """Adds premultiplied light onto an RGBA image where `where` is true (or by `where` as a 0..1 weight)."""
     arr = np.asarray(canvas).astype(float) / 255
     a = arr[..., 3:4]
     prem = arr[..., :3] * a + rgb * where[..., None]
@@ -152,15 +181,18 @@ def add_light(canvas, rgb, alpha, where):
     return Image.fromarray((out * 255 + 0.5).astype(np.uint8), 'RGBA')
 
 
-def lit_moon(state):
+MOON_R = 42
+
+
+def lit_moon(state, scale=1):
     """The moon: crisp sunlight from behind and up-left, and its dark side faintly lit by the planet's own glow."""
-    sun = b.render(42, b.rock_surface, frame=b.rot(25, 300, 5), atmosphere=None, exposure=1.35, light=b.light_at(BACKLIT_Z),
-                   ambient=(0.0, 0.0, 0.0), terminator=(-0.005, 0.03))
+    sun = b.render(MOON_R, b.rock_surface, frame=b.rot(25, 300, 5), atmosphere=None, exposure=1.35, light=b.light_at(BACKLIT_Z),
+                   ambient=(0.0, 0.0, 0.0), terminator=(-0.005, 0.03), scale=scale)
     old = b.BAKE_ANGLE
     b.BAKE_ANGLE = 156 # toward the planet, seen from the moon
     try:
-        fill = b.render(42, b.rock_surface, frame=b.rot(25, 300, 5), atmosphere=None, exposure=0.55, light=b.light_at(-0.3),
-                        ambient=(0.0, 0.0, 0.0), terminator=(-0.05, 0.25))
+        fill = b.render(MOON_R, b.rock_surface, frame=b.rot(25, 300, 5), atmosphere=None, exposure=0.55, light=b.light_at(-0.3),
+                        ambient=(0.0, 0.0, 0.0), terminator=(-0.05, 0.25), scale=scale)
     finally:
         b.BAKE_ANGLE = old
     s = np.asarray(sun).astype(float) / 255
@@ -171,20 +203,24 @@ def lit_moon(state):
     return Image.fromarray((out * 255 + 0.5).astype(np.uint8), 'RGBA')
 
 
-def rock_sprite(rng, r, tint, shine, toward_planet, sun=(-0.55, 0.5, -0.45)):
+def rock_sprite(rng, r, tint, shine, toward_planet, sun=(-0.55, 0.5, -0.45), scale=1):
     """One small lumpy asteroid, r pixels across its middle: an irregular outline, pitted, lit from behind and up-left
-    (a bright rim, a dark face) with the planet's glow faint on its other side. Straight-alpha RGBA."""
-    size = int(np.ceil(r * 2.6)) + 3
+    (a bright rim, a dark face) with the planet's glow faint on its other side. Straight-alpha RGBA.
+    scale: the same rock (the same draws from rng) in scale times the pixels each way: r stays in scale-1 pixels, the sprite
+    is scale times the scale-1 one's size and its grain the scale-1 grain over scale x scale pixels. Not softened here: the
+    caller softens the layer it lands in."""
+    size1 = int(np.ceil(r * 2.6)) + 3
+    size = size1 * scale
     c = size / 2
     yy, xx = np.mgrid[0:size, 0:size].astype(float) + 0.5
-    dx, dy = (xx - c), (c - yy)
+    dx, dy = (xx - c) / scale, (c - yy) / scale
     ang = np.arctan2(dy, dx)
     lump = np.ones_like(ang)
     for k in (2, 3, 5):
         lump += rng.uniform(0.06, 0.2) * np.sin(k * ang + rng.uniform(0, 2 * np.pi))
     edge = r * lump
     dist = np.hypot(dx, dy)
-    cover = np.clip(edge - dist + 0.5, 0, 1)
+    cover = np.clip((edge - dist) * scale + 0.5, 0, 1)
     u = np.clip(dist / np.maximum(edge, 0.1), 0, 1)
     nx, ny = dx / np.maximum(edge, 0.1), dy / np.maximum(edge, 0.1)
     nz = np.sqrt(np.clip(1 - u * u, 0, 1))
@@ -199,7 +235,11 @@ def rock_sprite(rng, r, tint, shine, toward_planet, sun=(-0.55, 0.5, -0.45)):
     fill /= np.linalg.norm(fill)
     lit = np.clip(nx * sun[0] + ny * sun[1] + nz * sun[2], 0, None) * 1.7
     glow = np.clip(nx * fill[0] + ny * fill[1] + nz * fill[2], 0, None)
-    albedo = rng.uniform(0.75, 1.05) * (1 - 0.45 * pits) * (0.9 + 0.2 * rng.uniform(size=dist.shape))
+    tone = rng.uniform(0.75, 1.05)
+    grain = rng.uniform(size=(size1, size1))
+    if scale != 1:
+        grain = np.repeat(np.repeat(grain, scale, axis=0), scale, axis=1)
+    albedo = tone * (1 - 0.45 * pits) * (0.9 + 0.2 * grain)
     base = np.array([150, 144, 138]) * np.asarray(tint) / 255
     col = base * (albedo * lit)[..., None] + np.asarray(shine) * (0.32 * albedo * glow)[..., None] + 0.02
     out = np.zeros((size, size, 4))
@@ -208,11 +248,41 @@ def rock_sprite(rng, r, tint, shine, toward_planet, sun=(-0.55, 0.5, -0.45)):
     return Image.fromarray((out * 255 + 0.5).astype(np.uint8), 'RGBA')
 
 
-def ring_and_moon(planet, R, seed, tint, state):
+def speck_dot(colour, x0, y0, x1, y1, scale):
+    """A belt speck that filled scale-1 pixels x0..x1, y0..y1, at `scale`: a round dot of the same area (the same light) on
+    the same spot, its edge anti-aliased. Returns (sprite, left, top) in output pixels."""
+    w, h = (x1 - x0 + 1) * scale, (y1 - y0 + 1) * scale
+    cx, cy = x0 * scale + w / 2, y0 * scale + h / 2
+    r = np.sqrt(w * h / np.pi)
+    left, top = int(np.floor(cx - r - 1)), int(np.floor(cy - r - 1))
+    size_x, size_y = int(np.ceil(cx + r + 1)) - left, int(np.ceil(cy + r + 1)) - top
+    k = 8  # coverage samples a pixel each way
+    yy, xx = (np.mgrid[0:size_y * k, 0:size_x * k].astype(float) + 0.5) / k
+    inside = np.hypot(xx + left - cx, yy + top - cy) <= r
+    cover = inside.reshape(size_y, k, size_x, k).mean(axis=(1, 3))
+    out = np.zeros((size_y, size_x, 4), dtype=np.uint8)
+    out[..., :3] = colour
+    out[..., 3] = np.floor(cover * 255 + 0.5).astype(np.uint8)
+    return Image.fromarray(out, 'RGBA'), left, top
+
+
+def paste_over(layer, sprite, left, top):
+    """alpha_composite that takes a sprite hanging off the layer's top or left edge (PIL won't), clipped."""
+    sx, sy = max(0, -left), max(0, -top)
+    if sx >= sprite.width or sy >= sprite.height or left >= layer.width or top >= layer.height:
+        return
+    layer.alpha_composite(sprite, (max(0, left), max(0, top)), (sx, sy))
+
+
+def ring_and_moon(planet, R, seed, tint, state, scale=1):
     """The planet on a 480 px canvas with a belt of small rocks round it (the far half behind it, rocks in its shadow dimmed)
-    and a cratered moon to the lower right, lit from screen east like the planet: the look of Paradise's planet sprites."""
+    and a cratered moon to the lower right, lit from screen east like the planet: the look of Paradise's planet sprites.
+    scale: the canvas is 480 * scale (planet rendered at that scale, R still the scale-1 radius). The belt is worked out in
+    scale-1 pixels with the same draws; a speck (one pixel or 2x2) becomes a round dot of the same area on the same spot
+    (speck_dot), each rock the same rock in finer pixels on the pixel it had; then the belt is softened (b.SOFT_PX)."""
     rng = np.random.default_rng(seed)
     n = sg.TILE
+    s = scale
     cx = cy = n / 2
     # sloping down to the right like Paradise's belt (screen y down), sparse and scattered
     a, bb, tilt = 1.75 * R, 0.28 * R, np.radians(15)
@@ -231,8 +301,8 @@ def ring_and_moon(planet, R, seed, tint, state):
     lum = np.where((toward < 0) & (toward > -1.6 * R / a) & (across < R) & (np.sin(theta) < 0), lum * 0.45, lum)
     kind = rng.uniform(size=count)
     base = np.array([145, 140, 134]) * np.asarray(tint)
-    back = Image.new('RGBA', (n, n), (0, 0, 0, 0))
-    front = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+    back = Image.new('RGBA', (n * s, n * s), (0, 0, 0, 0))
+    front = Image.new('RGBA', (n * s, n * s), (0, 0, 0, 0))
     from PIL import ImageDraw
     draw_back, draw_front = ImageDraw.Draw(back), ImageDraw.Draw(front)
     for i in range(count):
@@ -240,47 +310,59 @@ def ring_and_moon(planet, R, seed, tint, state):
         c = tuple(int(v) for v in np.clip(base * lum[i] * rng.uniform(0.75, 1.15), 0, 255))
         px, py = cx + sx[i], cy + sy[i]
         if kind[i] < 0.45:
-            draw.point((px, py), fill=c + (255,))
+            if s == 1:
+                draw.point((px, py), fill=c + (255,))
+            else:  # the pixel PIL's point takes at scale 1 (each coordinate truncated)
+                paste_over(front if np.sin(theta[i]) > 0 else back, *speck_dot(c, int(px), int(py), int(px), int(py), s))
         elif kind[i] < 0.75:
-            draw.rectangle((px, py, px + 1, py + 1), fill=c + (255,))
+            if s == 1:
+                draw.rectangle((px, py, px + 1, py + 1), fill=c + (255,))
+            else:
+                paste_over(front if np.sin(theta[i]) > 0 else back, *speck_dot(c, int(px), int(py), int(px + 1), int(py + 1), s))
         else:
             r = rng.uniform(2.2, 4.0) if rng.uniform() < 0.8 else rng.uniform(4.5, 7.0)
             to_planet = np.array([cx - px, py - cy]) / max(np.hypot(cx - px, py - cy), 1)
-            rock = rock_sprite(rng, r, tint, PLANETSHINE[state], to_planet)
-            (front if np.sin(theta[i]) > 0 else back).alpha_composite(rock, (int(px - rock.width / 2), int(py - rock.height / 2)))
-    moon = lit_moon(state)
-    glow_rgb, glow_a, d = airglow(n, R, AIRGLOW[state], PLANET_BAKE_ANGLE)
-    canvas = add_light(back, glow_rgb, glow_a, d > 0.8)
-    canvas.alpha_composite(planet, (int((n - planet.width) // 2), int((n - planet.height) // 2)))
-    canvas = add_light(canvas, glow_rgb, glow_a, d <= 0.8)
+            rock = rock_sprite(rng, r, tint, PLANETSHINE[state], to_planet, scale=s)
+            w1, h1 = rock.width // s, rock.height // s
+            (front if np.sin(theta[i]) > 0 else back).alpha_composite(rock, (s * int(px - w1 / 2), s * int(py - h1 / 2)))
+    if s != 1:
+        back, front = b.soften_image(back, b.SOFT_PX), b.soften_image(front, b.SOFT_PX)
+    moon = lit_moon(state, s)
+    glow_rgb, glow_a, d = airglow(n * s, R * s, AIRGLOW[state], PLANET_BAKE_ANGLE, res=s)
+    behind = soft_split(d, 0.8, s)
+    canvas = add_light(back, glow_rgb, glow_a, behind)
+    canvas.alpha_composite(planet, (int((n * s - planet.width) // 2), int((n * s - planet.height) // 2)))
+    canvas = add_light(canvas, glow_rgb, glow_a, d <= 0.8 if s == 1 else 1 - behind)
     canvas.alpha_composite(front)
     # the moon rides the belt's near side, just in front of the planet's lower right edge
     mt = np.radians(45)
     mx, my = a * np.cos(mt), bb * np.sin(mt)
     moon_x = cx + mx * np.cos(tilt) - my * np.sin(tilt)
     moon_y = cy + mx * np.sin(tilt) + my * np.cos(tilt)
-    canvas.alpha_composite(moon, (int(moon_x - moon.width / 2), int(moon_y - moon.height / 2)))
+    w1 = disc_width(MOON_R)
+    canvas.alpha_composite(moon, (place(moon_x, w1, moon.width, s), place(moon_y, w1, moon.height, s)))
     return canvas
 
 
 # The other worlds of a system: lit from screen east (the game turns them to the sun), crisp day/night edges, airglow for
 # those with air, a moon for some, rings for the gas giant. (make, radius, airglow colours or None, moon, rings)
+# make(R, s): R in scale-1 pixels, s the scale (b.render's)
 CRISP = (-0.01, 0.05)
 DARK = (0.0001, 0.0001, 0.00015)
 WORLD_R = b.WORLD_R
 WORLD_LOOKS = {
-    'world_ice': (lambda R: b.render(R, b.ice_surface, frame=b.rot(30, 40, 10), bump=1.0, atmosphere=b.ICE_AIR, exposure=1.1,
-                                     ambient=DARK, terminator=CRISP), WORLD_R, ((190, 225, 255), (90, 150, 255), (150, 255, 210)), None, False),
-    'world_jungle': (lambda R: b.render(R, b.jungle_surface, frame=b.rot(18, 200, -12), bump=1.0, atmosphere=b.EARTH_AIR,
-                                        exposure=1.3, ambient=DARK, terminator=CRISP), WORLD_R, ((170, 215, 255), (70, 130, 255), (120, 255, 160)), 'moon', False),
-    'world_rock': (lambda R: b.render(R, b.rock_surface, frame=b.rot(10, 70, 0), bump=2.0, atmosphere=None, exposure=1.4,
-                                      light=b.light_at(0.22), ambient=DARK, terminator=(-0.005, 0.03)), WORLD_R, None, None, False),
-    'world_redrock': (lambda R: b.render(R, b.redrock_surface, frame=b.rot(-25, 120, 6), bump=1.1, atmosphere=b.MARS_AIR,
-                                         exposure=1.25, ambient=DARK, terminator=CRISP), WORLD_R, ((255, 190, 150), (220, 110, 70), (255, 160, 120)), 'rock', False),
-    'world_ocean': (lambda R: b.render(R, b.ocean_surface, frame=b.rot(-15, 30, 14), bump=1.0, atmosphere=b.EARTH_AIR,
-                                       exposure=1.3, ambient=DARK, terminator=CRISP), WORLD_R, ((170, 215, 255), (70, 130, 255), (120, 255, 160)), 'moon', False),
-    'world_gas': (lambda R: b.render(R, b.gas_surface, frame=gas_frame(), bump=0, atmosphere=b.GAS_AIR, exposure=1.25,
-                                     limb=0.35, ambient=DARK, terminator=(-0.06, 0.2)), int(WORLD_R * 1.35), ((255, 228, 190), (230, 160, 100), (255, 196, 140)), None, True),
+    'world_ice': (lambda R, s=1: b.render(R, b.ice_surface, frame=b.rot(30, 40, 10), bump=1.0, atmosphere=b.ICE_AIR, exposure=1.1,
+                                     ambient=DARK, terminator=CRISP, scale=s), WORLD_R, ((190, 225, 255), (90, 150, 255), (150, 255, 210)), None, False),
+    'world_jungle': (lambda R, s=1: b.render(R, b.jungle_surface, frame=b.rot(18, 200, -12), bump=1.0, atmosphere=b.EARTH_AIR,
+                                        exposure=1.3, ambient=DARK, terminator=CRISP, scale=s), WORLD_R, ((170, 215, 255), (70, 130, 255), (120, 255, 160)), 'moon', False),
+    'world_rock': (lambda R, s=1: b.render(R, b.rock_surface, frame=b.rot(10, 70, 0), bump=2.0, atmosphere=None, exposure=1.4,
+                                      light=b.light_at(0.22), ambient=DARK, terminator=(-0.005, 0.03), scale=s), WORLD_R, None, None, False),
+    'world_redrock': (lambda R, s=1: b.render(R, b.redrock_surface, frame=b.rot(-25, 120, 6), bump=1.1, atmosphere=b.MARS_AIR,
+                                         exposure=1.25, ambient=DARK, terminator=CRISP, scale=s), WORLD_R, ((255, 190, 150), (220, 110, 70), (255, 160, 120)), 'rock', False),
+    'world_ocean': (lambda R, s=1: b.render(R, b.ocean_surface, frame=b.rot(-15, 30, 14), bump=1.0, atmosphere=b.EARTH_AIR,
+                                       exposure=1.3, ambient=DARK, terminator=CRISP, scale=s), WORLD_R, ((170, 215, 255), (70, 130, 255), (120, 255, 160)), 'moon', False),
+    'world_gas': (lambda R, s=1: b.render(R, b.gas_surface, frame=gas_frame(), bump=0, atmosphere=b.GAS_AIR, exposure=1.25,
+                                     limb=0.35, ambient=DARK, terminator=(-0.06, 0.2), scale=s), int(WORLD_R * 1.35), ((255, 228, 190), (230, 160, 100), (255, 196, 140)), None, True),
 }
 
 
@@ -305,9 +387,10 @@ def gas_frame():
     return body @ rz.T
 
 
-def gas_rings(n, R, rng):
+def gas_rings(n, R, rng, res=1):
     """A gas giant's rings as (back, front) RGBA layers: banded, with a dark gap, fine ringlets, tilted, lit from the east, the
-    planet's shadow across the far side."""
+    planet's shadow across the far side. n and R in output pixels; res above 1 (the 2x sheet) softens the rings whole before
+    they're split, so the shadow's edge, the inner ring's step and the finest ringlets aren't one-pixel steps."""
     yy, xx = np.mgrid[0:n, 0:n].astype(float) + 0.5
     x, y = xx - n / 2, n / 2 - yy
     tilt = np.radians(GAS_RING_TILT)
@@ -326,45 +409,56 @@ def gas_rings(n, R, rng):
     img = np.zeros((n, n, 4))
     img[..., :3] = np.clip(col * lit[..., None], 0, 1)
     img[..., 3] = a
+    to = lambda arr: Image.fromarray((arr * 255 + 0.5).astype(np.uint8), 'RGBA')
+    if res != 1:  # softened whole, then split: the two halves still add up to the whole ring
+        img = np.asarray(b.soften_image(to(img), b.SOFT_PX)).astype(float) / 255
+        a = img[..., 3]
     front = img.copy()
     back = img.copy()
     front[..., 3] = np.where(v < 0, a, 0)  # the near half is below the middle on screen
     back[..., 3] = np.where(v >= 0, a, 0)
-    to = lambda arr: Image.fromarray((arr * 255 + 0.5).astype(np.uint8), 'RGBA')
     return to(back), to(front)
 
 
-def build_world(state, seed):
+def build_world(state, seed, scale=1):
+    """One world on its (480 * scale) canvas: rings behind, airglow, the planet, airglow over its limb, rings in front, a moon."""
     make, R, glow, moon_kind, rings = WORLD_LOOKS[state]
     rng = np.random.default_rng(seed)
     n = sg.TILE
+    s = scale
     old = b.BAKE_ANGLE
     b.BAKE_ANGLE = 0.0
     try:
-        planet = make(R)
+        planet = make(R, s)
         moon = None
         if moon_kind == 'moon':
-            moon = b.render(max(12, int(R * 0.27)), b.rock_surface, frame=b.rot(40, 120, 5), atmosphere=None, exposure=1.35,
-                            light=b.light_at(0.3), ambient=DARK, terminator=(-0.005, 0.03))
+            moon_r = max(12, int(R * 0.27))
+            moon = b.render(moon_r, b.rock_surface, frame=b.rot(40, 120, 5), atmosphere=None, exposure=1.35,
+                            light=b.light_at(0.3), ambient=DARK, terminator=(-0.005, 0.03), scale=s)
+            moon_w1 = disc_width(moon_r)
     finally:
         b.BAKE_ANGLE = old
     if moon_kind == 'rock':  # a small lumpy moon, like Phobos
-        moon = rock_sprite(rng, R * 0.17, (1.05, 0.95, 0.88), (0.6, 0.35, 0.25), (-1, 0), sun=(0.8, 0.15, 0.55))
-    canvas = Image.new('RGBA', (n, n), (0, 0, 0, 0))
+        moon = rock_sprite(rng, R * 0.17, (1.05, 0.95, 0.88), (0.6, 0.35, 0.25), (-1, 0), sun=(0.8, 0.15, 0.55), scale=s)
+        moon_w1 = moon.width // s
+        if s != 1:
+            moon = b.soften_image(moon, b.SOFT_PX)
+    canvas = Image.new('RGBA', (n * s, n * s), (0, 0, 0, 0))
     front_rings = None
     if rings:
-        back_rings, front_rings = gas_rings(n, R, rng)
+        back_rings, front_rings = gas_rings(n * s, R * s, rng, res=s)
         canvas.alpha_composite(back_rings)
     if glow:
-        glow_rgb, glow_a, d = airglow(n, R, glow, 0, R / 128, strength=0.5, night=0.05, band_strength=0)
-        canvas = add_light(canvas, glow_rgb, glow_a, d > 0.8 * max(R / 128, 0.45))
-    canvas.alpha_composite(planet, (int((n - planet.width) // 2), int((n - planet.height) // 2)))
+        glow_rgb, glow_a, d = airglow(n * s, R * s, glow, 0, R / 128, strength=0.5, night=0.05, band_strength=0, res=s)
+        behind = soft_split(d, 0.8 * max(R / 128, 0.45), s)
+        canvas = add_light(canvas, glow_rgb, glow_a, behind)
+    canvas.alpha_composite(planet, (int((n * s - planet.width) // 2), int((n * s - planet.height) // 2)))
     if glow:
-        canvas = add_light(canvas, glow_rgb, glow_a, d <= 0.8 * max(R / 128, 0.45))
+        canvas = add_light(canvas, glow_rgb, glow_a, d <= 0.8 * max(R / 128, 0.45) if s == 1 else 1 - behind)
     if front_rings:
         canvas.alpha_composite(front_rings)
     if moon:
-        canvas.alpha_composite(moon, (int(n / 2 + R * 1.55 - moon.width / 2), int(n / 2 + R * 0.55 - moon.height / 2)))
+        canvas.alpha_composite(moon, (place(n / 2 + R * 1.55, moon_w1, moon.width, s), place(n / 2 + R * 0.55, moon_w1, moon.height, s)))
     return canvas
 
 
@@ -386,6 +480,32 @@ def preview(before, after, out):
     print('preview:', out)
 
 
+def build_states(names=(), scale=1):
+    """What planets.py draws, {state: PIL RGBA (480 * scale) square}: the six worlds, then planet_lava, then planet_plasma and
+    planet_chasm if `names` has them (Paradise's Lavaland themes). The worlds are lit from the east, Lavaland is baked backlit
+    at PLANET_BAKE_ANGLE (b.BAKE_ANGLE is put back after)."""
+    made = {state: build_world(state, 400 + i, scale) for i, state in enumerate(WORLD_LOOKS)}
+    old = b.BAKE_ANGLE
+    b.BAKE_ANGLE = PLANET_BAKE_ANGLE
+    try:
+        made['planet_lava'] = ring_and_moon(planet_lava(scale=scale), 128, 301, (1.05, 0.95, 0.88), 'planet_lava', scale)
+        if 'planet_plasma' in names:
+            made['planet_plasma'] = ring_and_moon(planet_plasma(scale=scale), 128, 302, (0.95, 0.9, 1.08), 'planet_plasma', scale)
+        if 'planet_chasm' in names:
+            made['planet_chasm'] = ring_and_moon(planet_chasm(scale=scale), 128, 303, (1.0, 1.0, 1.0), 'planet_chasm', scale)
+    finally:
+        b.BAKE_ANGLE = old
+    return made
+
+
+def repaint_states(states, scale=1):
+    """What main() does to a sheet, done to a dict {state: PIL RGBA} (bodies.build_bodies(scale=scale)'s): planet_lava, the
+    worlds, and planet_plasma / planet_chasm if it has them, replaced by this file's (added if missing), at `scale` (2: the
+    960 px sheet). Changes the dict in place and returns it."""
+    states.update(build_states(states, scale))
+    return states
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('sheet')
@@ -393,13 +513,7 @@ def main():
     args = ap.parse_args()
     d, states = load_states(args.sheet)
     before = {name: state.get_frame().convert('RGBA') for name, state in states.items()}
-    made = {state: build_world(state, 400 + i) for i, state in enumerate(WORLD_LOOKS)}
-    b.BAKE_ANGLE = PLANET_BAKE_ANGLE
-    made['planet_lava'] = ring_and_moon(planet_lava(), 128, 301, (1.05, 0.95, 0.88), 'planet_lava')
-    if 'planet_plasma' in states:  # Paradise's Lavaland themes
-        made['planet_plasma'] = ring_and_moon(planet_plasma(), 128, 302, (0.95, 0.9, 1.08), 'planet_plasma')
-    if 'planet_chasm' in states:
-        made['planet_chasm'] = ring_and_moon(planet_chasm(), 128, 303, (1.0, 1.0, 1.0), 'planet_chasm')
+    made = build_states(states)
     order = [state.name for state in d.states]
     d.states = [state for state in d.states if state.name not in made]
     for name in [name for name in order if name in made] + [name for name in made if name not in order]:

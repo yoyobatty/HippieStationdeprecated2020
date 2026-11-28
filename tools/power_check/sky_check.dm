@@ -38,6 +38,7 @@ GLOBAL_VAR_INIT(skc_failed, 0)
 	sky_check_events()
 	sky_check_weather()
 	sky_check_review_fixes()
+	sky_check_2x_art()
 	uc_log("[GLOB.skc_passed] passed, [GLOB.skc_failed] failed")
 	uc_log("done")
 	sleep(10)
@@ -118,7 +119,17 @@ GLOBAL_VAR_INIT(skc_failed, 0)
 			band = SSparallax.nebula_art(index)
 	if(band)
 		var/matrix/B = band.transform
-		skc_check("the band is centred by its transform, not pixel offsets", B.c == -PARALLAX_TILE / 2 && B.f == -PARALLAX_TILE / 2 && !band.pixel_x && !band.pixel_y, "transform [B.c],[B.f], pixel [band.pixel_x],[band.pixel_y]")
+		// tile_pieces(): its picture's middle on the layer's. The 2x band is 1920 art px in 480 px pieces at half size; the 1x
+		// band was 960 in quarters at full size. Either way it covers one repeat, PARALLAX_TILE * SKY_NEBULA_SCALE game px
+		var/piece = PARALLAX_TILE
+		var/shift = (piece - band.sprite_size) / 2 * B.a
+		var/repeat = band.sprite_size * B.a
+		skc_check("the band is centred by its transform, not pixel offsets", B.c == shift && B.f == shift && repeat == PARALLAX_TILE * SKY_NEBULA_SCALE && !band.pixel_x && !band.pixel_y, "transform [B.a] scale, [B.c],[B.f] shift (want [shift]), repeat [repeat], pixel [band.pixel_x],[band.pixel_y]")
+		// 2x sheet: 16 pieces at half size, one repeat each way round the middle one; 1x sheet: four quarters at full size, two
+		// repeats each way as it always had (sky.dm nebula_art())
+		var/two_x = sky_sheet_has(band.icon, "band_33")
+		var/want_overlays = two_x ? 3 * 3 * 16 - 1 : 5 * 5 * 4 - 1
+		skc_check("the band is drawn from its pieces at the sheet's scale", B.a == (two_x ? 0.5 : 1) && length(band.overlays) == want_overlays, "2x sheet [two_x], scale [B.a], [length(band.overlays)] overlays (want [want_overlays])")
 	else
 		skc_check("the band is centred by its transform, not pixel offsets", TRUE, "this theme ([SSparallax.theme.type]) has no band")
 
@@ -260,3 +271,63 @@ GLOBAL_VAR_INIT(skc_failed, 0)
 	var/bearing = sky_sun_bearing()
 	SSparallax.body_places["sun"] = sun
 	skc_check("no sun painted: no bearing, and no runtime", isnull(bearing))
+
+/// Stars, bodies and clouds drawn by shared art the layers carry (2026-11-27): from 2x pieces at their scale, or whole as before
+/proc/sky_check_2x_art()
+	var/list/layers = SSparallax.theme.build_layers()
+	var/list/bad = list()
+	var/checked = 0
+	for(var/obj/screen/parallax_layer/L as anything in layers)
+		L.set_quality(GRAPHICS_QUALITY_HIGH)
+		// Each is drawn from 2x pieces ("<state>_00" and on) when its sheet has them, or whole as before: stars and bodies at
+		// 1x, clouds at twice size (sky_has_pieces(); build_v2.py --scale)
+		var/obj/screen/sky_art/art
+		var/state
+		var/pieces_scale
+		var/whole_scale
+		if(istype(L, /obj/screen/parallax_layer/stars))
+			var/obj/screen/parallax_layer/stars/S = L
+			state = S.art_state
+			art = SSparallax.star_art(state, S.layer)
+			pieces_scale = 0.5
+			whole_scale = 1
+		else if(istype(L, /obj/screen/parallax_layer/body) && !istype(L, /obj/screen/parallax_layer/body/deep))
+			var/obj/screen/parallax_layer/body/B = L
+			if(!B.art_state)
+				continue
+			state = B.art_state
+			art = SSparallax.body_art(state, B.layer)
+			pieces_scale = 0.5
+			whole_scale = 1
+		else if(istype(L, /obj/screen/parallax_layer/nebula))
+			var/obj/screen/parallax_layer/nebula/N = L
+			var/list/cloud = SSparallax.theme.nebula[N.index]
+			if(cloud[1] == "band")
+				continue
+			state = cloud[1]
+			art = SSparallax.nebula_art(N.index)
+			pieces_scale = 1
+			whole_scale = SKY_NEBULA_SCALE
+		else
+			continue
+		var/from_pieces = sky_has_pieces(art.icon, state)
+		var/want_scale = from_pieces ? pieces_scale : whole_scale
+		checked++
+		var/matrix/M = art.transform
+		var/name = replacetext("[L.type]", "/obj/screen/parallax_layer/", "")
+		if(!(art in L.vis_contents))
+			bad += "[name]: art not carried"
+		if(L.icon_state)
+			bad += "[name]: the layer still draws its own [L.icon_state]"
+		if(art.icon_state != (from_pieces ? "[state]_00" : state))
+			bad += "[name]: draws [art.icon_state] (pieces [from_pieces])"
+		if(abs(M.a - want_scale) > 0.001)
+			bad += "[name]: scale [M.a], want [want_scale]"
+		if(art.appearance_flags & (PIXEL_SCALE | RESET_TRANSFORM))
+			bad += "[name]: art flags [art.appearance_flags]"
+	skc_check("stars, bodies and clouds are drawn by shared art at their sheet's scale", checked >= 6 && !length(bad), "[checked] layers; [jointext(bad, "; ")]")
+	var/obj/screen/parallax_layer/body/sun/sun = locate() in layers
+	if(sun)
+		var/obj/screen/sky_art/sun_art = SSparallax.body_art(sun.art_state, sun.layer)
+		skc_check("the sun's art takes its layer's tint", sun.color && !(sun_art.appearance_flags & RESET_COLOR) && sun_art.blend_mode == BLEND_DEFAULT, "layer colour [sun.color], art flags [sun_art.appearance_flags], blend [sun_art.blend_mode]")
+	QDEL_LIST(layers)

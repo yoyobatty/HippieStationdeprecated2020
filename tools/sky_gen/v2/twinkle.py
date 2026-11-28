@@ -25,6 +25,10 @@ The look ("painterly-real", subtle):
 
 The near stars are replayed from stars.star_field's own random draws (same seed, same order), so their places and
 colours are stars.py's exactly; stage checks that the replayed stars_near matches the installed one.
+
+build_twinkles(scale=2) draws the groups at twice the pixel density (960 px) for stars.build_layers(scale=2)'s near
+layer: the same stars and picks, every size multiplied by the scale and centred on the pixel stars.draw_star centres
+that star on (stars2x_check.py checks they line up).
 """
 import os
 import sys
@@ -68,27 +72,32 @@ def near_stars():
     return [(x, y, t, c, fl, m) for x, y, t, c, fl, m in zip(xs, ys, temps, rgb, f, mags)]
 
 
-def twinkle_patch(canvas, x, y, rgb, f):
-    """The extra light of one star at the top of its twinkle: wider core, its glow, its spikes a little longer."""
+def twinkle_patch(canvas, x, y, rgb, f, scale=1):
+    """The extra light of one star at the top of its twinkle: wider core, its glow, its spikes a little longer.
+
+    x, y in scale-1 pixels on a canvas of `scale` pixels to each, sized and centred as stars.draw_star does."""
     n = canvas.shape[0]
     sigma = 0.45 * (1.0 + 0.5 * np.log2(max(f, 1.0))) * 1.5
-    reach = int(np.ceil(max(3 * sigma, 7 + 2 * np.log2(max(f, 1.0)))))
+    reach = int(np.ceil(scale * max(3 * sigma, 7 + 2 * np.log2(max(f, 1.0)))))
+    sigma *= scale
     d = np.arange(-reach, reach + 1)
     dy, dx = np.meshgrid(d, d, indexing='ij')
     r = np.hypot(dx, dy)
     core = np.exp(-r * r / (2 * sigma * sigma))
     core *= 0.75 / core.sum()
-    glow = np.exp(-r / 3.0)
+    glow = np.exp(-r / (3.0 * scale))
     glow *= 0.25 / glow.sum()
-    patch = (core + glow) * f * STRENGTH
-    if f > 4:
-        spike = 0.025 * np.log2(f) * (np.exp(-np.abs(dx) / 7.0) * (dy == 0) + np.exp(-np.abs(dy) / 7.0) * (dx == 0))
+    patch = (core + glow) * f * STRENGTH * scale ** 2  # s^2 smaller pixels: s^2 the sum for the same light
+    if f > 4:  # 1 px wide at scale 1, soft above it (stars.line_across, as stars.draw_star's spikes)
+        spike = 0.025 * np.log2(f) * (np.exp(-np.abs(dx) / (7.0 * scale)) * stars.line_across(dy, reach, scale)
+                                      + np.exp(-np.abs(dy) / (7.0 * scale)) * stars.line_across(dx, reach, scale))
         patch = patch + spike * 0.6
-    np.add.at(canvas, ((int(y) + dy) % n, (int(x) + dx) % n), patch[..., None] * rgb[None, None, :])
+    np.add.at(canvas, ((int(y * scale) + dy) % n, (int(x * scale) + dx) % n), patch[..., None] * rgb[None, None, :])
 
 
-def build_twinkles(seed=55):
-    """{'twinkle1'..'twinkle3': float RGB}, and the picks [(star index, group)]."""
+def build_twinkles(seed=55, scale=1):
+    """{'twinkle1'..'twinkle3': float RGB}, and the picks [(star index, group)]. scale 2: 960 px groups for
+    stars.build_layers(scale=2)'s near layer (the same stars and picks)."""
     near = near_stars()
     rng = np.random.default_rng(seed)
     order = sorted(range(len(near)), key=lambda i: -near[i][4])
@@ -97,24 +106,25 @@ def build_twinkles(seed=55):
     groups = {i: 1 + k % GROUPS for k, i in enumerate(sorted(picks, key=lambda i: order.index(i)))}
     out = {}
     for g in range(1, GROUPS + 1):
-        canvas = np.zeros((TILE, TILE, 3))
+        canvas = np.zeros((TILE * scale, TILE * scale, 3))
         for i, gi in groups.items():
             if gi != g:
                 continue
             x, y, t, c, fl, m = near[i]
             shift = 1.0 + TEMP_SHIFT * (1 if rng.uniform() < 0.5 + 0.3 * np.tanh((t - 6000) / 3000) else -1)
             tc = stars.saturate(stars.blackbody(np.array([t * shift])), np.array([1.15]))[0]
-            twinkle_patch(canvas, x, y, 0.5 * (c + tc), fl)
+            twinkle_patch(canvas, x, y, 0.5 * (c + tc), fl, scale)
         out['twinkle%d' % g] = np.clip(canvas, 0, 1)
     return out, sorted(groups.items())
 
 
 def as_image(rgb, g):
+    """Group g's sheet image (any size: scale 1 or 2)."""
     return sg.additive_image(rgb, 810 + g)
 
 
-def near_layer():
-    return stars.roll_off(stars.star_field(NEAR_SEED, *stars.LAYERS['stars_near'])[0])
+def near_layer(scale=1):
+    return stars.roll_off(stars.star_field(NEAR_SEED, *stars.LAYERS['stars_near'], scale=scale)[0])
 
 
 def states_of(path):

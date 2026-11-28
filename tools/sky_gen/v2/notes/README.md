@@ -80,6 +80,22 @@ stair-stepped into lines as the sky turned. Paradise's fix (77384aca20) dropped 
 type has no PIXEL_SCALE by default, ours does. sky_art and parallax_home now drop it. Checked with sky_shots.dm `seams` (each
 layer kind alone at 0 and 20 degrees, then nearest again) and seam_check.py, which finds straight lines along the sky's angle.
 
+## Sharpness, rotation lines and the 2x experiment (2026-11-27, late)
+
+Keegan: pixelation, and lines crawling when the sky turns on its own. Measured with tools/sky_gen/v2/sky_sharpness.py on
+sky_shots.dm `sharpness` pictures (each layer kind alone, held at 20 / 20.35 / 20.7 degrees): game-pixel grid energy per
+layer (1x: band 9.3, clouds 7.3, other 4.2, stars 2.9; ~1 is none) and shimmer between the angles with the turn taken out.
+- The lines: fine detail about one game pixel wide re-sampled as the sky turns. Worst were the far nebulae drawn small (the
+  remnant at 40-55% of its 384 px art, 1 px filaments: rings of crawling lines). build_v2.py DEEP_SOFTEN blurs the remnant
+  (0.9 px) and the bipolar nebula (0.5 px) in sky_deep.dmi; their shimmer dropped.
+- 2x art was built (stars, twinkles, band, theme clouds, bodies at twice the game's pixels in 480 px pieces; stars.py,
+  twinkle.py, nebula.py, bodies.py, planets.py all take scale=, scale 1 is bit-identical; *2x_check.py for each) and drawn at
+  half size (sky.dm tile_pieces(), star_art(), body_art(); layers fall back to whole sprites when a sheet has no pieces). It
+  changed nothing on screen: DreamSeeker renders the map at the game's pixels (its planes are drawn at map size) and stretches
+  the finished picture, so art finer than a game pixel is averaged away (grid 9.3 -> 9.5 band, 7.3 -> 7.2 clouds; shimmer a
+  little worse). Reverted to the 1x sheets (+8 MB saved); build_v2.py defaults to --scale 1 and rebuilds the installed sheets
+  exactly.
+
 ## Ratings at hand-over
 
 Nebulae 8.5-9.5. Events: vortex 9, prism 8.5, shower 8.5, battle 8.5, aurora 8.5, giant 8, supernova 8, breakup 7.5.
