@@ -94,6 +94,41 @@
 		qdel(src, TRUE)
 		return
 
+	// hippie start -- lighting v2 (lighting_v2.dm): a wall, a closed door or anything else opaque is lit as one face, in its
+	// brightest corner's colour, instead of a gradient running diagonally across it from the lit side to the dark one
+	if(GLOB.lighting_v2 && myturf?.has_opaque_atom)
+		var/face_r = rr
+		var/face_g = rg
+		var/face_b = rb
+		var/face = rr + rg + rb
+		if(gr + gg + gb > face)
+			face = gr + gg + gb
+			face_r = gr
+			face_g = gg
+			face_b = gb
+		if(br + bg + bb > face)
+			face = br + bg + bb
+			face_r = br
+			face_g = bg
+			face_b = bb
+		if(ar + ag + ab > face)
+			face_r = ar
+			face_g = ag
+			face_b = ab
+		rr = face_r
+		gr = face_r
+		br = face_r
+		ar = face_r
+		rg = face_g
+		gg = face_g
+		bg = face_g
+		ag = face_g
+		rb = face_b
+		gb = face_b
+		bb = face_b
+		ab = face_b
+	// hippie end
+
 	#if LIGHTING_SOFT_THRESHOLD != 0
 	var/set_luminosity = max > LIGHTING_SOFT_THRESHOLD
 	#else

@@ -66,6 +66,17 @@ GLOBAL_LIST_EMPTY(light_glows)
 			G.color = "#ffe46b"
 			G.transform = matrix(1.25, 0, 0, 0, 1.25, 0)
 			G.pulse(list(120, 35), list(13, 13), SINE_EASING)
+		// Lava's slow breathing (lighting v2, lighting_v2_lamps.dm): one pool every third tile each way, so they overlap about five
+		// deep and each is faint. Three out of step, so a lava field doesn't pulse as one
+		if("lava1")
+			G.color = "#ff6a24"
+			G.pulse(list(26, 12, 22, 9), list(38, 31, 44, 35), SINE_EASING)
+		if("lava2")
+			G.color = "#ff5a1e"
+			G.pulse(list(20, 8, 27, 13), list(33, 47, 29, 41), SINE_EASING)
+		if("lava3")
+			G.color = "#ff7a2c"
+			G.pulse(list(24, 11, 18, 7), list(45, 36, 39, 30), SINE_EASING)
 	GLOB.light_glows[kind] = G
 	return G
 
@@ -155,7 +166,7 @@ GLOBAL_LIST_EMPTY(worn_lights)
 	if(quality >= GRAPHICS_QUALITY_MEDIUM)
 		filters += filter(type = "layer", render_source = LIGHT_GLOW_RENDER_TARGET, blend_mode = BLEND_ADD)
 		// The finish: light and shadow meet over a couple of pixels, where they used to meet on a tile's edge
-		filters += filter(type = "blur", size = LIGHTING_SOFTEN_SIZE)
+		filters += filter(type = "blur", size = (GLOB.lighting_v2 && quality >= GRAPHICS_QUALITY_HIGH) ? LIGHT_V2_SOFTEN_SIZE : LIGHTING_SOFTEN_SIZE) // lighting_v2.dm
 	// tg's three, from code/_onclick/hud/plane_master.dm: what glows and where space shows are cut out of the darkness
 	filters += filter(type="alpha", render_source=EMISSIVE_RENDER_TARGET, flags=MASK_INVERSE)
 	filters += filter(type="alpha", render_source=EMISSIVE_UNBLOCKABLE_RENDER_TARGET, flags=MASK_INVERSE)
