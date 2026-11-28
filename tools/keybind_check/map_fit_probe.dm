@@ -31,6 +31,24 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	kc_log("[label]: main [winget(C, "mainwindow", "size")] min [winget(C, "mainwindow", "is-minimized")] max [winget(C, "mainwindow", "is-maximized")]; map pane [winget(C, "mapwindow.map", "size")], drawn [winget(C, "mapwindow.map", "view-size")], zoom [winget(C, "mapwindow.map", "zoom")], icon-size [winget(C, "mapwindow.map", "icon-size")], letterbox [winget(C, "mapwindow.map", "letterbox")], view [C.view]")
 	kc_log("  split [winget(C, "mainwindow.split", "size")], splitter [winget(C, "mainwindow.split", "splitter")], pane [winget(C, "mapwindow", "size")], sizes [winget(C, "mainwindow.split;mapwindow", "size")], auto [C.prefs.auto_fit_viewport]")
 
+/// Names the screen objects that make BYOND draw the map bigger than the view (an extra row or column of black that zoom-to-fit
+/// and Auto Fit then size for): takes each off the screen in turn and reads the map's drawn size without it
+/proc/probe_map_growers(client/C, label)
+	var/list/view_size = getviewsize(C.view)
+	var/base = winget(C, "mapwindow.map", "view-size")
+	kc_log("[label]: drawn [base] for a [view_size[1]]x[view_size[2]] view, [length(C.screen)] screen objects")
+	var/found = 0
+	for(var/atom/movable/A as anything in C.screen.Copy())
+		C.screen -= A
+		sleep(2)
+		var/without = winget(C, "mapwindow.map", "view-size")
+		C.screen += A
+		sleep(2)
+		if(without != base)
+			found++
+			kc_log("  grows the map: [A.type] '[A.name]' loc '[A.screen_loc]' icon '[A.icon]' '[A.icon_state]' maptext [A.maptext_width]x[A.maptext_height] at [A.maptext_x],[A.maptext_y], transform [A.transform?.a],[A.transform?.e]: drawn [without] without it")
+	kc_log("[found ? "FAIL" : "PASS"] [label]: [found] screen object(s) grow the map")
+
 /proc/probe_side_bars(client/C, label)
 	var/pane_width = text2num(splittext(winget(C, "mapwindow.map", "size"), "x")[1])
 	var/drawn_width = text2num(splittext(winget(C, "mapwindow.map", "view-size"), "x")[1])
@@ -55,6 +73,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	C.fps = 60
 	text2file("go", "data/keycheck_sendkeys") //starts shot.ps1
 	probe_state(C, "lobby")
+	probe_map_growers(C, "lobby")
 	probe_shot("mapfit_auto_0_lobby")
 	GLOB.master_mode = "extended"
 	SSticker.start_immediately = TRUE
@@ -68,6 +87,7 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	sleep(3 SECONDS)
 	probe_state(C, "in the round")
 	probe_side_bars(C, "default auto fit")
+	probe_map_growers(C, "in the round")
 	kc_log("screen objects ([length(C.screen)]) that could move or shrink the picture:")
 	probe_screen(C)
 	kc_log("key [C.ckey], parallax pref [C.prefs.parallax], graphics [C.prefs.graphics_quality()]")

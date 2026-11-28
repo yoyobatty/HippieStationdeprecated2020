@@ -241,9 +241,10 @@
 /**
   * Smooth random red and green, three times its size so it covers the whole screen, scrolling up for ever.
   *
-  * In a displace filter red pushes a pixel sideways and green up or down, and mid grey leaves it be. The sheet is the same
-  * square twice, one above the other, so after scrolling one square's height it jumps back to where it started without that
-  * showing.
+  * In a displace filter red pushes a pixel sideways and green up or down, and mid grey leaves it be. The square is drawn
+  * twice, one above the other, so after scrolling one square's height it jumps back to where it started without that showing.
+  * The copy above is an overlay moved by its transform: a 512 px tall sprite, past the view's 480, made BYOND draw everyone's map
+  * a row taller (19x16), and Auto Fit sized the map pane for that (tools/keybind_check/map_fit_probe.dm probe_map_growers()).
   */
 /obj/screen/fire_noise
 	icon = 'hippiestation/icons/effects/flame_noise.dmi'
@@ -252,15 +253,20 @@
 	plane = FIRE_NOISE_PLANE
 	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 	appearance_flags = PASS_MOUSE | NO_CLIENT_COLOR
-	// Scaling is about the sheet's middle, so this puts its left edge back at the screen's
+	// Scaling is about the square's middle, so this puts its left edge back at the screen's, and the pair where the old 512 px
+	// sheet's two squares were
 	pixel_x = 256
-	pixel_y = -256
+	pixel_y = -512
 
 /obj/screen/fire_noise/Initialize(mapload)
 	. = ..()
+	var/mutable_appearance/above = mutable_appearance(icon, icon_state)
+	above.appearance_flags = PASS_MOUSE | NO_CLIENT_COLOR
+	above.transform = matrix(1, 0, 0, 0, 1, 256)
+	add_overlay(above)
 	transform = matrix(3, 0, 0, 0, 3, 0)
-	animate(src, pixel_y = 512, time = FLAME_SURGE_TIME SECONDS, loop = -1)
-	animate(pixel_y = -256, time = 0)
+	animate(src, pixel_y = 256, time = FLAME_SURGE_TIME SECONDS, loop = -1)
+	animate(pixel_y = -512, time = 0)
 
 /// The fire relays for a copy of the viewer's planes on a map control (map_view.dm map_view_planes_for()): the plain flames,
 /// with the bed, but no glow or cut there. `renamed` maps the main view's render targets to that map's.
