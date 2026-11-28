@@ -242,6 +242,7 @@
 		if(!findtext(path, "booted_waiting")) // taken with lights still queued, before catching up
 			stale_total += GLOB.lighting_bench_stale[path]
 	lines += "lighting objects drawn other than draw() makes of their corners: [stale_total ? "[stale_total] STALE" : "none"] ([jointext(stale, ", ")])"
+	lines += SSlighting.native_draw_report()
 
 	text2file(jointext(lines, "\n"), "[LIGHTING_BENCH_DIR]results.txt")
 	log_world("LIGHTING BENCH: done")

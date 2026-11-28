@@ -84,6 +84,8 @@
 
 /// What update() draws, from the southwest, southeast, northwest and northeast corners' colours and the brightest channel of
 /// them all. The lighting engine (lighting_engine.dm) hands it these straight.
+/// hippie -- with the engine on, native_draw() makes these same writes itself for most lighting objects, only those that change
+/// (native_drawn): a change to what this draws goes there too, and in drawn_from() (tools/lighting_engine/src/engine.rs)
 /atom/movable/lighting_object/proc/draw(rr, rg, rb, gr, gg, gb, br, bg, bb, ar, ag, ab, max)
 	if (loc != myturf)
 		if (loc)
@@ -154,7 +156,8 @@
 			00, 00, 00, 01
 		)
 
-	luminosity = set_luminosity
+	if(luminosity != set_luminosity) // hippie -- setting it costs as much as the colour, even to what it is; reading it doesn't
+		luminosity = set_luminosity
 
 // Variety of overrides so the overlays don't get affected by weird things.
 

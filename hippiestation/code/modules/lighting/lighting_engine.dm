@@ -15,12 +15,28 @@
 //                                        (data/lighting_view_check.txt, lighting_view_report())
 //                lighting-lib=<name>     the engine's library under another name (a build being tried out beside the one
 //                                        the running servers have open)
+//                lighting-drawn=0        every lighting object the engine queues is drawn with draw(), as it was before the
+//                                        engine kept what each has on it (native_drawn, below)
 //
 // The engine keeps four things about each turf (lighting_engine_flags()) and is told whenever one changes: the turf's
 // has_opaque_atom, its dynamic_lighting, whether it has light sources of its own, and whether it has a lighting object.
 
 /// How many lighting objects to draw per call to the engine
 #define LIGHTING_ENGINE_BATCH 400
+// What native_draw() gets for each lighting object with native_drawn on (tools/lighting_engine/src/lib.rs DRAWN_STRIDE, engine.rs
+// DRAW_*): the turf, a code, then the colour matrix draw() would set, 20 numbers (or its 13 numbers for draw(), with code 0)
+#define LIGHTING_ENGINE_DRAWN_STRIDE 22
+/// The code's low two bits: what it's drawn as. Fully lit (icon_state "transparent", no colour)...
+#define LIGHTING_DRAWN_TRANSPARENT 1
+/// ...dark (icon_state "dark", no colour)...
+#define LIGHTING_DRAWN_DARK 2
+/// ...or a gradient (no icon_state, the colour matrix)
+#define LIGHTING_DRAWN_MATRIX 3
+/// Its icon_state is set, and the colour taken off for fully lit or dark
+#define LIGHTING_DRAW_STATE 4
+/// Its luminosity is set: to 1 with LIGHTING_DRAW_LIT, to 0 without
+#define LIGHTING_DRAW_LUMINOSITY 8
+#define LIGHTING_DRAW_LIT 16
 
 GLOBAL_VAR_INIT(lighting_engine_lib, world.params["lighting-lib"] || (world.system_type == UNIX ? "./libhippie_lighting.so" : "hippie_lighting"))
 
@@ -49,6 +65,12 @@ GLOBAL_VAR_INIT(lighting_engine_lib, world.params["lighting-lib"] || (world.syst
 	var/native_maxy = 0
 	/// The engine has worked out what its corners draw at least once (its first flush, in native_draw()). Until then every one is dark.
 	var/native_flushed = FALSE
+	/// The engine keeps what each lighting object has on it (lighting_flush()'s `drawn`, tools/lighting_engine/src/engine.rs
+	/// take_drawn()): native_draw() is handed only those that would be drawn other than they are, and sets only what changed on them.
+	/// A light changing colour or brightness changes nothing on a gradient but its colour matrix, and a wall with v2 is lit as one
+	/// face, which a light changing on its other corners leaves as it was (about 1 in 10 of the objects queued in a stress shift).
+	/// Off with an older library or lighting-drawn=0.
+	var/native_drawn = FALSE
 
 /datum/light_source
 	/// What the engine knows us by, or 0
@@ -104,6 +126,15 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	if(!isnum(tone) || tone < 0)
 		log_world("Lighting: the engine has no tone curve ([tone]), lights are cut off at full as tg had them")
 		GLOB.lighting_tone_knee = 1
+	// Whether it keeps what each lighting object has on it: a library from before can't say
+	var/stats
+	try
+		stats = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_draw_stats")(list())
+	catch(var/exception/stats_error)
+		stats = "[stats_error]"
+	native_drawn = stats == 1 && world.params["lighting-drawn"] != "0"
+	if(!native_drawn)
+		log_world("Lighting: every lighting object queued is drawn with draw() ([stats == 1 ? "lighting-drawn=0" : "the engine can't say what's on them: [stats]"])")
 	if(mode == "shadow")
 		native_shadow = TRUE
 		native_status = "shadowing the DM code"
@@ -326,17 +357,47 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 	var/list/out = list()
 	var/left = 1
 	native_flushed = TRUE
+	// Light textures draw elsewhere (light_sprites.dm's draw()): every lighting object queued goes to draw() for them
+	var/drawn = native_drawn && !sprites
 	while(left > 0)
 		out.Cut()
-		left = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flush")(LIGHTING_ENGINE_BATCH, out)
+		left = call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_flush")(LIGHTING_ENGINE_BATCH, out, drawn, GLOB.lighting_v2)
 		if(!isnum(left) || left < 0)
 			native_failed("drawing: [left]")
 			return TRUE
-		for(var/at = 1, at <= length(out), at += 14)
-			var/turf/T = out[at]
-			var/atom/movable/lighting_object/O = T.lighting_object
-			if(O)
-				O.draw(arglist(out.Copy(at + 1, at + 14))) // its 13 numbers in one go, where they were read out of the list one at a time
+		if(drawn)
+			// Only what changes on each, as draw() (lighting_object.dm) would leave it: its writes, here instead of a call to it for
+			// each object. Most are a new colour matrix and nothing else, which the engine hands over ready to set.
+			for(var/at = 1, at <= length(out), at += LIGHTING_ENGINE_DRAWN_STRIDE)
+				var/turf/T = out[at]
+				var/atom/movable/lighting_object/O = T.lighting_object
+				if(!O)
+					continue
+				var/code = out[at + 1]
+				if(!code || O.loc != O.myturf) // what the engine can't tell (a corner darkened past nothing), or off its turf: draw() sees to it
+					O.draw(arglist(out.Copy(at + 2, at + 15)))
+					continue
+				switch(code & 3)
+					if(LIGHTING_DRAWN_MATRIX)
+						if(code & LIGHTING_DRAW_STATE)
+							O.icon_state = null
+						O.color = out.Copy(at + 2, at + 22)
+					if(LIGHTING_DRAWN_TRANSPARENT)
+						if(code & LIGHTING_DRAW_STATE)
+							O.icon_state = "transparent"
+							O.color = null
+					if(LIGHTING_DRAWN_DARK)
+						if(code & LIGHTING_DRAW_STATE)
+							O.icon_state = "dark"
+							O.color = null
+				if(code & LIGHTING_DRAW_LUMINOSITY)
+					O.luminosity = (code & LIGHTING_DRAW_LIT) ? 1 : 0
+		else
+			for(var/at = 1, at <= length(out), at += 14)
+				var/turf/T = out[at]
+				var/atom/movable/lighting_object/O = T.lighting_object
+				if(O)
+					O.draw(arglist(out.Copy(at + 1, at + 14))) // its 13 numbers in one go, where they were read out of the list one at a time
 		if(init_tick_checks)
 			CHECK_TICK
 		else if(left > 0 && MC_TICK_CHECK)
@@ -424,4 +485,23 @@ GLOBAL_LIST_EMPTY(lighting_sheet_list)
 		if(line != "-")
 			. += "\n  [line]"
 
+/// lighting_draw_stats() as a line: lighting objects the engine took off its queue since it started, how many it left alone as
+/// they already showed what they'd be drawn with, and how many went to draw() whole
+/datum/controller/subsystem/lighting/proc/native_draw_report()
+	if(!native || !native_drawn)
+		return "lighting objects: all drawn with draw() ([native ? "lighting-drawn off or not in the library" : native_status])"
+	var/list/stats = list()
+	call_ext(LIGHTING_ENGINE_LIB, "byond:lighting_draw_stats")(stats)
+	if(length(stats) != 3)
+		return "lighting objects: the engine didn't say"
+	var/taken = max(stats[1], 1)
+	return "lighting objects queued by the engine: [stats[1]], [stats[2]] ([round(100 * stats[2] / taken, 0.1)]%) left alone as they already showed it, [stats[3]] drawn with draw()"
+
 #undef LIGHTING_ENGINE_BATCH
+#undef LIGHTING_ENGINE_DRAWN_STRIDE
+#undef LIGHTING_DRAWN_TRANSPARENT
+#undef LIGHTING_DRAWN_DARK
+#undef LIGHTING_DRAWN_MATRIX
+#undef LIGHTING_DRAW_STATE
+#undef LIGHTING_DRAW_LUMINOSITY
+#undef LIGHTING_DRAW_LIT

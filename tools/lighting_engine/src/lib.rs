@@ -694,9 +694,15 @@ pub unsafe extern "C" fn lighting_affecting(argc: u32, argv: *const ByondValue) 
 	})
 }
 
-/// lighting_flush(max, out): the corner stage, then up to `max` lighting objects to draw: turf, then 13 numbers (see
-/// engine::Engine::object_values()). Returns how many are still waiting. A `max` below 0 throws the objects away: DM draws
+/// How many numbers lighting_flush() hands over for each lighting object with `drawn` set: the turf, a DRAW_ code, then 20
+pub const DRAWN_STRIDE: usize = 22;
+
+/// lighting_flush(max, out[, drawn, v2]): the corner stage, then up to `max` lighting objects to draw: turf, then 13 numbers
+/// (see engine::Engine::object_values()). Returns how many are still waiting. A `max` below 0 throws the objects away: DM draws
 /// them itself in the shadow check.
+/// With `drawn` set, only lighting objects that would be drawn other than they are (engine::Engine::take_drawn(); `v2` is
+/// GLOB.lighting_v2), DRAWN_STRIDE numbers each: the turf, what to change on it (an engine::DRAW_ code), then its colour
+/// matrix as tg's draw() sets it, 20 numbers - or with DRAW_FULL, its 13 numbers for draw() and 7 noughts.
 #[no_mangle]
 pub unsafe extern "C" fn lighting_flush(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
@@ -712,12 +718,32 @@ pub unsafe extern "C" fn lighting_flush(argc: u32, argv: *const ByondValue) -> B
 		let mut out = std::mem::take(&mut state.out);
 		out.clear();
 		let per_level = state.per_level;
-		let left = state.engine.take_objects(args[0].as_int().max(0) as usize, |z, t, values| {
-			out.push(ByondValue::turf((z - 1) * per_level + t));
-			for v in values {
-				out.push(ByondValue::num(v));
-			}
-		});
+		let max = args[0].as_int().max(0) as usize;
+		let drawn = args.get(2).is_some_and(|a| a.as_f32() != 0.0);
+		let left = if drawn {
+			let v2 = args.get(3).is_some_and(|a| a.as_f32() != 0.0);
+			state.engine.take_drawn(max, v2, |z, t, code, values| {
+				out.push(ByondValue::turf((z - 1) * per_level + t));
+				out.push(ByondValue::num(code as f32));
+				if code == engine::DRAW_FULL {
+					out.extend(values.iter().map(|&v| ByondValue::num(v)));
+					out.extend(std::iter::repeat(ByondValue::num(0.0)).take(DRAWN_STRIDE - 2 - values.len()));
+				} else {
+					for corner in 0..4 {
+						out.extend(values[corner * 3..corner * 3 + 3].iter().map(|&v| ByondValue::num(v)));
+						out.push(ByondValue::num(0.0));
+					}
+					out.extend([0.0, 0.0, 0.0, 1.0].map(ByondValue::num));
+				}
+			})
+		} else {
+			state.engine.take_objects(max, |z, t, values| {
+				out.push(ByondValue::turf((z - 1) * per_level + t));
+				for v in values {
+					out.push(ByondValue::num(v));
+				}
+			})
+		};
 		if !out.is_empty() {
 			write_values(api, &args[1], &out)?;
 		}
@@ -726,7 +752,8 @@ pub unsafe extern "C" fn lighting_flush(argc: u32, argv: *const ByondValue) -> B
 	})
 }
 
-/// lighting_object(turf, out): what that turf's lighting object draws, as lighting_flush() gives it
+/// lighting_object(turf, out): what that turf's lighting object draws, as lighting_flush() gives it. DM draws it with that itself,
+/// so lighting_flush() no longer knows what's on it: the next time it's queued, it's drawn whatever it was.
 #[no_mangle]
 pub unsafe extern "C" fn lighting_object(argc: u32, argv: *const ByondValue) -> ByondValue {
 	let args = arguments(argc, argv);
@@ -735,8 +762,23 @@ pub unsafe extern "C" fn lighting_object(argc: u32, argv: *const ByondValue) -> 
 			return Err("wanted a turf and a list".into());
 		}
 		let (z, t) = state.place(&args[0])?;
+		state.engine.forget_drawn(z, t);
 		let values: Vec<ByondValue> = state.engine.object_values(z, t).iter().map(|&v| ByondValue::num(v)).collect();
 		write_values(api, &args[1], &values)?;
+		Ok(1.0)
+	})
+}
+
+/// lighting_draw_stats(out): lighting_flush()'s counts with `drawn` set, since setup: lighting objects taken off the queue, those
+/// left alone as they already showed what they'd be drawn with, and those handed to draw() whole. Returns 1; a library from
+/// before lighting_flush() had `drawn` hasn't got it, which is how DM tells.
+#[no_mangle]
+pub unsafe extern "C" fn lighting_draw_stats(argc: u32, argv: *const ByondValue) -> ByondValue {
+	let args = arguments(argc, argv);
+	with_state("draw stats", |api, state| {
+		let e = &state.engine;
+		let values = [e.draws_taken, e.draws_skipped, e.draws_full].map(|n| ByondValue::num(n as f32));
+		write_values(api, args.first().ok_or("no list")?, &values)?;
 		Ok(1.0)
 	})
 }
