@@ -261,12 +261,14 @@ pub struct NewTile<'a> {
 	pub awake: bool,
 }
 
-/// A turf whose air changed: new temperature, and gas_changes[first..first + count] are its gases that changed
+/// A turf whose air changed: new temperature (and whether that's a change as DM keeps it), and gas_changes[first..first +
+/// count] are its gases that changed
 pub struct Change {
 	pub tile: u32,
 	pub first: u32,
 	pub count: u32,
 	pub temperature: f64,
+	pub temperature_changed: bool,
 }
 
 /// One atmos tick of turfs. Kept between ticks so its lists don't get made again every time.
@@ -414,6 +416,11 @@ impl Tick {
 	/// The turf number of a tile
 	pub fn turf(&self, tile: u32) -> u32 {
 		self.id[tile as usize]
+	}
+
+	/// How many tiles the tick has
+	pub fn tile_count(&self) -> usize {
+		self.count
 	}
 
 	/// What a turf's archive is after this tick, if it got archived: its temperature, and (gas index, moles) for its gases
@@ -935,12 +942,14 @@ impl Tick {
 				}
 			}
 			let temperature = self.temperature[i];
-			if self.gas_changes.len() > first || temperature as f32 != self.start_temperature[i] as f32 {
+			let temperature_changed = temperature as f32 != self.start_temperature[i] as f32;
+			if self.gas_changes.len() > first || temperature_changed {
 				self.changes.push(Change {
 					tile: i as u32,
 					first: first as u32,
 					count: (self.gas_changes.len() - first) as u32,
 					temperature,
+					temperature_changed,
 				});
 			}
 		}

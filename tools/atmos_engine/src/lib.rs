@@ -23,7 +23,7 @@ use std::sync::{Mutex, OnceLock};
 
 /// Bumped whenever the lists DM and the engine pass each other change shape. DM won't use a library that says
 /// anything else and runs LINDA instead.
-pub const ENGINE_VERSION: f32 = 12.0;
+pub const ENGINE_VERSION: f32 = 13.0;
 
 const TYPE_NULL: u8 = 0x00;
 const TYPE_TURF: u8 = 0x01;
@@ -616,10 +616,11 @@ pub unsafe extern "C" fn atmos_engine_archives(argc: u32, argv: *const ByondValu
 }
 
 /// call_ext("hippie_atmos", "byond:atmos_engine_results")(active, changed, values, order, tickers, woken, slept, joins,
-/// groups_big, groups_small, windy, wind_to, wind_force, react, redraw, redraw_keys, hot): what came of the tick. `active`
-/// is SSair.active_turfs, written over in its new order. `values` has, for each turf in `changed`, how many gases
+/// groups_big, groups_small, windy, wind_to, wind_force, react, redraw, redraw_keys, hot, unchanged): what came of the tick.
+/// `active` is SSair.active_turfs, written over in its new order. `values` has, for each turf in `changed`, how many gases
 /// changed, a path and moles for each (0 moles means it's gone), then its temperature; pass null for it when
-/// atmos_engine_write() writes the air instead. See engine::Tick for the rest.
+/// atmos_engine_write() writes the air instead. `unchanged` gets the turfs in `order` that aren't in `changed`, in order
+/// (a library before version 13 leaves it alone). See engine::Tick for the rest.
 /// Returns 1, or a negative number if it failed.
 #[no_mangle]
 pub unsafe extern "C" fn atmos_engine_results(argc: u32, argv: *const ByondValue) -> ByondValue {
@@ -667,6 +668,20 @@ pub unsafe extern "C" fn atmos_engine_results(argc: u32, argv: *const ByondValue
 			out.clear();
 			out.extend(tick.order.iter().map(|&tile| turf(tile)));
 			write_values(api, &args[3], out)?;
+		}
+
+		// The turns whose air didn't change, which DM exposes if something listens on them: with this it doesn't have to go
+		// through every turn and every change to find them
+		if args.len() > 17 && wanted(17) {
+			let mut changed = vec![false; tick.tile_count()];
+			for change in &tick.changes {
+				changed[change.tile as usize] = true;
+			}
+			out.clear();
+			out.extend(tick.order.iter().filter(|&&tile| !changed[tile as usize]).map(|&tile| turf(tile)));
+			if !out.is_empty() {
+				write_values(api, &args[17], out)?;
+			}
 		}
 
 		if wanted(4) {
@@ -985,7 +1000,7 @@ pub unsafe extern "C" fn atmos_engine_write(argc: u32, argv: *const ByondValue) 
 		}
 		let mut refs = std::mem::take(&mut state.refs);
 		read_values(api, &args[0], &mut refs)?;
-		let changes: Vec<(u32, u32, f64)> = state.tick.changes.iter().map(|c| (c.first, c.count, c.temperature)).collect();
+		let changes: Vec<(u32, u32, f64, bool)> = state.tick.changes.iter().map(|c| (c.first, c.count, c.temperature, c.temperature_changed)).collect();
 		let result = write_air(state, writer, &refs, &changes, &state.tick.gas_changes);
 		// Whatever happened, what was read is let go of again
 		if state.release_reads {
@@ -1009,8 +1024,9 @@ pub unsafe extern "C" fn atmos_engine_write(argc: u32, argv: *const ByondValue) 
 
 /// atmos_engine_write()'s writing: returns the gases that ran out, for DM to take off their lists, and where the turfs at
 /// 10000 K or more are
-/// `changes` is (first, count, temperature) for each changed turf, where gas_changes[first..first + count] are its gases
-unsafe fn write_air(state: &State, writer: &Writer, refs: &[ByondValue], changes: &[(u32, u32, f64)], gas_changes: &[(u8, f64)]) -> Result<(Vec<ByondValue>, Vec<ByondValue>), String> {
+/// `changes` is (first, count, temperature, whether the temperature changed) for each changed turf, where
+/// gas_changes[first..first + count] are its gases
+unsafe fn write_air(state: &State, writer: &Writer, refs: &[ByondValue], changes: &[(u32, u32, f64, bool)], gas_changes: &[(u8, f64)]) -> Result<(Vec<ByondValue>, Vec<ByondValue>), String> {
 	if refs.len() != changes.len() * 2 {
 		return Err(format!("{} references for {} changed turfs", refs.len(), changes.len()));
 	}
@@ -1021,7 +1037,7 @@ unsafe fn write_air(state: &State, writer: &Writer, refs: &[ByondValue], changes
 	}
 	let mut removed = Vec::new();
 	let mut hot = Vec::new();
-	for (position, &(first, count, temperature)) in changes.iter().enumerate() {
+	for (position, &(first, count, temperature, temperature_changed)) in changes.iter().enumerate() {
 		let air = &refs[position * 2];
 		let moles = &refs[position * 2 + 1];
 		let first = first as usize;
@@ -1037,8 +1053,10 @@ unsafe fn write_air(state: &State, writer: &Writer, refs: &[ByondValue], changes
 				removed.push(*path);
 			}
 		}
+		// DM keeps 32-bit numbers: a temperature that's the same as one isn't written again (a share between turfs as warm as
+		// each other moves gas and leaves the temperature)
 		let temperature = temperature as f32;
-		if !(writer.write_var)(air, state.temperature_id, &ByondValue::num(temperature)) {
+		if temperature_changed && !(writer.write_var)(air, state.temperature_id, &ByondValue::num(temperature)) {
 			return Err(format!("couldn't write changed turf {}'s temperature, after writing {} of {} turfs (the tick is half written)", position + 1, position, changes.len()));
 		}
 		if temperature >= 10000.0 {
@@ -1486,7 +1504,7 @@ pub unsafe extern "C" fn atmos_engine_group_write(argc: u32, argv: *const ByondV
 		}
 		let mut refs = std::mem::take(&mut state.refs);
 		read_values(api, &args[0], &mut refs)?;
-		let changes: Vec<(u32, u32, f64)> = state.world.air_changes.iter().map(|c| (c.first, c.count, c.temperature)).collect();
+		let changes: Vec<(u32, u32, f64, bool)> = state.world.air_changes.iter().map(|c| (c.first, c.count, c.temperature, c.temperature_changed)).collect();
 		let result = write_air(state, writer, &refs, &changes, &state.world.gas_changes);
 		if state.release_reads {
 			for value in &refs {

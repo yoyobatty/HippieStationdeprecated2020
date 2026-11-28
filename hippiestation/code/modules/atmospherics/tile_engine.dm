@@ -25,9 +25,19 @@
 /// The library: hippie_atmos.dll, ./libhippie_atmos.so on Linux, or another build of it (-params "atmos-lib=hippie_atmos_test",
 /// for testing a build while running servers have hippie_atmos.dll open)
 GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type == UNIX ? "./libhippie_atmos.so" : "hippie_atmos"))
-/// The version of the lists passed back and forth; the library has to report this one, or the one before it (which can't
-/// keep LINDA's state, atmos-engine-own)
-#define TILE_ENGINE_VERSION 12
+/// The version of the lists passed back and forth; the library has to report this one, or the one before it (which doesn't
+/// say which turns' air didn't change, so DM works that out itself)
+#define TILE_ENGINE_VERSION 13
+
+/// Turf types whose temperature_expose() does more than /turf/open's (a plasma floor lights, a reagent floor reacts), which
+/// TILE_ENGINE_EXPOSE_DOES_NOTHING() always exposes. A turf type that overrides temperature_expose() goes in here.
+GLOBAL_LIST_INIT(tile_engine_expose_turfs, typecacheof(list(/turf/open/floor/mineral/plasma, /turf/open/floor/mineral/reagent)))
+
+/// TRUE if /turf/open/temperature_expose() at `temperature` would change nothing on open turf `T`: nothing on it listens for
+/// COMSIG_TURF_EXPOSE (most turfs with a comp_lookup only have a decal's or a vis overlay's dir change signal), and
+/// check_atmos_process() on the turf would neither start it processing (should_atmos_process(): its heat_capacity, or
+/// to_be_destroyed) nor stop it (it isn't processing). The tile engine leaves those out of the exposing it does for LINDA.
+#define TILE_ENGINE_EXPOSE_DOES_NOTHING(T, temperature) (!T.comp_lookup?[COMSIG_TURF_EXPOSE] && temperature < T.heat_capacity && !T.to_be_destroyed && !(T.flags_1 & ATMOS_IS_PROCESSING_1) && !GLOB.tile_engine_expose_turfs[T.type])
 
 /datum/controller/subsystem/air
 	/// TRUE when turfs are processed by the tile engine instead of LINDA
@@ -407,22 +417,30 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	// What's on a turf whose air changed feels its new temperature. LINDA exposed every active turf every tick, but all
 	// that does is tell things listening on the turf, and check if the turf itself melts (nothing open does under
 	// 10000 K). Things moving onto a turf check on arrival. Exposing changes no air, so it can wait till all of it is written,
-	// as long as the turfs go in the same order: the listened-to ones and the hot ones, merged.
-	var/listened_at = 1
-	var/hot_at = 1
-	var/listened_count = length(listened)
-	var/hot_count = length(hot)
-	while(listened_at <= listened_count || hot_at <= hot_count)
-		var/next_listened = listened_at <= listened_count ? listened[listened_at] : INFINITY
-		var/next_hot = hot_at <= hot_count ? hot[hot_at] : INFINITY
-		position = min(next_listened, next_hot)
-		if(next_listened == position)
-			listened_at++
-		if(next_hot == position)
-			hot_at++
+	// as long as the turfs go in the same order: the listened-to ones and the hot ones, merged. Where exposing would do nothing
+	// it's left out: most turfs with something on them have nothing that listens for it.
+	var/list/positions = listened
+	if(length(hot))
+		positions = list()
+		var/listened_at = 1
+		var/hot_at = 1
+		var/listened_count = length(listened)
+		var/hot_count = length(hot)
+		while(listened_at <= listened_count || hot_at <= hot_count)
+			var/next_listened = listened_at <= listened_count ? listened[listened_at] : INFINITY
+			var/next_hot = hot_at <= hot_count ? hot[hot_at] : INFINITY
+			position = min(next_listened, next_hot)
+			if(next_listened == position)
+				listened_at++
+			if(next_hot == position)
+				hot_at++
+			positions += position
+	for(position in positions)
 		var/turf/open/T = changed[position]
 		var/datum/gas_mixture/air = refs[position * 2 - 1]
-		T.temperature_expose(air, air.temperature)
+		var/temperature = air.temperature
+		if(!TILE_ENGINE_EXPOSE_DOES_NOTHING(T, temperature))
+			T.temperature_expose(air, temperature)
 	return TRUE
 
 /// atmos-engine-writes=check: the turfs that get exposed, listened-to and hot ones merged, against every changed turf the old
@@ -617,23 +635,20 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 /// is exposed here: it wasn't, and a window tile holding 6000 K air (sealed, so nothing ever shares with it) kept its
 /// windows for good, where LINDA's burned through in four ticks and vented the room to space (atmos-bench=heat-check with
 /// atmos-bench-heat=6000; in the bench's plasma fire the same window tiles let LINDA's fire out to space).
-/datum/controller/subsystem/air/proc/tile_engine_expose_turns(list/turf/open/processed, list/turf/open/changed)
+/// `unchanged` has the turfs that had their turn and aren't in the tick's changed list, in the order they had it.
+/datum/controller/subsystem/air/proc/tile_engine_expose_turns(list/turf/open/unchanged)
 	var/list/turf/open/listened
-	for(var/turf/open/T as anything in processed)
+	for(var/turf/open/T as anything in unchanged)
 		if(T.comp_lookup)
 			LAZYADD(listened, T)
-	if(!listened)
-		return
-	var/list/exposed = list()
-	for(var/turf/open/T as anything in changed)
-		if(T.comp_lookup)
-			exposed[T] = TRUE
 	for(var/turf/open/T as anything in listened)
-		if(exposed[T] || !isopenturf(T))
+		if(!isopenturf(T))
 			continue
 		var/datum/gas_mixture/air = T.air
 		if(air)
-			T.temperature_expose(air, air.temperature)
+			var/temperature = air.temperature
+			if(!TILE_ENGINE_EXPOSE_DOES_NOTHING(T, temperature))
+				T.temperature_expose(air, temperature)
 
 /// Something went wrong with the library, so atmos goes back to LINDA for the rest of the round
 /datum/controller/subsystem/air/proc/tile_engine_failed(status)
@@ -754,7 +769,10 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/owns = tile_engine_owns
 	var/list/turf/open/changed = list()
 	var/list/values = list()
-	var/list/turf/open/processed = list() // with atmos-engine-own=on too: the turns are exposed (tile_engine_expose_turns())
+	// The turns, for their tickers. With atmos-engine-own=on only the ones whose air didn't change are wanted, to be exposed
+	// (tile_engine_expose_turns()), unless the library is too old to say which those are.
+	var/list/turf/open/processed = (owns && tile_engine_version >= 13) ? null : list()
+	var/list/turf/open/unchanged = list()
 	var/list/tickers = owns ? null : list()
 	var/list/turf/open/woken = owns ? null : list()
 	var/list/turf/open/slept = owns ? null : list()
@@ -771,8 +789,9 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	var/status
 	try
 		// values are only needed when DM writes the air, or checks what the engine wrote. With atmos-engine-own=on the engine
-		// keeps who's awake, the tickers and the groups itself, so those lists are null (not the turns, which get exposed).
-		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_results")(owns ? null : active_turfs, changed, (tile_engine_writes && !tile_engine_writes_check) ? null : values, processed, tickers, woken, slept, joins, groups_big, groups_small, windy, wind_to, wind_force, react, redraw, redraw_keys, hot)
+		// keeps who's awake, the tickers and the groups itself, so those lists are null (the turns too: `unchanged` has the
+		// ones that get exposed).
+		status = call_ext(TILE_ENGINE_LIB, "byond:atmos_engine_results")(owns ? null : active_turfs, changed, (tile_engine_writes && !tile_engine_writes_check) ? null : values, processed, tickers, woken, slept, joins, groups_big, groups_small, windy, wind_to, wind_force, react, redraw, redraw_keys, hot, unchanged)
 	catch(var/exception/error)
 		status = "[error]"
 	tile_engine_native_ms += TICK_DELTA_TO_MS(TICK_USAGE_REAL - timer)
@@ -794,7 +813,14 @@ GLOBAL_VAR_INIT(tile_engine_lib, world.params["atmos-lib"] || (world.system_type
 	if(!tile_engine_apply_air(changed, values, fired, "atmos_engine_write", TRUE))
 		return
 
-	tile_engine_expose_turns(processed, changed)
+	if(tile_engine_version < 13) // an older library doesn't say which turns' air didn't change
+		var/list/was_changed = list()
+		for(var/turf/open/T as anything in changed)
+			was_changed[T] = TRUE
+		for(var/turf/open/T as anything in processed)
+			if(!was_changed[T])
+				unchanged += T
+	tile_engine_expose_turns(unchanged)
 	tile_engine_apply_parts["air"] += TICK_DELTA_TO_MS(TICK_USAGE_REAL - part) // for benches
 	part = TICK_USAGE_REAL
 	if(!owns)

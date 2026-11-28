@@ -114,12 +114,13 @@ pub struct Group {
 }
 
 /// A turf whose air the excited groups' step changed: its new temperature, and World::gas_changes[first..first + count]
-/// are its gases that changed (0 moles for one that's gone)
+/// are its gases that changed (0 moles for one that's gone), and whether the temperature is a change as DM keeps it
 pub struct AirChange {
 	pub id: u32,
 	pub first: u32,
 	pub count: u32,
 	pub temperature: f64,
+	pub temperature_changed: bool,
 }
 
 #[derive(Default)]
@@ -587,12 +588,14 @@ impl World {
 							self.gas_changes.push((gas as u8, new_moles[gas]));
 						}
 					}
-					if self.gas_changes.len() > first || new_temperature as f32 != old_temperature {
+					let temperature_changed = new_temperature as f32 != old_temperature;
+					if self.gas_changes.len() > first || temperature_changed {
 						self.air_changes.push(AirChange {
 							id,
 							first: first as u32,
 							count: (self.gas_changes.len() - first) as u32,
 							temperature: new_temperature,
+							temperature_changed,
 						});
 					}
 					known.set_air(id, new_temperature as f32, &new_gases);
