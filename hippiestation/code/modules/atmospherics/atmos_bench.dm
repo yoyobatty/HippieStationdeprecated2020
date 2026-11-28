@@ -641,6 +641,7 @@ GLOBAL_VAR(atmos_bench_updaters)
 	var/pack_ms = SSair.tile_engine_pack_ms
 	var/native_ms = SSair.tile_engine_native_ms
 	var/apply_ms = SSair.tile_engine_apply_ms
+	var/list/apply_parts = SSair.tile_engine_apply_parts.Copy()
 	var/total_packed = SSair.tile_engine_total_packed
 	var/total_rounds = SSair.tile_engine_total_rounds
 	var/total_changed = SSair.tile_engine_total_changed
@@ -678,6 +679,12 @@ GLOBAL_VAR(atmos_bench_updaters)
 		. += "  the tile engine is off: [watched] idle machines still watched by it, [length(SSair.tile_engine_machine_events)] values of watch events waiting for it"
 	if(SSair.tile_engine && fires)
 		. += "  tile engine, ms per SSair fire: packing [round((SSair.tile_engine_pack_ms - pack_ms) / fires, 0.01)], the engine itself [round((SSair.tile_engine_native_ms - native_ms) / fires, 0.01)], following up [round((SSair.tile_engine_apply_ms - apply_ms) / fires, 0.01)]"
+		var/list/parts = list()
+		for(var/part in SSair.tile_engine_apply_parts)
+			parts += "[part] [round((SSair.tile_engine_apply_parts[part] - (apply_parts[part] || 0)) / fires, 0.001)]"
+		. += "  tile engine follow-up by part, ms per SSair fire: [jointext(parts, ", ")]"
+		if(SSair.tile_engine_writes_check) // atmos-engine-writes=check: what the engine wrote, against what DM would have
+			. += "  tile engine writes checked (atmos-engine-writes=check), so far: [json_encode(SSair.tile_engine_writes_check)]"
 		. += "  tile engine, per SSair fire: [round((SSair.tile_engine_total_packed - total_packed) / fires, 0.1)] turfs packed, [round((SSair.tile_engine_total_turns - total_turns) / fires, 0.1)] had a turn, [round((SSair.tile_engine_total_changed - total_changed) / fires, 0.1)] changed, [round((SSair.tile_engine_total_rounds - total_rounds) / fires, 0.1)] rounds"
 		. += "  tile engine keeping air ([SSair.tile_engine_air]), per SSair fire: [round((SSair.tile_engine_air_sent_count - air_sent) / fires, 0.1)] turfs sent their air, [round((SSair.tile_engine_air_kept_count - air_kept) / fires, 0.1)] the engine had; [round((SSair.tile_engine_archives_set - archives_set) / fires, 0.1)] archives taken for heat through walls"
 		if(SSair.tile_engine_own != "off")
