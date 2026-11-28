@@ -103,6 +103,27 @@ GLOBAL_VAR_INIT(keycheck_running, FALSE)
 	probe_state(C, "in the round")
 	probe_side_bars(C, "default auto fit")
 	probe_map_growers(C, "in the round")
+
+	// The round-start splash (title.dm): in the middle with its backdrop, where the lobby's picture was
+	var/obj/screen/splash/splash = new(C, TRUE)
+	sleep(1 SECONDS)
+	probe_shot("mapfit_splash")
+	splash.Fade(TRUE)
+	sleep(4 SECONDS)
+
+	// A ghost's zoom (shift and the mouse wheel): out three notches, in past the start, back. Each view in the usual 19:15 shape,
+	// odd both ways, and the pane fitted to it
+	var/list/usual = getviewsize(CONFIG_GET(string/default_view))
+	for(var/notch in list(1, 1, 1, -1, -1, -1, -1))
+		C.rescale_view(notch, 15, 21)
+		sleep(2 SECONDS)
+		var/list/now = getviewsize(C.view)
+		var/shape_ok = (now[1] % 2) && (now[2] % 2) && abs(now[1] / now[2] - usual[1] / usual[2]) < 0.12
+		kc_log("[shape_ok ? "PASS" : "FAIL"] zoom [notch > 0 ? "out" : "in"] to [C.view] ([now[1]]x[now[2]])")
+		probe_side_bars(C, "zoomed to [C.view]")
+	probe_shot("mapfit_zoomed_[replacetext("[C.view]", "x", "_")]")
+	C.change_view(CONFIG_GET(string/default_view))
+	sleep(2 SECONDS)
 	kc_log("screen objects ([length(C.screen)]) that could move or shrink the picture:")
 	probe_screen(C)
 	kc_log("key [C.ckey], parallax pref [C.prefs.parallax], graphics [C.prefs.graphics_quality()]")
