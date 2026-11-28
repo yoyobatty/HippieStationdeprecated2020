@@ -631,7 +631,11 @@ GLOBAL_LIST_EMPTY(gusting_turfs)
 	vis_contents += wind
 
 /proc/sweep_gusts()
-	for(var/turf/open/T as anything in GLOB.gusting_turfs)
+	for(var/turf/turf as anything in GLOB.gusting_turfs)
+		if(!isopenturf(turf)) // became a wall since it gusted (a ChangeTurf keeps the turf): no gust_until to read, nothing to sweep
+			GLOB.gusting_turfs -= turf
+			continue
+		var/turf/open/T = turf
 		if(T.gust_until > world.time)
 			continue
 		T.vis_contents -= T.gust_fx

@@ -36,12 +36,12 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/controllers/subsystem/adjacent_air.dm (out of the .dme: its queue is SSair's first stage now, as on tg later)
 ## code/controllers/subsystem/air.dm (adjacent_rebuild: turfs' neighbours worked out at the start of each fire, was SSadjacent_air once a second; setup_template_machinery() runs atmosinit() before the pipelines; fire() starts with tile_engine_fire_start(): a world that grew restarts the engine, and a paused follow-up carries on)
 ## code/controllers/subsystem/assets.dm
-## code/controllers/subsystem/atoms.dm (startup skips the levels the lobby build makes)
+## code/controllers/subsystem/atoms.dm (startup skips the levels the lobby build makes; objects with an explosion_block are counted on their turf after Initialize, explosions_block.dm)
 ## code/controllers/subsystem/blackbox.dm
 ## code/controllers/subsystem/dbcore.dm (out of the .dme: rewritten whole as hippiestation/code/controllers/subsystem/dbcore.dm, rust_g instead of BSQL)
 ## code/controllers/subsystem/discord.dm
 ## code/controllers/subsystem/explosions.dm (shaped explosions through hippiestation/code/controllers/subsystem/explosions_shape.dm; Check Bomb Impact; spread over ticks; blame; realistic blasts through hippiestation/code/modules/explosion_realism/: air, sealed rooms, glass past the damage, sounds, fragments; the shape cache key counts hits, so a chained blast in the same tick sees the walls already broken)
-## code/controllers/subsystem/garbage.dm (at startup Queue() keeps refs as two numbers, not kept-alive ref strings; SSdemo marks only while it records, DEMO_ON)
+## code/controllers/subsystem/garbage.dm (at startup Queue() keeps refs as two numbers, not kept-alive ref strings; SSdemo marks only while it records, DEMO_ON; and all round now: kept ref strings with rising ids made BYOND rebuild its string table every ~982 qdels, 120 ms each)
 ## code/controllers/subsystem/icon_smooth.dm (Initialize() clears SMOOTH_QUEUED on atoms it skips for having no z)
 ## code/controllers/subsystem/input.dm
 ## code/controllers/subsystem/job.dm
@@ -57,7 +57,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/datums/components/chasm.dm (is_safe() by locate(), no copy of the tile's contents)
 ## code/datums/components/crafting/crafting.dm (a result CheckParts() swapped for another item hands over that item, not the deleted one: explosive lance, Pin Removal)
 ## code/datums/components/material_container.dm
-## code/datums/components/squeak.dm (a pile of squeaky things squeaks once for each thing that comes onto it)
+## code/datums/components/squeak.dm (a pile of squeaky things squeaks once for each thing that comes onto it; the pile's remembered movers are kept by REF(), so a crossed squeaky toy holds nothing that gets deleted)
 ## code/datums/datumvars.dm
 ## code/datums/diseases/\_MobProcs.dm
 ## code/datums/elements/atmos_sensitive.dm
@@ -155,8 +155,8 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/game/objects/structures/windoor_assembly.dm (user, not usr: null when a bot does it)
 ## code/game/objects/structures/window.dm
 ## code/game/sound.dm (playsound_local() dulls everything while a blast has the ears ringing, explosion_realism/blast_senses.dm)
-## code/game/turfs/change_turf.dm (a level the lobby build is making gets its lighting at the end)
-## code/game/turfs/closed/minerals.dm (user, not usr: null when a bot does it)
+## code/game/turfs/change_turf.dm (a level the lobby build is making gets its lighting at the end; the explosion block counts carry over to the new turf, explosions_block.dm)
+## code/game/turfs/closed/minerals.dm (user, not usr: null when a bot does it; an ore seam spreads from one list in its first turf instead of recursing through ChangeTurf(), which could pass BYOND's recursion limit and end the lobby build's atom init)
 ## code/game/turfs/closed/wall/reinf_walls.dm (singularity_pull stops if the wall pull already dismantled it)
 ## code/game/turfs/open.dm
 ## code/game/turfs/open/lava.dm (is_safe() by locate(), no copy of the tile's contents)
@@ -245,7 +245,7 @@ The best practice to have while coding is to keep everything modularized, or the
 ## code/modules/library/lib_items.dm (user, not usr: null when a bot does it)
 ## code/modules/library/lib_machines.dm
 ## code/modules/library/random_books.dm
-## code/modules/lighting/lighting_object.dm (next to its turf, update_starlight() only when the space isn't lit yet; lighting v2: an opaque turf is drawn as one face in its brightest corner's colour, draw())
+## code/modules/lighting/lighting_object.dm (next to its turf, update_starlight() only when the space isn't lit yet; lighting v2: an opaque turf is drawn as one face in its brightest corner's colour, draw(); draw() leaves luminosity alone when it is the same, and the native engine draws only objects that would look different, lighting_engine.dm native_draw())
 ## code/modules/lighting/lighting_corner.dm (the tone curve in update_objects(): light past the knee eases toward full instead of being cut off at 1, see ~hippie_defines/lighting_tone.dm)
 ## code/modules/lighting/lighting_source.dm (lighting v2: falloff_at_coord() takes light_v2_falloff() for lamps, and v2 sheets have keys of their own, see lighting_v2_lamps.dm; a failed native remove or relight fails over to DM; update_corners(): a queued check with what the light sees changed looks again, so a door opening by it lets its light through)
 ## code/modules/lighting/lighting_turf.dm (native lighting: lighting_build_overlay() hands the corners to the engine, and a failed recalc fails over to DM, lighting_engine.dm)
